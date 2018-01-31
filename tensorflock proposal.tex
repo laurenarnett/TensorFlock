@@ -5,70 +5,134 @@
 \date{February 2, 2018}
 
 \documentclass[12pt]{article}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amsfonts}
 
 \begin{document}
 \maketitle
 
 \section{Introduction}
-Introduction!
+TensorFlock is an attempt to marry numerical and functional programming.
+% The following two paragraphs are perhaps not necessary for the proposal, and
+% could possibly be deleted. 
+To date, numerical programming has been dominated by DSLs like Matlab and
+Julia, or libraries written in other dynamically typed, procedural languages,
+like Python's numpy. Despite the obvious connection between numerical
+programming and actual mathematical functions, efforts to do linear algebra in
+purely functional languages tend to go awry. Haskell's hmatrix library, for
+example, exports five separate operators: $<.>, \#>, <\#, !\#>, \text{ and} <>$, for
+matrix and vector operations. Good luck figuring out what they do without
+looking them up in documentation.
 
+The main reason that Haskell defines such an awkward interface for numerical
+programming is its type system. Strong, static types do not allow for easy
+operator definitions between arbitrary objects. This is not a problem with
+dynamically typed languages, but the tradeoff comes in the form of runtime
+errors, some of which can occur several hours, or even days, into
+a computation, forcing the whole program to be restarted. 
+%%%%%%%%
 
-\section{Syntax}
+The primary unit of computation, is unsurprisingly a Tensor\footnote{For the
+mathematically inclined, the technical definition of a tensor is, unhelpfully,
+``something that transforms like a tensor.'' This language takes the simpler
+treatment of a map from indices to scalars and avoids dealing with the concepts
+of contravariance or covariance found in General Relativity, or other fields
+that make heavy use of tensors.}. 
+For the purposes
+of this language, a Tensor can be thought of as an object with rank $r$ that
+maps an r-tuple of natural numbers to a real, or complex number. Rank 1 tensors
+correspond to vectors and rank 2 tensors correspond to matrices. Using this
+concept of rank, we can have arbitrary higher dimensional tensors of any rank,
+or even rank 0 tensors, which are simply scalars.
 
-\paragraph{Types}
-
-\begin{center}
-\begin{tabular}{ c | c } 
-
-  type name & description \\
- \hline
- int 		& 		cell2 \\ 
- double	& 		cell5 \\ 
- bool		& 		cell8 \\
- etc		&		etc \\
-  
-\end{tabular}
-\end{center}
-
-\paragraph{Arithmetic Operators}
-\begin{center}
-\begin{tabular}{ c | c } 
-
-  operator & description \\
- \hline
- + 		& 		scalar and matrix multiplication \\ 
- -		& 		scalar and matrix subtraction \\ 
- \**	& 		scalar and matrix multiplication \\
- / 		& 		scalar division \\ 
- \%	& 		scalar mod \\ 
- etc	&		etc \\
- 
-\end{tabular}
-\end{center}
-
-\paragraph{Relational Operators}
-\begin{center}
-\begin{tabular}{ c | c } 
-
-  operator & description \\
- \hline
- $>$ 		& 		greater than \\ 
- $<$		&		less than \\
- $>=$	& 		greater than or equal to \\ 
- $<=$	& 		less than or equal to \\
- ==		& 		equal to \\ 
- !=			& 		not equal to \\
- 
-\end{tabular}
-\end{center}
-
-\paragraph{Functions?}
-\textsl{•}
-
-\section{Sample Code}
-blah
-
-\bibliographystyle{abbrv}
-\bibliography{main}
+\section{Features}
+\subsection{Einstein Summation Convention}
+We make use of the Einstein summation convention to allow us to concisely
+express all linear algebra operations with extreme concision. The convention
+is to sum over all repeating indices in a single term of an expression. For
+example, to express the squared norm of a vector $x \in \mathbb{R}^n$ using
+this convention, one would write \[ |\mathbf{x} |^2 = \sum_{i=1}^{n} x_i^2
+= x_i x_i\] Matrix products are \[\mathbf{Ax} = A_{ij}x_{j}\] and the dot
+product is \[\mathbf{v} \cdot \mathbf{u} = v_i u_i\]
+\subsection{Arbitrary Component Selection}
+When doing tensor operations, we benefit from the ability to refer to both a single component 
+of a tensor and the entire entity simultaneously. $T_{ijk}$, for example, refers to the i'th row, j'th column,  and k'th ``depth index\footnote{No one seems to agree on what to call this dimension https://www.gamedev.net/forums/topic/581995-silly-terminology-musing-a-3d-grid-has-rows-columns-and-/}'' of a rank three tensor, but since i, j, and k are left unspecified, $T_{ijk}$ is functionally equivalent to the entire object. This allows us to define something akin to numpy's arange(int n), which returns an array of ints from $[0,n)$, simply as \[A_i = i\] If we want the numbers to be [1,n], then we simply have 
+\[A_i = i+1\]
+(Evidently, tensors in Tensorflock are 0-based)
+\subsection{Dependent Types}
+Usually, when we program with tensors, their size and shape are not known at compile time, but can only be determined at runtime. This leads to shape mismatches and out of bounds indexing that can crash a program, or even worse, not crash the program and simply read from uninitialized locations in memory. The only feasible way to catch such errors at compile time is to treat the types of tensors as first class values, and have the compiler warn us that we cannot, for example, have a dot product of two rank 1 tensors whose shapes are $n$ and $m$, respectively, as the operation is not well defined unless $m=n$, which is not true in general. 
+\section{Syntax and Features}
+TensorFlock's syntax is extremely similar to Idris', which is in turn closely related to Haskell's. 
+\subsection{Functions}
+Top level functions must have their type specified with a colon (:).
+\begin{lstlisting}[language=Haskell]
+max : Int -> Int -> Int
+max x y = if x > y then x else y
+\end{lstlisting}
+TensorFlock also steals Agda's ``mixfix'' syntax to specify operators. The if-then-else construct, for example, can be defined
+\begin{lstlisting}[language=Haskell]
+if_then_else : Bool -> a -> a
+if_then_else True expr1 _  = expr1
+if_then_else False _ expr2 = expr2
+\end{lstlisting}
+Now, we can use if\_then\_else as we would expect to use it in Haskell, 
+\begin{lstlisting}
+if cond then expr1 else expr2
+\end{lstlisting}
+Arguments to ``mixfix'' functions can be given to the function after the name of the function, or in place of the underscores. The above example also illustrates the pattern matching and underscore wildcard features of the language. 
+\subsection{Datatypes}
+The only primitive types in TensorFlock are Ints, Doubles, Strings, and Tensors. The decision to make Tensors primitives is somewhat strange, as they are complex entities that also contain rank and shape information. However, it is also important to the efficiency of our applications that Tensors be laid out contiguously in memory, and TensorFlock does not provide any way for a programmer to manage memory. 
+Every other type can be defined by the user, or in the standard library. The syntax for such type definitions is similar to Haskell's Generalized Algebraic DataTypes (GADTs) or Agda's data declarations. Booleans, for example, can be defined like so:
+\begin{lstlisting}[language=Haskell]
+data Bool : Type where
+     False: Bool
+     True : Bool
+\end{lstlisting}
+This declares a Boolean which has the type of Type (which is a necessary construct in a dependently typed language) with two constructors, False, and True. For a more interesting datatype, we can define the natural numbers:
+\begin{lstlisting}[language=Haskell]
+data Nat : Type where
+    Zero : Nat
+    Succ : Nat -> Nat
+\end{lstlisting}
+ a homogeneous list of polymorphic type List a:
+\begin{lstlisting}[language=Haskell]
+data List :  Type -> Type where
+    Nil : List a    
+    _::_ : a -> List a -> List a
+\end{lstlisting}
+as well as the vector type, which in this context simply means ``List of fixed length:''
+\begin{lstlisting}[language=Haskell]
+data Vect : Nat -> Type -> Type where
+    Nil : Vect Zero a
+    _::_ : a -> Vect k a -> Vect (Succ k) a
+\end{lstlisting}
+These definitions showcase a very interesting feature of the language where pattern matching can occur even in types, as demonstrated by applying the Successor function to the type variable ``k'' in the (::) constructor of a vector. Note that we also intend to support overloading, as demonstrated here in the case of (::) working as the Cons function for both lists and vectors. 
+\subsection{Class}
+How we actually go about supporting overloading is an interesting question. Idris simply allows for ad hoc overloading, whereas Haskell requires that the operators be defined in a ``class,'' which loosely corresponds with the more familiar Interface from Java. It remains to be seen, then, if we implement overloading by creating the construct 
+\begin{lstlisting}
+class Consable (t : Type -> Type) where
+	_::_ : a -> t a -> t a
+\end{lstlisting}
+\subsection{Syntactic Sugar}
+In order to avoid having to write out lists as 
+\begin{lstlisting}[language=Haskell]
+myList : List Int
+myList = 1 :: 2 :: 3 :: Nil
+\end{lstlisting}
+we provide the syntax 
+\begin{lstlisting}[language=Haskell]
+myList : List Int
+myList = [1,2,3]
+\end{lstlisting}
+In addition, tensor selection will have the syntax
+\begin{lstlisting}[language=Haskell]
+-- The two dashes represent comments in TensorFlock
+-- This is how we would define the equivalent of numpy's arange(10)
+myTensor : Tensor Int Shape [10]
+myTensor<i> = i 
+\end{lstlisting}
+\section{Sample code}
+We present the building blocks of a linear algebra library using our tensors.
 
 \end{document}

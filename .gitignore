@@ -1,0 +1,7 @@
+# Latex auxiliary files
+*.aux
+*.log
+*.fls
+*.dvi
+*latexmk
+*.synctex.gz
