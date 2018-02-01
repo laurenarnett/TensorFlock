@@ -82,7 +82,7 @@ if cond then expr1 else expr2
 \end{lstlisting}
 Arguments to ``mixfix'' functions can be given to the function after the name of the function, or in place of the underscores. The above example also illustrates the pattern matching and underscore wildcard features of the language. 
 \subsection{Datatypes}
-The only primitive types in TensorFlock are Ints, Doubles, Strings, and Tensors. The decision to make Tensors primitives is somewhat strange, as they are complex entities that also contain rank and shape information. However, it is also important to the efficiency of our applications that Tensors be laid out contiguously in memory, and TensorFlock does not provide any way for a programmer to manage memory. 
+The only primitive types in TensorFlock are Ints, Doubles, Chars, Strings, and Tensors. The decision to make Tensors primitives is somewhat strange, as they are complex entities that also contain rank and shape information. However, it is also important to the efficiency of our applications that Tensors be laid out contiguously in memory, and TensorFlock does not provide any way for a programmer to manage memory. 
 Every other type can be defined by the user, or in the standard library. The syntax for such type definitions is similar to Haskell's Generalized Algebraic DataTypes (GADTs) or Agda's data declarations. Booleans, for example, can be defined like so:
 \begin{lstlisting}[language=Haskell]
 data Bool : Type where
@@ -108,7 +108,7 @@ data Vect : Nat -> Type -> Type where
     _::_ : a -> Vect k a -> Vect (Succ k) a
 \end{lstlisting}
 These definitions showcase a very interesting feature of the language where pattern matching can occur even in types, as demonstrated by applying the Successor function to the type variable ``k'' in the (::) constructor of a vector. Note that we also intend to support overloading, as demonstrated here in the case of (::) working as the Cons function for both lists and vectors. 
-\subsection{Class}
+\subsection{Classes}
 How we actually go about supporting overloading is an interesting question. Idris simply allows for ad hoc overloading, whereas Haskell requires that the operators be defined in a ``class,'' which loosely corresponds with the more familiar Interface from Java. It remains to be seen, then, if we implement overloading by creating the construct 
 \begin{lstlisting}
 class Consable (t : Type -> Type) where
