@@ -8,7 +8,7 @@
 \usepackage{listings}
 \usepackage{amsmath}
 \usepackage{amsfonts}
-
+\usepackage[letterpaper, portrait, margin=1in]{geometry}
 \begin{document}
 \maketitle
 
@@ -77,7 +77,6 @@ Usually, when we program with tensors, their size and shape are not known at com
 TensorFlock's syntax is extremely similar to Idris', which is in turn closely related to Haskell's.
 % I reorderd these in what I think is a more logical way
 \subsection{Primatives}
-TODO
 \subsection{Datatypes}
 The only primitive types in TensorFlock are Ints, Doubles, Chars, Strings, and Tensors. The decision to make Tensors primitives is somewhat strange, as they are complex entities that also contain rank and shape information. However, it is also important to the efficiency of our applications that Tensors be laid out contiguously in memory, and TensorFlock does not provide any way for a programmer to manage memory. 
 Every other type can be defined by the user, or in the standard library. The syntax for such type definitions is similar to Haskell's Generalized Algebraic DataTypes (GADTs) or Agda's data declarations. Booleans, for example, can be defined like so:
@@ -106,7 +105,7 @@ data Vect : Nat -> Type -> Type where
 \end{lstlisting}
 These definitions showcase a very interesting feature of the language where pattern matching can occur even in types, as demonstrated by applying the Successor function to the type variable ``k'' in the (::) constructor of a vector. Note that we also intend to support overloading, as demonstrated here in the case of (::) working as the Cons function for both lists and vectors.
 \subsection{Functions}
-Top level functions are declared in one line, and defined in the next, as in Haskell. Their type is specified with a colon (:).
+Top level functions must have their type specified with a colon (:).
 \begin{lstlisting}[language=Haskell]
 max : Int -> Int -> Int
 max x y = if x > y then x else y
@@ -122,6 +121,13 @@ Now, we can use if\_then\_else as we would expect to use it in Haskell,
 if cond then expr1 else expr2
 \end{lstlisting}
 Arguments to ``mixfix'' functions can be given to the function after the name of the function, or in place of the underscores. The above example also illustrates the pattern matching and underscore wildcard features of the language. 
+
+TensorFlock also features let bindings, which are useful for naming intermediate computations performed in a function. For example:
+\begin{lstlisting}
+gcd : Int -> Int -> Int
+gcd x 0 = x
+gcd x y = let x' = x % y in gcd y x'
+\end{lstlisting}
 \subsection{Classes}
 How we actually go about supporting overloading is an interesting question. Idris simply allows for ad hoc overloading, whereas Haskell requires that the operators be defined in a ``class,'' which loosely corresponds with the more familiar Interface from Java. It remains to be seen, then, if we implement overloading by creating the construct 
 \begin{lstlisting}
@@ -139,14 +145,39 @@ we provide the syntax
 myList : List Int
 myList = [1,2,3]
 \end{lstlisting}
-In addition, tensor selection will have the syntax
-\begin{lstlisting}[language=Haskell]
--- The two dashes represent comments in TensorFlock
--- This is how we would define the equivalent of numpy's arange(10)
-myTensor : Tensor Int Shape [10]
-myTensor<i> = i 
+In order for tensor selection to be fully type safe, the general type of a tensor has to be
+\begin{lstlisting}
+data Tensor : (Num a) => a -> (rank : Nat) -> 
+	      (Vect rank (Nat -> Type)) -> Type
 \end{lstlisting}
+This complicated object a fully generalized tensor, parameterized over the numerical type of the contents, the rank, and the shape. The second line of this definition constrains the shape, which is a list of length ``rank,'' holding functions that map from the naturals to the type of finite sets, defined as 
+\begin{lstlisting}[language=Haskell]
+data Fin : Nat -> Type where
+     FZ : Fin (S k)
+     FS : Fin k -> Fin (S k)
+\end{lstlisting}
+The type \lstinline{Fin n}
+captures the types of all natural numbers in the range $[0,n)$, and is perfect for building a type safe tensor indexing function, as trying to access an out of bounds index is a type error, and the program that tries to perform this operation won't compile. The reason that the tensor type holds a vector of \textit{functions} from Nats to Types as opposed to concrete types is that tensor dimensions do not need to be homogeneous, and each dimension of the tensor can have the type of a different member of the finite set family. 
+
+Obviously, writing out this tensor type in all of its gory detail every time one wants to use a tensor is undesirable, especially in a language constructed specifically to manipulate these objects. Thus, we provide the much more convenient syntax 
+\begin{lstlisting}
+myTensor : Tensor Int <n>
+\end{lstlisting}
+to denote the 1-rank tensor of size n. To declare a tensor of arbitrary rank, yet still be able to pattern match on its shape, we provide
+\begin{lstlisting}
+generalTensor : (Num a) => Tensor a {r = S k} <d_1..d_r>
+\end{lstlisting}
+The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = S k}\} term constrains the rank of the tensor to be at least 1, since 
+\lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape.
 \section{Sample code}
 We present the building blocks of a linear algebra library using our tensors.
+\begin{lstlisting}[language=Haskell]
+product : Vect {r = S k} <d_1..d_r> -> Nat
+product <d_1..d_r> =  
+	-- foldl1 is like foldl, but takes no starting argument, 
+	-- and therefore requires a non-empty list
+	let dims = map (\ Fin x -> x) <d_1..d_r> 
+	in foldl1 (*) dims
+\end{lstlisting}
 
 \end{document}
