@@ -153,8 +153,8 @@ data Tensor : (Num a) => a -> (rank : Nat) ->
 This complicated object a fully generalized tensor, parameterized over the numerical type of the contents, the rank, and the shape. The second line of this definition constrains the shape, which is a list of length ``rank,'' holding functions that map from the naturals to the type of finite sets, defined as 
 \begin{lstlisting}[language=Haskell]
 data Fin : Nat -> Type where
-     FZ : Fin (S k)
-     FS : Fin k -> Fin (S k)
+     FZ : Fin (Succ k)
+     FS : Fin k -> Fin (Succ k)
 \end{lstlisting}
 The type \lstinline{Fin n}
 captures the types of all natural numbers in the range $[0,n)$, and is perfect for building a type safe tensor indexing function, as trying to access an out of bounds index is a type error, and the program that tries to perform this operation won't compile. The reason that the tensor type holds a vector of \textit{functions} from Nats to Types as opposed to concrete types is that tensor dimensions do not need to be homogeneous, and each dimension of the tensor can have the type of a different member of the finite set family. 
@@ -165,19 +165,49 @@ myTensor : Tensor Int <n>
 \end{lstlisting}
 to denote the 1-rank tensor of size n. To declare a tensor of arbitrary rank, yet still be able to pattern match on its shape, we provide
 \begin{lstlisting}
-generalTensor : (Num a) => Tensor a {r = S k} <d_1..d_r>
+generalTensor : (Num a) => Tensor a {r = Succ k} <d_1..d_r>
 \end{lstlisting}
-The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = S k}\} term constrains the rank of the tensor to be at least 1, since 
+The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = Succ k}\} term constrains the rank of the tensor to be at least 1, since 
 \lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape.
 \section{Sample code}
 We present the building blocks of a linear algebra library using our tensors.
+
+\subsection{Utility Functions}
 \begin{lstlisting}[language=Haskell]
-product : Vect {r = S k} <d_1..d_r> -> Nat
+class Functor (f : Type -> Type) where
+    map : (m : a -> b) -> f a -> f b
+
+instance Functor List where
+	map f [] = []
+	map f (x :: xs) = f x :: map f xs
+	
+instance Functor (Vect n) where
+	map f Nil = Nil
+	map f (x :: xs) = f x :: map f xs
+
+replicate : Nat -> [a] -> [[a]]
+replicate Zero _ = []
+replicate (Succ k) lst = lst :: (replicate k lst)
+
+-- (n - k) is of Type Nat, which guarantees that n >= k
+drop : (k : Nat) -> Vect n a -> Vect (n - k) a
+drop Zero v = v
+drop (Succ k) (x :: xs) = drop k xs
+
+
+-- foldl1 is similar to fold_left, but takes no starting argument, 
+-- and therefore requires a non-empty list
+foldl1 : (a -> a -> a) -> Vect {r = Succ k} a -> a
+foldl1 f (x :: Nil) = x
+foldl1 f (x :: xs) = f x  (foldl1 f xs)
+
+product : Vect {r = Succ k} <d_1..d_r> -> Nat
 product <d_1..d_r> =  
-	-- foldl1 is like foldl, but takes no starting argument, 
-	-- and therefore requires a non-empty list
+	-- unwrap the dimensions from their Fin constructors
 	let dims = map (\ Fin x -> x) <d_1..d_r> 
 	in foldl1 (*) dims
+
+
 \end{lstlisting}
 
 \end{document}
