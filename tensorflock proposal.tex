@@ -214,8 +214,9 @@ foldl1 : (a -> a -> a) -> Vect {r = Succ k} a -> a
 foldl1 f (x :: Nil) = x
 foldl1 f (x :: xs) = f x  (foldl1 f xs)
 
--- This tails function does not behave exactly like the one in Haskell's Data.List.
--- In fact, it is only useful as a building block in the flattening function.
+-- This tails function does not behave exactly like the one in 
+-- Haskell's Data.List. In fact, it is only useful as a building 
+-- block in the flattening function.
 tails : Vect {r = Succ (Succ k)} a -> Vect (Succ k) [a]
 tails vec = zipWith drop [1..(r-1)] (replicate (r-1) vec)
 
@@ -228,8 +229,8 @@ product <d_1..d_r> =
 \pagebreak
 \begin{lstlisting}[language=Haskell]
 -- Now, we can flatten a tensor. 
--- What we would like to do, is given a tensor T<d_1..d_r>,
--- return T'<i> = T< i// prod [d_2..d_r], i// prod[d3..d_r], .., i//d_r, i % d_r>
+-- What we would like to do, is given a tensor T<d_1..d_r>, return 
+-- T'<i> = T< i// prod [d_2..d_r], i// prod[d3..d_r], .., i//d_r, i % d_r>
 -- where // denotes integer division and % is the modulo operator
 flatten : (Num a) => Tensor a {r = Succ (Succ k)} <d_1..d_r> 
 	-> Tensor a 1 (product <d_1..d_r>)
@@ -238,7 +239,6 @@ flatten T<d_1..d_r> =
 	let indices = map (i //) (sizes) ++ [i % d_r] in
 	let T'<i> = T<indices> in
 	T'<i>
-
 \end{lstlisting}
 
 \end{document}
