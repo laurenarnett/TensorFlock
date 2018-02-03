@@ -168,12 +168,19 @@ to denote the 1-rank tensor of size n. To declare a tensor of arbitrary rank, ye
 generalTensor : (Num a) => Tensor a {r = Succ k} <d_1..d_r>
 \end{lstlisting}
 The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = Succ k}\} term constrains the rank of the tensor to be at least 1, since 
-\lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape.
+\lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape. We additionally use the ``..'' sugar to create list ranges, such as 
+\begin{lstlisting}
+[1..5] == [1,2,3,4,5]
+\end{lstlisting}
+
 \section{Sample code}
 We present the building blocks of a linear algebra library using our tensors.
 
 \subsection{Utility Functions}
 \begin{lstlisting}[language=Haskell]
+
+-- The functor class defines things that can be mapped over
+-- i.e. map (*2) [1,2,3] == [2,4,6]
 class Functor (f : Type -> Type) where
     map : (m : a -> b) -> f a -> f b
 
@@ -185,6 +192,11 @@ instance Functor (Vect n) where
 	map f Nil = Nil
 	map f (x :: xs) = f x :: map f xs
 
+-- list concatenation
+_++_ : [a] -> [a] -> [a]
+[] ++ ys = ys
+(x :: xs) ++ ys = x :: (xs ++ ys)
+
 replicate : Nat -> [a] -> [[a]]
 replicate Zero _ = []
 replicate (Succ k) lst = lst :: (replicate k lst)
@@ -194,19 +206,38 @@ drop : (k : Nat) -> Vect n a -> Vect (n - k) a
 drop Zero v = v
 drop (Succ k) (x :: xs) = drop k xs
 
+zipWith : (a -> b -> c) -> Vec n a -> Vec n b  -> Vec n c
+zipWith f Nil Nil = Nil
+zipWith f (x :: xs) (y :: ys) = (f x y) :: (zipWith f xs ys)
 
--- foldl1 is similar to fold_left, but takes no starting argument, 
--- and therefore requires a non-empty list
 foldl1 : (a -> a -> a) -> Vect {r = Succ k} a -> a
 foldl1 f (x :: Nil) = x
 foldl1 f (x :: xs) = f x  (foldl1 f xs)
+
+-- This tails function does not behave exactly like the one in Haskell's Data.List.
+-- In fact, it is only useful as a building block in the flattening function.
+tails : Vect {r = Succ (Succ k)} a -> Vect (Succ k) [a]
+tails vec = zipWith drop [1..(r-1)] (replicate (r-1) vec)
 
 product : Vect {r = Succ k} <d_1..d_r> -> Nat
 product <d_1..d_r> =  
 	-- unwrap the dimensions from their Fin constructors
 	let dims = map (\ Fin x -> x) <d_1..d_r> 
 	in foldl1 (*) dims
-
+\end{lstlisting}
+\pagebreak
+\begin{lstlisting}[language=Haskell]
+-- Now, we can flatten a tensor. 
+-- What we would like to do, is given a tensor T<d_1..d_r>,
+-- return T'<i> = T< i// prod [d_2..d_r], i// prod[d3..d_r], .., i//d_r, i % d_r>
+-- where // denotes integer division and % is the modulo operator
+flatten : (Num a) => Tensor a {r = Succ (Succ k)} <d_1..d_r> 
+	-> Tensor a 1 (product <d_1..d_r>)
+flatten T<d_1..d_r> = 
+	let sizes = map product (tails <d_1..d_r>) in
+	let indices = map (i //) (sizes) ++ [i % d_r] in
+	let T'<i> = T<indices> in
+	T'<i>
 
 \end{lstlisting}
 
