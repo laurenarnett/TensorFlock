@@ -187,43 +187,37 @@ myTensor<i> = i
 \section{Sample code}
 We present the building blocks of a linear algebra library using our tensors.
 \subsection{Perceptron}
+As our language asserts correct tensor shapes for linear algebra operations with dependent types, it is ideal for implementing machine learning algorithms. The perceptron algorithm, which learns weights for features to create a hyperplane decision boundary classifier, is implemented below.
 \begin{lstlisting}[language=Haskell]
-labels : Tensor Int <n>
-corpus : Tensor Double <n,m>
-w : Tensor Double <m>
-	perceptron : Tensor Double 2<n,m> -> 
-		Tensor Int 1 <m> -> 
-		Tensor Double 1 <m> ->
-		Tensor Double 1 <m>
-	perceptron corpus labels w =
-		let predictedLabels<i> = 
-			corpus<i,j>*w<j> in
-		let signs<i> = 
-			if predictedLabels<i> >= 0
-			then 1
-			else -1 in
-		let x = diff signs labels in
-		if x = = Nothing
-		then w
-		else
-		let Just mistakeIndex = x in
-		let updateSign = labels<mistakeIndex> in 
-		perceptron corpus labels 
-			(corpus<mistakeIndex,j>+updateSign*w<j>)
-		where
-			diff : Tensor Double 1 <n> -> 
-				Tensor Double 1 <n> -> 
-				Maybe (Fin n)
-			diff T1 T2 = helper T1 T2 [0..n-1]
-			helper : Tensor Double 1 <n> -> 
-				Tensor Double 1 <n> -> 
-				[Fin n] -> 
-				Maybe (Fin n)
-			helper T1 T2 [] = Nothing
-			helper T1 T2 (i :: is) = 
-				if T1<i> /= T2 <i>
-				then Just i
-				else helper T1 T2 is
+helper : Tensor Double 1 <n> -> 
+         Tensor Double 1 <n> -> 
+         [Fin n] -> 
+         Maybe (Fin n)
+helper T1 T2 [] = Nothing
+helper T1 T2 (i :: is) = 
+       if T1<i> /= T2 <i>
+       then Just i
+       else helper T1 T2 is
+
+diff : Tensor Double 1 <n> -> Tensor Double 1 <n> -> Maybe (Fin n)
+diff T1 T2 = helper T1 T2 [0..n-1]
+
+perceptron : Tensor Double 2 <n,m> -> 
+        Tensor Int 1 <m> -> 
+        Tensor Double 1 <m> ->
+        Tensor Double 1 <m>
+perceptron corpus labels w =
+        let predictedLabels<i> = corpus<i,j> * w<j> in
+        let signs<i> = 
+                if predictedLabels<i> >= 0
+                then 1
+                else -1 in
+        let x = diff signs labels in
+        if x == Nothing then w
+        else let Just mistakeIndex = x in
+        let updateSign = labels<mistakeIndex> in 
+        perceptron corpus labels 
+                (corpus<mistakeIndex,j> + updateSign * w<j>)
 \end{lstlisting}
 
 \subsection{Utility Functions}
