@@ -89,7 +89,7 @@ This declares a Boolean which has the type of Type (which is a necessary constru
 \begin{lstlisting}[language=Haskell]
 data Nat : Type where
     Zero : Nat
-    Succ : Nat -> Nat
+    S : Nat -> Nat
 \end{lstlisting}
  a homogeneous list of polymorphic type List a:
 \begin{lstlisting}[language=Haskell]
@@ -101,7 +101,7 @@ as well as the vector type, which in this context simply means ``List of fixed l
 \begin{lstlisting}[language=Haskell]
 data Vect : Nat -> Type -> Type where
     Nil : Vect Zero a
-    _::_ : a -> Vect k a -> Vect (Succ k) a
+    _::_ : a -> Vect k a -> Vect (S k) a
 \end{lstlisting}
 These definitions showcase a very interesting feature of the language where pattern matching can occur even in types, as demonstrated by applying the Successor function to the type variable ``k'' in the (::) constructor of a vector. Note that we also intend to support overloading, as demonstrated here in the case of (::) working as the Cons function for both lists and vectors.
 \subsection{Functions}
@@ -153,8 +153,8 @@ data Tensor : (Num a) => a -> (rank : Nat) ->
 This complicated object a fully generalized tensor, parameterized over the numerical type of the contents, the rank, and the shape. The second line of this definition constrains the shape, which is a list of length ``rank,'' holding functions that map from the naturals to the type of finite sets, defined as 
 \begin{lstlisting}[language=Haskell]
 data Fin : Nat -> Type where
-     FZ : Fin (Succ k)
-     FS : Fin k -> Fin (Succ k)
+     FZ : Fin (S k)
+     FS : Fin k -> Fin (S k)
 \end{lstlisting}
 The type \lstinline{Fin n}
 captures the types of all natural numbers in the range $[0,n)$, and is perfect for building a type safe tensor indexing function, as trying to access an out of bounds index is a type error, and the program that tries to perform this operation won't compile. The reason that the tensor type holds a vector of \textit{functions} from Nats to Types as opposed to concrete types is that tensor dimensions do not need to be homogeneous, and each dimension of the tensor can have the type of a different member of the finite set family. 
@@ -165,17 +165,15 @@ myTensor : Tensor Int <n>
 \end{lstlisting}
 to denote the 1-rank tensor of size n. To declare a tensor of arbitrary rank, yet still be able to pattern match on its shape, we provide
 \begin{lstlisting}
-generalTensor : (Num a) => Tensor a {r = Succ k} <d_1..d_r>
+generalTensor : (Num a) => Tensor a {r = S k} <d_1..d_r>
 \end{lstlisting}
-The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = Succ k}\} term constrains the rank of the tensor to be at least 1, since 
+The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = S k}\} term constrains the rank of the tensor to be at least 1, since 
 \lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape. We additionally use the ``..'' sugar to create list ranges, such as 
 \begin{lstlisting}
 [1..5] == [1,2,3,4,5]
 \end{lstlisting}
 
 \section{Sample code}
-We present the building blocks of a linear algebra library using our tensors.
-
 \subsection{Utility Functions}
 \begin{lstlisting}[language=Haskell]
 
@@ -199,28 +197,28 @@ _++_ : [a] -> [a] -> [a]
 
 replicate : Nat -> [a] -> [[a]]
 replicate Zero _ = []
-replicate (Succ k) lst = lst :: (replicate k lst)
+replicate (S k) lst = lst :: (replicate k lst)
 
 -- (n - k) is of Type Nat, which guarantees that n >= k
 drop : (k : Nat) -> Vect n a -> Vect (n - k) a
 drop Zero v = v
-drop (Succ k) (x :: xs) = drop k xs
+drop (S k) (x :: xs) = drop k xs
 
 zipWith : (a -> b -> c) -> Vec n a -> Vec n b  -> Vec n c
 zipWith f Nil Nil = Nil
 zipWith f (x :: xs) (y :: ys) = (f x y) :: (zipWith f xs ys)
 
-foldl1 : (a -> a -> a) -> Vect {r = Succ k} a -> a
+foldl1 : (a -> a -> a) -> Vect {r = S k} a -> a
 foldl1 f (x :: Nil) = x
 foldl1 f (x :: xs) = f x  (foldl1 f xs)
 
 -- This tails function does not behave exactly like the one in 
 -- Haskell's Data.List. In fact, it is only useful as a building 
 -- block in the flattening function.
-tails : Vect {r = Succ (Succ k)} a -> Vect (Succ k) [a]
+tails : Vect {r = S (S k)} a -> Vect (S k) [a]
 tails vec = zipWith drop [1..(r-1)] (replicate (r-1) vec)
 
-product : Vect {r = Succ k} <d_1..d_r> -> Nat
+product : Vect {r = S k} <d_1..d_r> -> Nat
 product <d_1..d_r> =  
 	-- unwrap the dimensions from their Fin constructors
 	let dims = map (\ Fin x -> x) <d_1..d_r> 
@@ -232,7 +230,7 @@ product <d_1..d_r> =
 -- What we would like to do, is given a tensor T<d_1..d_r>, return 
 -- T'<i> = T< i// prod [d_2..d_r], i// prod[d3..d_r], .., i//d_r, i % d_r>
 -- where // denotes integer division and % is the modulo operator
-flatten : (Num a) => Tensor a {r = Succ (Succ k)} <d_1..d_r> 
+flatten : (Num a) => Tensor a {r = S (S k)} <d_1..d_r> 
 	-> Tensor a 1 (product <d_1..d_r>)
 flatten T<d_1..d_r> = 
 	let sizes = map product (tails <d_1..d_r>) in
@@ -240,5 +238,25 @@ flatten T<d_1..d_r> =
 	let T'<i> = T<indices> in
 	T'<i>
 \end{lstlisting}
-
+\subsection{Determinant}
+TensorFlock is particularly well suited to defining the determinant of a matrix. First, though, we must define the Levi-Civita symbol\footnote{The Levi-Civita symbol is technically not a tensor, in the strict mathematical sense, as it does not obey the tensor transformation rules. However, it is an object that maps indices to numbers, so for our purposes, it does just fine, and we will refer to it as a tensor going forward}.
+ The Levi-Civita tensor, usually denoted $\epsilon$, is completely anti-symmetric in its indices. The rank 3 version, for example, has the property that 
+$\epsilon_{ijk} = -\epsilon_{jik}$. In TensorFlock, it can be defined:
+\begin{lstlisting}[language=Haskell]
+leviCivita : Tensor Int 3 <3,3,3>
+leviCivita<i,j,k> = 
+	if i == j then 0 else
+	if j == k then 0 else
+	if k == i then 0 else
+	-- Assume that even and odd permutations are implemented
+	-- As they are non-trivial, we will refrain from doing so here
+	if evenPermutation <i,j,k> then 1 else
+	if oddPermutation <i,j,k> then -1
+\end{lstlisting}
+Then, the determinant of a 3 by 3 matrix is, succinctly
+\begin{lstlisting}[language=Haskell]
+determinant3 : Num a => Tensor a 2 <3,3> -> a
+determinant3 M = leviCivita<i,j,k> * M<1,i> * M<2,j> * M<3,k>
+\end{lstlisting}
+One can define the Levi-Civita symbol and determinant for a square matrix of arbitrary size using TensorFlock, and such things will be included in the final product, but the task is quite difficult in its full generality.
 \end{document}
