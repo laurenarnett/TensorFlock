@@ -115,25 +115,26 @@ express all linear algebra operations with extreme concision. The convention
 is to sum over all repeating indices in a single term of an expression. For
 example, to express the squared norm of a vector $x \in \mathbb{R}^n$ using
 this convention, one would write \[ |\mathbf{x} |^2 = \sum_{i=1}^{n} x_i^2
-= x_i x_i\] Matrix products are \[\mathbf{Ax} = A_{ij}x_{j}\] and the dot
-product is \[\mathbf{v} \cdot \mathbf{u} = v_i u_i\]
+= x_i x_i\] 
+Matrix products are \[\mathbf{Ax} = A_{ij}x_{j}\] 
+and the dot product is \[\mathbf{v} \cdot \mathbf{u} = v_i u_i\]
 \subsection{Arbitrary Component Selection}
 % Lets link this with some code samples
 When doing tensor operations, we benefit from the ability to refer to both a single component 
 of a tensor and the entire entity simultaneously. $T_{ijk}$, for example,
-refers to the i'th row, j'th column,  and k'th ``depth index\footnote{No one
+refers to the $i$th row, $j$th column,  and $k$th ``depth index\footnote{No one
 seems to agree on what to call this dimension
 https://www.gamedev.net/forums/topic/581995-silly-terminology-musing-a-3d-grid-has-rows-columns-and-/}''
-of a rank three tensor, but since i, j, and k are left unspecified, $T_{ijk}$
+of a rank three tensor, but since $i$, $j$, and $k$ are left unspecified, $T_{ijk}$
 is functionally equivalent to the entire object. This allows us to define
 something akin to NumPy's arange(int n), which returns an array of ints from $[0,n)$, simply as \[A_i = i\] If we want the numbers to be [1,n], then we simply have 
 \[A_i = i+1\]
-(Evidently, tensors in Tensorflock are 0-based)
+(Evidently, tensors in Tensorflock are 0-based).
 \section{Syntax}
 TensorFlock's syntax is extremely similar to Idris', which is in turn closely related to Haskell's.
 
 \subsection{Primatives}
-TensorFlock defines a small number of primitives: ints, doubles, char, string, and tensor. Like the languages above, they are declared and defined in two lines.
+TensorFlock defines a small number of primitives: Int, Double, Char, String, and Tensor. Like the languages above, they are declared and defined in two lines.
 \begin{lstlisting}
 x : Int
 x = 44
@@ -222,7 +223,7 @@ In order for tensor selection to be fully type safe, the general type of a tenso
 data Tensor : (Num a) => a -> (rank : Nat) -> 
 	      (Vect rank (Nat -> Type)) -> Type
 \end{lstlisting}
-This complicated object a fully generalized tensor, parameterized over the numerical type of the contents, the rank, and the shape. The second line of this definition constrains the shape, which is a list of length ``rank,'' holding functions that map from the naturals to the type of finite sets, defined as 
+This complicated object is a fully generalized tensor, parameterized over the numerical type of the contents, the rank, and the shape. The second line of this definition constrains the shape, which is a list of length ``rank,'' holding functions that map from the naturals to the type of finite sets, defined as 
 \begin{lstlisting}[language=Haskell]
 data Fin : Nat -> Type where
      FZ : Fin (S k)
