@@ -1,6 +1,10 @@
 \title{TensorFlock: A Functional Tensor-Manipulation Language}
 
-\author{Joseph Morag, Lauren Arnett, Elena Ariza, Nick Buonincontri}
+\author{Joseph Morag - Language Guru (jm4157@columbia.edu)\\
+Lauren Arnett - System Architect (lba2138@columbia.edu)\\
+Elena Ariza - Manager (esa2150@columbia.edu)\\
+Nick Buonincontri - Tester (nb2413@columbia.edu)
+}
 
 \date{February 2, 2018}
 
@@ -125,10 +129,6 @@ is functionally equivalent to the entire object. This allows us to define
 something akin to NumPy's arange(int n), which returns an array of ints from $[0,n)$, simply as \[A_i = i\] If we want the numbers to be [1,n], then we simply have 
 \[A_i = i+1\]
 (Evidently, tensors in Tensorflock are 0-based)
-\subsection{Dependent Types}
-Usually, when we program with tensors, their size and shape are not known at
-compile time, but can only be determined at runtime. This leads to shape
-mismatches and out-of-bounds indexing that can crash a program, or even worse, not crash the program and simply read from uninitialized locations in memory. The only feasible way to catch such errors at compile time is to treat the types of tensors as first class values, and have the compiler warn us that we cannot, for example, have a dot product of two rank 1 tensors whose shapes are $n$ and $m$, respectively, as the operation is not well defined unless $m=n$, which is not true in general. 
 \section{Syntax}
 TensorFlock's syntax is extremely similar to Idris', which is in turn closely related to Haskell's.
 
@@ -161,6 +161,7 @@ data Nat : Type where
     Zero : Nat
     S : Nat -> Nat
 \end{lstlisting}
+\pagebreak
  a homogeneous list of polymorphic type List a:
 \begin{lstlisting}[language=Haskell]
 data List :  Type -> Type where
@@ -238,6 +239,7 @@ to denote the 1-rank tensor of size n. To declare a tensor of arbitrary rank, ye
 \begin{lstlisting}
 generalTensor : (Num a) => Tensor a {r = S k} <d_1..d_r>
 \end{lstlisting}
+\pagebreak
 The two dots in the angle brackets are a range comprehension, defining the size of dimensions 1 through r, and the \lstinline{ {r = S k}\} term constrains the rank of the tensor to be at least 1, since 
 \lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape. We additionally use the ``..'' sugar to create list ranges, such as 
 \begin{lstlisting}
