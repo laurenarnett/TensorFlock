@@ -1,6 +1,6 @@
 \title{TensorFlock: A Functional Tensor-Manipulation Language}
 
-\author{}
+\author{Joseph Morag, Lauren Arnett, Elena Ariza, Nick Buonincontri}
 
 \date{February 2, 2018}
 
@@ -9,6 +9,53 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage[letterpaper, portrait, margin=1in]{geometry}
+
+% For code formatting
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{textcomp}
+\usepackage{listings}
+
+\definecolor{solarized@base03}{HTML}{002B36}
+\definecolor{solarized@base02}{HTML}{073642}
+\definecolor{solarized@base01}{HTML}{586e75}
+\definecolor{solarized@base00}{HTML}{657b83}
+\definecolor{solarized@base0}{HTML}{839496}
+\definecolor{solarized@base1}{HTML}{93a1a1}
+\definecolor{solarized@base2}{HTML}{EEE8D5}
+\definecolor{solarized@base3}{HTML}{FDF6E3}
+\definecolor{solarized@yellow}{HTML}{B58900}
+\definecolor{solarized@orange}{HTML}{CB4B16}
+\definecolor{solarized@red}{HTML}{DC322F}
+\definecolor{solarized@magenta}{HTML}{D33682}
+\definecolor{solarized@violet}{HTML}{6C71C4}
+\definecolor{solarized@blue}{HTML}{268BD2}
+\definecolor{solarized@cyan}{HTML}{2AA198}
+\definecolor{solarized@green}{HTML}{859900}
+
+\lstset{
+  language=Haskell,
+  upquote=true,
+  columns=fixed,
+  tabsize=2,
+  extendedchars=true,
+  breaklines=false,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  frame=single,
+  numbers=left,
+  numbersep=5pt,
+  rulesepcolor=\color{solarized@base03},
+  numberstyle=\tiny\color{solarized@base01},
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\color{solarized@green},
+  stringstyle=\color{solarized@cyan}\ttfamily,
+  identifierstyle=\color{solarized@blue},
+  commentstyle=\color{solarized@base01},
+  emphstyle=\color{solarized@red}
+}
+% end code formating
 \begin{document}
 \maketitle
 
@@ -28,14 +75,12 @@ example, exports five separate operators: $<.>, \#>, <\#, !\#>, \text{ and} <>$,
 matrix and vector operations. Good luck figuring out what they do without
 looking them up in documentation.
 
-The main reason that Haskell defines such an awkward interface for numerical
-programming is its type system. Strong, static types do not allow for easy
-operator definitions between arbitrary objects. This is not a problem with
+Strong, statically typed languages, like Haskell, define such awkward interfaces for numerical programming by nature of their type systems, and so they do not allow for easy operator definitions between arbitrary objects. This is not a problem with
 dynamically typed languages, but the tradeoff comes in the form of runtime
 errors, some of which can occur several hours, or even days, into
 a computation, forcing the whole program to be restarted.
 
-Given these challenges, TensorFlock seeks to demonstrate that there a exists a better path, by giving programmers a more intuitive interface for manipulating tensors within the realm of functional programming.  Primarily, we intend to show this by treating tensors as primitives. By implementing a dependent type system, Tensorflock type checks tensors of arbitrary rank at compile time, and thereby hopefully saves programmers from the maddeningly frustrating experience of long computations crashing.  Tensorflock also intends to make it easier for programmers to concisely represent operations with tensors in code by making use of the Einstien summation convention.
+Given these challenges, TensorFlock seeks to demonstrate a better path, by giving programmers a more intuitive interface for computing with tensors in a functional language. By treating tensors as primitives, and by implementing a dependent type system, Tensorflock type checks tensors of arbitrary rank at compile time, saving programmers the frustration of long computations crashing. Also, tensors will be laid out contiguously in memory for efficiency. Lastly, TensorFlock will make it easier for programmers to concisely represent operations with tensors in code by making use of the Einstein summation convention.
 %%%%%%%%
 % Is it tensor or Tensor?
 
@@ -52,7 +97,11 @@ correspond to vectors and rank 2 tensors correspond to matrices. Using this
 concept of rank, we can have arbitrary higher dimensional tensors of any rank,
 or even rank 0 tensors, which are simply scalars.
 
+
+
 \section{Features}
+\subsection{Dependent Types}
+Usually, when we program with tensors, their size and shape are not known at compile time, but can only be determined at runtime. This leads to shape mismatches and out of bounds indexing that can crash a program, or even worse, not crash the program and simply read from uninitialized locations in memory. The only feasible way to catch such errors at compile time is to treat the types of tensors as first class values, and have the compiler warn us that we cannot, for example, have a dot product of two rank 1 tensors whose shapes are $n$ and $m$, respectively, as the operation is not well defined unless $m=n$, which is not true in general.
 \subsection{Einstein Summation Convention}
 % How is the concision of this convention helpful/relevant to a programmer?
 % It might be helpful to put examples side by side, one in "standard" mathmatical
@@ -80,12 +129,26 @@ something akin to NumPy's arange(int n), which returns an array of ints from $[0
 Usually, when we program with tensors, their size and shape are not known at
 compile time, but can only be determined at runtime. This leads to shape
 mismatches and out-of-bounds indexing that can crash a program, or even worse, not crash the program and simply read from uninitialized locations in memory. The only feasible way to catch such errors at compile time is to treat the types of tensors as first class values, and have the compiler warn us that we cannot, for example, have a dot product of two rank 1 tensors whose shapes are $n$ and $m$, respectively, as the operation is not well defined unless $m=n$, which is not true in general. 
-\section{Syntax and Features}
+\section{Syntax}
 TensorFlock's syntax is extremely similar to Idris', which is in turn closely related to Haskell's.
-% I reorderd these in what I think is a more logical way
+
 \subsection{Primatives}
+TensorFlock defines a small number of primitives: ints, doubles, char, string, and tensor. Like the languages above, they are declared and defined in two lines.
+\begin{lstlisting}
+x : Int
+x = 44
+
+y : Double
+y = 3.14159265359
+
+z : Char
+z = "c"
+
+foo : String
+foo = "bar"
+\end{lstlisting}
 \subsection{Datatypes}
-The only primitive types in TensorFlock are Ints, Doubles, Chars, Strings, and Tensors. The decision to make Tensors primitives is somewhat strange, as they are complex entities that also contain rank and shape information. However, it is also important to the efficiency of our applications that Tensors be laid out contiguously in memory, and TensorFlock does not provide any way for a programmer to manage memory. 
+The decision to make Tensors primitives is somewhat strange, as they are complex entities that also contain rank and shape information. However, it is also important to the efficiency of our applications that Tensors be laid out contiguously in memory, and TensorFlock does not provide any way for a programmer to manage memory. 
 Every other type can be defined by the user, or in the standard library. The syntax for such type definitions is similar to Haskell's Generalized Algebraic DataTypes (GADTs) or Agda's data declarations. Booleans, for example, can be defined like so:
 \begin{lstlisting}[language=Haskell]
 data Bool : Type where
@@ -141,7 +204,7 @@ How we actually go about supporting overloading is an interesting question. Idri
 class Consable (t : Type -> Type) where
 	_::_ : a -> t a -> t a
 \end{lstlisting}
-\subsection{Syntactic Sugar}
+\subsection{Lists}
 In order to avoid having to write out lists as 
 \begin{lstlisting}[language=Haskell]
 myList : List Int
@@ -152,6 +215,7 @@ we provide the syntax
 myList : List Int
 myList = [1,2,3]
 \end{lstlisting}
+\subsection{Tensors}
 In order for tensor selection to be fully type safe, the general type of a tensor has to be
 \begin{lstlisting}
 data Tensor : (Num a) => a -> (rank : Nat) -> 
