@@ -1,4 +1,4 @@
-\title{Tensor Flock: A Short Description of this Language}
+\title{TensorFlock: A Functional Tensor-Manipulation Language}
 
 \author{}
 
@@ -21,7 +21,7 @@ TensorFlock is an attempt to marry numerical and functional programming.
 % we think something like TensorFlock should exist - NB
 To date, numerical programming has been dominated by DSLs like Matlab and
 Julia, or libraries written in other dynamically typed, procedural languages,
-like Python's numpy. Despite the obvious connection between numerical
+like Python's NumPy. Despite the obvious connection between numerical
 programming and actual mathematical functions, efforts to do linear algebra in
 purely functional languages tend to go awry. Haskell's hmatrix library, for
 example, exports five separate operators: $<.>, \#>, <\#, !\#>, \text{ and} <>$, for
@@ -38,7 +38,8 @@ a computation, forcing the whole program to be restarted.
 Given these challenges, TensorFlock seeks to demonstrate that there a exists a better path, by giving programmers a more intuitive interface for manipulating tensors within the realm of functional programming.  Primarily, we intend to show this by treating tensors as primitives. By implementing a dependent type system, Tensorflock type checks tensors of arbitrary rank at compile time, and thereby hopefully saves programmers from the maddeningly frustrating experience of long computations crashing.  Tensorflock also intends to make it easier for programmers to concisely represent operations with tensors in code by making use of the Einstien summation convention.
 %%%%%%%%
 % Is it tensor or Tensor?
-The primary unit of computation, is unsurprisingly a Tensor\footnote{For the
+
+The primary unit of computation is unsurprisingly a Tensor\footnote{For the
 mathematically inclined, the technical definition of a tensor is, unhelpfully,
 ``something that transforms like a tensor.'' This language takes the simpler
 treatment of a map from indices to scalars and avoids dealing with the concepts
@@ -66,13 +67,19 @@ product is \[\mathbf{v} \cdot \mathbf{u} = v_i u_i\]
 \subsection{Arbitrary Component Selection}
 % Lets link this with some code samples
 When doing tensor operations, we benefit from the ability to refer to both a single component 
-of a tensor and the entire entity simultaneously. $T_{ijk}$, for example, refers to the i'th row, j'th column,  and k'th ``depth index\footnote{No one seems to agree on what to call this dimension https://www.gamedev.net/forums/topic/581995-silly-terminology-musing-a-3d-grid-has-rows-columns-and-/}'' of a rank three tensor, but since i, j, and k are left unspecified, $T_{ijk}$ is functionally equivalent to the entire object. This allows us to define something akin to numpy's arange(int n), which returns an array of ints from $[0,n)$, simply as \[A_i = i\] If we want the numbers to be [1,n], then we simply have 
+of a tensor and the entire entity simultaneously. $T_{ijk}$, for example,
+refers to the i'th row, j'th column,  and k'th ``depth index\footnote{No one
+seems to agree on what to call this dimension
+https://www.gamedev.net/forums/topic/581995-silly-terminology-musing-a-3d-grid-has-rows-columns-and-/}''
+of a rank three tensor, but since i, j, and k are left unspecified, $T_{ijk}$
+is functionally equivalent to the entire object. This allows us to define
+something akin to NumPy's arange(int n), which returns an array of ints from $[0,n)$, simply as \[A_i = i\] If we want the numbers to be [1,n], then we simply have 
 \[A_i = i+1\]
 (Evidently, tensors in Tensorflock are 0-based)
 \subsection{Dependent Types}
-% From a programming point of view, I think this is the most interesting feature of
-% our language. I think we should make this fist in the list of features.
-Usually, when we program with tensors, their size and shape are not known at compile time, but can only be determined at runtime. This leads to shape mismatches and out of bounds indexing that can crash a program, or even worse, not crash the program and simply read from uninitialized locations in memory. The only feasible way to catch such errors at compile time is to treat the types of tensors as first class values, and have the compiler warn us that we cannot, for example, have a dot product of two rank 1 tensors whose shapes are $n$ and $m$, respectively, as the operation is not well defined unless $m=n$, which is not true in general. 
+Usually, when we program with tensors, their size and shape are not known at
+compile time, but can only be determined at runtime. This leads to shape
+mismatches and out-of-bounds indexing that can crash a program, or even worse, not crash the program and simply read from uninitialized locations in memory. The only feasible way to catch such errors at compile time is to treat the types of tensors as first class values, and have the compiler warn us that we cannot, for example, have a dot product of two rank 1 tensors whose shapes are $n$ and $m$, respectively, as the operation is not well defined unless $m=n$, which is not true in general. 
 \section{Syntax and Features}
 TensorFlock's syntax is extremely similar to Idris', which is in turn closely related to Haskell's.
 % I reorderd these in what I think is a more logical way
@@ -171,9 +178,48 @@ The two dots in the angle brackets are a range comprehension, defining the size 
 \lstinline{<d_1..d_0>} would make no sense, and 0 rank tensors are isomorphic to scalars, which have no shape. We additionally use the ``..'' sugar to create list ranges, such as 
 \begin{lstlisting}
 [1..5] == [1,2,3,4,5]
+-- The two dashes represent comments in TensorFlock
+-- This is how we would define the equivalent of NumPy's arange(10)
+myTensor : Tensor Int Shape [10]
+myTensor<i> = i 
 \end{lstlisting}
 
 \section{Sample code}
+We present the building blocks of a linear algebra library using our tensors.
+\subsection{Perceptron}
+As our language asserts correct tensor shapes for linear algebra operations with dependent types, it is ideal for implementing machine learning algorithms. The perceptron algorithm, which learns weights for features to create a hyperplane decision boundary classifier, is implemented below.
+\begin{lstlisting}[language=Haskell]
+helper : Tensor Double 1 <n> -> 
+         Tensor Double 1 <n> -> 
+         [Fin n] -> 
+         Maybe (Fin n)
+helper T1 T2 [] = Nothing
+helper T1 T2 (i :: is) = 
+       if T1<i> /= T2 <i>
+       then Just i
+       else helper T1 T2 is
+
+diff : Tensor Double 1 <n> -> Tensor Double 1 <n> -> Maybe (Fin n)
+diff T1 T2 = helper T1 T2 [0..n-1]
+
+perceptron : Tensor Double 2 <n,m> -> 
+        Tensor Int 1 <m> -> 
+        Tensor Double 1 <m> ->
+        Tensor Double 1 <m>
+perceptron corpus labels w =
+        let predictedLabels<i> = corpus<i,j> * w<j> in
+        let signs<i> = 
+                if predictedLabels<i> >= 0
+                then 1
+                else -1 in
+        let x = diff signs labels in
+        if x == Nothing then w
+        else let Just mistakeIndex = x in
+        let updateSign = labels<mistakeIndex> in 
+        perceptron corpus labels 
+                (corpus<mistakeIndex,j> + updateSign * w<j>)
+\end{lstlisting}
+
 \subsection{Utility Functions}
 \begin{lstlisting}[language=Haskell]
 
