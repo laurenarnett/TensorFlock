@@ -5,3 +5,4 @@
 *.dvi
 *latexmk
 *.synctex.gz
+*.pdf
