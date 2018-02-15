@@ -6,3 +6,10 @@
 *latexmk
 *.synctex.gz
 *.pdf
+
+.merlin
+.opam
+_opam
+_build
+*.native
+.ocaml-sentinal
