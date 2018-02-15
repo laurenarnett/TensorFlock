@@ -13,4 +13,4 @@ type bop = And | Or
 type uop = Not | Neg
 
 (* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
-type typ = Bool | Nat | Double | Tensor
+type typ = Bool | Int | Double | Tensor
