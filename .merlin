@@ -1,0 +1,6 @@
+# This is a .merlin file. It will tell merlin where to look for our source
+# files so that our editors won't yell at us about 
+# "unbound module Ast" and the like
+
+# Bare minimum: look for things in the src/ directory of our project
+S src/**
