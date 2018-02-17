@@ -88,15 +88,15 @@ let string_of_expr = function
   | Rop(e1, o, e2) ->
         string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr e2
   | Call(f, el) ->
-        f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+        f ^ " " ^ String.concat " " (List.map string_of_expr el) 
   | CondExpr(e1, e2, e3) ->
         "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
         string_of_expr e3
 
 let string_of_typ = function
-    Bool -> "bool"
-  | Int -> "int"
-  | Double -> "double"
+    Bool -> "Bool"
+  | Int -> "Int"
+  | Double -> "Double"
 
 let rec string_of_func_type ftype = 
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
