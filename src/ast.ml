@@ -2,10 +2,10 @@
 
 (* arithmetic operations of type aop : Double -> Double -> Double *)
 (* OR Int -> Int -> Int *)
-type aop = Add | Sub | Mult | Div | Mod | Exp
+type aop = Add | Sub | Mult | Div | Mod | Expt
 
 (* relational operators of type rop : Double -> Double -> Bool *)
-type rop = Eq | Neq | Less | Leq | Greater | Geq
+type rop = Eq | Neq | LT | Leq | GT | Geq
 
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
@@ -30,6 +30,7 @@ type expr =
   | Aop of expr * aop * expr
   | Unop of uop * expr
   | Boolop of expr * bop * expr  
+  | Rop of expr * rop * expr  
   | Call of string * expr list
   | CondExpr of expr * expr * expr 
 
@@ -39,6 +40,7 @@ type func_type = {
 }
 
 type func_def = {
+  fname : string;
   main_expr : expr;
   scope : func_type * func_def list;
 }
