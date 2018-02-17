@@ -30,6 +30,7 @@ type expr =
   | Aop of expr * aop * expr
   | Unop of uop * expr
   | Boolop of expr * bop * expr  
+  | Rop of expr * rop * expr
   | Call of string * expr list
   | CondExpr of expr * expr * expr 
 
@@ -39,6 +40,7 @@ type func_type = {
 }
 
 type func_def = {
+  fname : string;
   main_expr : expr;
   scope : func_type * func_def list;
 }
@@ -70,3 +72,34 @@ let string_of_bop = function
 let string_of_uop = function
     Not  -> "!"
   | Neg  -> "-"
+
+let string_of_expr = function
+    Literal(l) -> string_of_int l
+  | Fliteral(l) -> l
+  | BoolLit(True) -> "True"
+  | BoolLit(False) -> "False"
+  | Id(s) -> s
+  | Aop(e1, o, e2) ->
+        string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2
+  | Unop(o, e) ->
+        string_of_uop o ^ " " ^ string_of_expr e 
+  | Boolop(e1, o , e2) ->
+        string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr e2
+  | Rop(e1, o, e2) ->
+        string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr e2
+  | Call(f, el) ->
+        f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
+  | CondExpr(e1, e2, e3) ->
+        "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
+        string_of_expr e3
+
+let string_of_typ = function
+    Bool -> "bool"
+  | Int -> "int"
+  | Double -> "double"
+
+let string_of_func_type ftype = function
+    ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
+    ftype.types) ^ " \n"
+
+let string_of_func_def fdef = function
