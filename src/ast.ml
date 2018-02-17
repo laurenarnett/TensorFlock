@@ -103,8 +103,10 @@ let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
     ftype.types) ^ " \n"
 
-    and string_of_scope scope = 
-        "{" ^ String.concat "\n" (List.map (fun (ft, fd) -> string_of_func_type ft ^ 
+    and string_of_scope scope = match scope with
+      []  -> ""
+      | _ -> "{" ^ String.concat "\n" 
+                (List.map (fun (ft, fd) -> string_of_func_type ft ^ 
         string_of_func_def fd) scope) ^ "}" 
 
     and string_of_func_def (fdef : func_def) = 
