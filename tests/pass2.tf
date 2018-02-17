@@ -11,6 +11,12 @@ aWorseBool' : Bool;
 aWorseBool' = False;
 
 scope : Double;
-scope = n; { n: Double; n = 4.12; }
+scope = n; { n: Double; n = 4.12;
+q : Double; q = 12.; fun : Int; fun = 20;
+}
+
+
+
+
 
 

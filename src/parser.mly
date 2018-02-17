@@ -93,4 +93,4 @@ scope:
   /* This only allows us to have scopes with one function in them */ 
   /* TODO: Fix this */
            { [] }
-   | LBRACE ftyp fdef RBRACE { [($2, $3)] }
+   | LBRACE decls RBRACE { $2 }
