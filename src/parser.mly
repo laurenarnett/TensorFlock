@@ -4,14 +4,14 @@
 open ast
 %}
 
-%token SEMI COLON LPAREN RPAREN LBRACE RBRACE LBRAC RBRAC COMMA ARROW LANGLE RANGLE
+%token SEMI COLON COMMA ARROW 
+%token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK LANGLE RANGLE
 %token DEFINE NOT EQ NEQ LT LEQ GT GEQ AND OR
 %token PLUS MINUS TIMES DIVIDE MOD EXPT
-%token IF ELSE INT DOUBLE BOOL T
+%token IF THEN ELSE INT DOUBLE BOOL TENSOR
 
-/* ocaml's literals are 'true' and 'false' whereas we want True and False*/ 
-%token TRUE FALSE 
 %token <int> LITERAL
+%token <bool> BLIT
 %token <string> ID FLIT
 %token EOF
 
