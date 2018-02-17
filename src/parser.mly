@@ -47,12 +47,12 @@ ftyp:
      { { fname = $1; types = $3; } }
 
 fdef:
-   ID DEF expr SEMI scope  
-     { { fname = $1; main_expr = $3; scope = $4; } } 
+   ID DEFINE expr SEMI scope  
+     { { fname = $1; main_expr = $3; scope = $5; } } 
 
 types:
   /* Don't pattern match on empty list because that should fail */
-  | typ ARROW types { $1 :: $2 }  
+  | typ ARROW types { $1 :: $3 }  
   | typ { [$1] }  
 
 typ:
@@ -69,7 +69,7 @@ expr:
   /* Arithmetic ops */
   | expr PLUS   expr { Aop($1, Add,   $3)   }
   | expr MINUS  expr { Aop($1, Sub,   $3)   }
-  | expr TIMES  expr { Aop($0, Mult,  $3)   }
+  | expr TIMES  expr { Aop($1, Mult,  $3)   }
   | expr DIVIDE expr { Aop($1, Div,   $3)   }
   | expr MOD    expr { Aop($1, Mod,   $3)   }
   | expr EXPT   expr { Aop($1, Expt,   $3)   }
@@ -92,7 +92,6 @@ expr:
   /* TODO:Brackets */ 
 
 scope:
-  /* This only allows us to have scopes with one function in them 
-   * TODO: Fix this
-   * /
-   LBRACE ftype fdef RBRACE { [($2, $3)] }
+  /* This only allows us to have scopes with one function in them */ 
+  /* TODO: Fix this */
+   LBRACE ftyp fdef RBRACE { [($2, $3)] }
