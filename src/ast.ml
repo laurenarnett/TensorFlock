@@ -2,10 +2,10 @@
 
 (* arithmetic operations of type aop : Double -> Double -> Double *)
 (* OR Int -> Int -> Int *)
-type aop = Add | Sub | Mult | Div | Mod | Exp
+type aop = Add | Sub | Mult | Div | Mod | Expt
 
 (* relational operators of type rop : Double -> Double -> Bool *)
-type rop = Eq | Neq | Less | Leq | Greater | Geq
+type rop = Eq | Neq | LT | Leq | GT | Geq
 
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
@@ -45,3 +45,28 @@ type func_def = {
 
 type func = func_type * func_def
 type program = func list
+
+(* Pretty printing *) 
+let string_of_aop = function
+    Add  -> "+"
+  | Sub  -> "-"
+  | Mult -> "*"
+  | Div  -> "/"
+  | Mod  -> "%"
+  | Expt -> "^"
+
+let string_of_rop = function
+    Eq  -> "=="
+  | Neq -> "!="
+  | LT  -> "<"
+  | GT  -> ">"
+  | Leq -> "<="
+  | Geq -> ">="
+
+let string_of_bop = function
+    And -> "&&"
+  | Or  -> "||"
+
+let string_of_uop = function
+    Not  -> "!"
+  | Neg  -> "-"
