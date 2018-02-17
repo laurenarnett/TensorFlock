@@ -31,16 +31,17 @@ type expr =
   | Unop of uop * expr
   | Boolop of expr * bop * expr  
   | Call of string * expr list
-  
+  | CondExpr of expr * expr * expr 
 
-type fun_type = {
+type func_type = {
   fname : string;
-  typ : typ list;  
+  types : typ list;  
 }
 
-type fun_def = {
-  body : expr list;
+type func_def = {
+  main_expr : expr;
+  scope : func_type * func_def list;
 }
 
-type func = fun_type * fun_def
+type func = func_type * func_def
 type program = func list
