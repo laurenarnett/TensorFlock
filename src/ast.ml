@@ -82,7 +82,7 @@ let string_of_expr = function
   | Aop(e1, o, e2) ->
         string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2
   | Unop(o, e) ->
-        string_of_uop o ^ " " ^ string_of_expr e 
+        string_of_uop o ^ string_of_expr e 
   | Boolop(e1, o , e2) ->
         string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr e2
   | Rop(e1, o, e2) ->
@@ -98,8 +98,20 @@ let string_of_typ = function
   | Int -> "int"
   | Double -> "double"
 
-let string_of_func_type ftype = function
+let rec string_of_func_type ftype = 
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
     ftype.types) ^ " \n"
 
-let string_of_func_def fdef = function
+    and string_of_scope scope = 
+        "{" ^ List.map (fun (ft, fd) -> string_of_func_type ft ^ 
+        string_of_func_def fd) scope ^ "}" 
+
+    and string_of_func_def fdef = 
+        fdef.fname ^ " = " ^ string_of_expr fdef.main_expr ^ string_of_scope
+        fdef.scope ^ " \n" in
+
+let string_of_func (ft, fd) = 
+    string_of_func_type ft ^ string_of_func_def fd
+
+let string_of_program funcs = 
+    List.map string_of_func funcs
