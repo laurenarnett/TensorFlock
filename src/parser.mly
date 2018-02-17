@@ -1,8 +1,6 @@
 /* Ocamlyacc parser for TensorFlock */
 
-%{
-open ast
-%}
+%{ open Ast %}
 
 %token SEMI COLON COMMA ARROW 
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK LANGLE RANGLE
@@ -40,7 +38,7 @@ decls:
  | decls funct { $2 :: $1 }
 
 funct: 
-  ftyp fdef { func($1, $2) }
+  ftyp fdef { ($1, $2) }
 
 ftyp:
    ID COLON types SEMI
@@ -74,7 +72,7 @@ expr:
   | expr MOD    expr { Aop($1, Mod,   $3)   }
   | expr EXPT   expr { Aop($1, Expt,   $3)   }
   /* Relational ops */
-  | expr EQ     expr { Rop($1, Equal, $3)   }
+  | expr EQ     expr { Rop($1, Eq, $3)   }
   | expr NEQ    expr { Rop($1, Neq,   $3)   }
   | expr LT     expr { Rop($1, LT,  $3)   }
   | expr LEQ    expr { Rop($1, Leq,   $3)   }
