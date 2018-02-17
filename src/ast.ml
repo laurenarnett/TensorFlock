@@ -30,7 +30,7 @@ type expr =
   | Aop of expr * aop * expr
   | Unop of uop * expr
   | Boolop of expr * bop * expr  
-  | Rop of expr * rop * expr  
+  | Rop of expr * rop * expr
   | Call of string * expr list
   | CondExpr of expr * expr * expr 
 
@@ -47,3 +47,71 @@ type func_def = {
 
 type func = func_type * func_def
 type program = func list
+
+(* Pretty printing *) 
+let string_of_aop = function
+    Add  -> "+"
+  | Sub  -> "-"
+  | Mult -> "*"
+  | Div  -> "/"
+  | Mod  -> "%"
+  | Expt -> "^"
+
+let string_of_rop = function
+    Eq  -> "=="
+  | Neq -> "!="
+  | LT  -> "<"
+  | GT  -> ">"
+  | Leq -> "<="
+  | Geq -> ">="
+
+let string_of_bop = function
+    And -> "&&"
+  | Or  -> "||"
+
+let string_of_uop = function
+    Not  -> "!"
+  | Neg  -> "-"
+
+let string_of_expr = function
+    Literal(l) -> string_of_int l
+  | Fliteral(l) -> l
+  | BoolLit(True) -> "True"
+  | BoolLit(False) -> "False"
+  | Id(s) -> s
+  | Aop(e1, o, e2) ->
+        string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2
+  | Unop(o, e) ->
+        string_of_uop o ^ string_of_expr e 
+  | Boolop(e1, o , e2) ->
+        string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr e2
+  | Rop(e1, o, e2) ->
+        string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr e2
+  | Call(f, el) ->
+        f ^ " " ^ String.concat " " (List.map string_of_expr el) 
+  | CondExpr(e1, e2, e3) ->
+        "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
+        string_of_expr e3
+
+let string_of_typ = function
+    Bool -> "Bool"
+  | Int -> "Int"
+  | Double -> "Double"
+
+let rec string_of_func_type ftype = 
+    ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
+    ftype.types) ^ " \n"
+
+    and string_of_scope scope = 
+        "{" ^ List.map (fun (ft, fd) -> string_of_func_type ft ^ 
+        string_of_func_def fd) scope ^ "}" 
+
+    and string_of_func_def fdef = 
+        fdef.fname ^ " = " ^ string_of_expr fdef.main_expr ^ string_of_scope
+        fdef.scope ^ " \n" in
+
+let string_of_func (ft, fd) = 
+    string_of_func_type ft ^ string_of_func_def fd
+
+let string_of_program funcs = 
+    List.map string_of_func funcs
