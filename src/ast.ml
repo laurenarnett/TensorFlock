@@ -22,10 +22,15 @@ type shape = shape_arg list
 (* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
 type typ = Bool | Int | Double | Tensor of shape
 
+type tContents = 
+  | Single_d of float list
+  | Nested_d of tContents list
+
 type expr = 
     Literal of int
   | Fliteral of string
   | BoolLit of bool
+  | TLit of tContents  
   | Id of string
   | Aop of expr * aop * expr
   | Unop of uop * expr
@@ -73,11 +78,17 @@ let string_of_uop = function
     Not  -> "!"
   | Neg  -> "-"
 
+let rec string_of_tcontents = function
+  | Single_d lst -> "[" ^ String.concat ", " (List.map string_of_float lst) ^ "]"
+  | Nested_d nested_list -> "[" ^ String.concat ", " 
+          (List.map string_of_tcontents nested_list)  ^ "]"
+
 let rec string_of_expr = function
     Literal(l) -> string_of_int l
   | Fliteral(l) -> l
   | BoolLit(true) -> "True"
   | BoolLit(false) -> "False"
+  | TLit(l) -> string_of_tcontents l
   | Id(s) -> s
   | Aop(e1, o, e2) ->
         string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2

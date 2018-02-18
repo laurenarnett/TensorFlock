@@ -26,6 +26,10 @@
 %left TIMES DIVIDE MOD
 %left EXPT
 %right NOT NEG
+<<<<<<< Updated upstream
+=======
+%left FUNAPP
+>>>>>>> Stashed changes
 
 
 %%
@@ -45,8 +49,8 @@ ftyp:
      { { fname = $1; types = $3; } }
 
 fdef:
-   ID DEFINE expr SEMI scope  
-     { { fname = $1; main_expr = $3; scope = $5; } } 
+   ID DEFINE expr SEMI scope
+   { { fname = $1; main_expr = $3; scope = $5; } } 
 
 types:
   /* Don't pattern match on empty list because that should fail */
@@ -64,6 +68,7 @@ expr:
   | FLIT	         { Fliteral($1)           }
   | BLIT             { BoolLit($1)            }
   | ID               { Id($1)                 }
+
   /* Arithmetic ops */
   | expr PLUS   expr { Aop($1, Add,   $3)   }
   | expr MINUS  expr { Aop($1, Sub,   $3)   }
@@ -83,10 +88,26 @@ expr:
   | expr OR     expr { Boolop($1, Or,    $3)   }
   /* Unary ops */    
   | MINUS expr %prec NEG { Unop(Neg, $2)      }
+<<<<<<< Updated upstream
   | NOT expr         { Unop(Not, $2)          }
   /* Parens */
   | LPAREN expr RPAREN { $2                   }
   /* TODO:Function call */ 
+=======
+  | NOT expr             { Unop(Not, $2)      }
+
+  /* Parens */
+  | LPAREN expr RPAREN { $2 }
+
+  /* Conditional Expressions */
+  | IF expr THEN expr ELSE expr { CondExpr($2, $4, $6) }
+
+  /* Function application is curried, */
+  /* so functions all technically have 1 argument */
+
+  | ID expr %prec FUNAPP { App($1, $2) }   
+
+>>>>>>> Stashed changes
   /* TODO:Brackets */ 
 
 scope:
