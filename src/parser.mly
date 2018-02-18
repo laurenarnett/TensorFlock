@@ -26,10 +26,6 @@
 %left TIMES DIVIDE MOD
 %left EXPT
 %right NOT NEG
-<<<<<<< Updated upstream
-=======
-%left FUNAPP
->>>>>>> Stashed changes
 
 
 %%
@@ -68,6 +64,7 @@ expr:
   | FLIT	         { Fliteral($1)           }
   | BLIT             { BoolLit($1)            }
   | ID               { Id($1)                 }
+  | tcontents        { TLit($1) }
 
   /* Arithmetic ops */
   | expr PLUS   expr { Aop($1, Add,   $3)   }
@@ -88,30 +85,27 @@ expr:
   | expr OR     expr { Boolop($1, Or,    $3)   }
   /* Unary ops */    
   | MINUS expr %prec NEG { Unop(Neg, $2)      }
-<<<<<<< Updated upstream
   | NOT expr         { Unop(Not, $2)          }
-  /* Parens */
-  | LPAREN expr RPAREN { $2                   }
-  /* TODO:Function call */ 
-=======
-  | NOT expr             { Unop(Not, $2)      }
-
   /* Parens */
   | LPAREN expr RPAREN { $2 }
 
   /* Conditional Expressions */
   | IF expr THEN expr ELSE expr { CondExpr($2, $4, $6) }
 
-  /* Function application is curried, */
-  /* so functions all technically have 1 argument */
-
-  | ID expr %prec FUNAPP { App($1, $2) }   
-
->>>>>>> Stashed changes
-  /* TODO:Brackets */ 
+  /* TODO:Bracket indexing */ 
 
 scope:
-  /* This only allows us to have scopes with one function in them */ 
-  /* TODO: Fix this */
            { [] }
    | LBRACE decls RBRACE { $2 }
+
+tcontents:
+   | single_dimension { $1 } 
+   | LBRACK tcontents COMMA tcontents RBRACK { Nested_d([$2; $4]) }  
+
+single_dimension:
+   LBRACK floats RBRACK { Single_d($2) } 
+   
+floats:
+       { [] }
+   | FLIT              { [$1] } 
+   | FLIT COMMA floats { $1 :: $3 } 
