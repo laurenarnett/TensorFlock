@@ -12,3 +12,6 @@ _opam
 _build
 *.native
 .ocaml-sentinal
+*.output
+parser.ml
+parser.mli
