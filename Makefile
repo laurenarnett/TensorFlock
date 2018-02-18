@@ -13,8 +13,8 @@ $(OCAML_SENTINAL): $(OPAM_FILE)
 $(PROJECT_EXTENSION): $(OCAML_SENTINAL) clean $(SRC_DIR)* 
 	ocamlbuild $@
 
-test: $(OCAML_SENTINAL)
-	echo "This is a test that will pass"
+test: $(PROJECT_EXTENSION) $(OCAML_SENTINAL)
+	sh ./test_runner.sh
 
 clean: 
 	ocamlbuild -clean
