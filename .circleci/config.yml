@@ -18,6 +18,11 @@ jobs:
       - run: ${HOME}/opam --version 
       # Compile OCaml
       - run: ${HOME}/opam init --compiler=${OCAML_VERSION}
-      - run: eval `${HOME}/opam config env` 
+      # Manually set ${HOME}/opam config env 
       - run: ln ${HOME}/opam /bin
+      - run: echo "export OPAM_SWITCH_PREFIX='/root/.opam/4.06.0'" >> $BASH_ENV
+      - run: echo "export CAML_LD_LIBRARY_PATH='/root/.opam/4.06.0/lib/stublibs:/root/.opam/4.06.0/lib/ocaml/stublibs:/root/.opam/4.06.0/lib/ocaml'" >> $BASH_ENV
+      - run: echo "export OCAML_TOPLEVEL_PATH='/root/.opam/4.06.0/lib/toplevel'" >> $BASH_ENV
+      - run: echo "export MANPATH=':/root/.opam/4.06.0/man'" >> $BASH_ENV
+      - run: echo "export PATH='/root/.opam/4.06.0/bin:$PATH'" >> $BASH_ENV
       - run: make test

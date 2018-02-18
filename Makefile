@@ -14,7 +14,7 @@ $(PROJECT_EXTENSION): $(OCAML_SENTINAL) clean $(SRC_DIR)*
 	ocamlbuild $@
 
 test: $(PROJECT_EXTENSION) $(OCAML_SENTINAL)
-	sh ./test_runner.sh
+	bash ./test_runner.sh
 
 clean: 
 	ocamlbuild -clean
