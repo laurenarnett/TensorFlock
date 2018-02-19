@@ -97,13 +97,13 @@ let rec string_of_expr = function
         "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
         string_of_expr e3
   | TensorIdx(id, idxs) ->
-        id ^ "[" ^ String.concat ", " (List.map string_of_int idxs)
+        id ^ "[" ^ String.concat ", " (List.map string_of_int idxs) ^ "]"
 
 let string_of_typ = function
     Bool -> "Bool"
   | Int -> "Int"
   | Double -> "Double"
-  | Tensor _ -> "Not implemented"
+  | Tensor _ -> "T" 
 
 let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
