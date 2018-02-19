@@ -19,10 +19,10 @@ rule token = parse
 | '}'      { RBRACE }
 | '['      { LBRACK }
 | ']'      { RBRACK }
-(* unclear if <= needs to be before < in order 
+(* unclear if <= needs to be before < in order
  * for < to not succeed by default every time *)
 | ">="     { GEQ }
-| "<="     { LEQ } 
+| "<="     { LEQ }
 | '<'      { LANGLE }
 | '>'      { RANGLE }
 | "=="     { EQ }
@@ -36,7 +36,7 @@ rule token = parse
 | '%'      { MOD }
 | '^'      { EXPT }
 (* TODO: decide how to disambiguate tensor shape and GT/LT *)
-(* | '<'      { LT } *) 
+(* | '<'      { LT } *)
 (* | ">"      { GT } *)
 | "&&"     { AND }
 | "||"     { OR }
