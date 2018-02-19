@@ -98,12 +98,9 @@ scope:
            { [] }
    | LBRACE decls RBRACE { $2 }
 
-tcontents:
-   | single_dimension { $1 } 
-   | LBRACK tcontents COMMA tcontents RBRACK { Nested_d([$2; $4]) }  
 
-single_dimension:
-   LBRACK floats RBRACK { Single_d($2) } 
+tcontents:
+   LBRACK floats RBRACK { $2 } 
    
 floats:
        { [] }
