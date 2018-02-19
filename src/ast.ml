@@ -104,7 +104,7 @@ let string_of_typ = function
     Bool -> "Bool"
   | Int -> "Int"
   | Double -> "Double"
-  | Tensor(shape) -> "T<WIP>"
+  | Tensor _ -> "T<WIP>"
 
 let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ

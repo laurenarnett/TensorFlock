@@ -79,7 +79,7 @@ expr:
   | expr TIMES  expr { Aop($1, Mult,  $3)   }
   | expr DIVIDE expr { Aop($1, Div,   $3)   }
   | expr MOD    expr { Aop($1, Mod,   $3)   }
-  | expr EXPT   expr { Aop($1, Expt,   $3)   }
+  | expr EXPT   expr { Aop($1, Expt,   $3)   } 
   /* Relational ops */
   | expr EQ     expr { Rop($1, Eq, $3)   }
   | expr NEQ    expr { Rop($1, Neq,   $3)   }
@@ -104,8 +104,9 @@ scope:
            { [] }
    | LBRACE decls RBRACE { $2 }
 
+
 shape:
-  /*   0 dimensional  */    { [] }
+    /* 0 dimensional */     { [] }
   | shape_arg COMMA shape   { $1 :: $3 }
   | shape_arg               { [$1] }
 
@@ -117,4 +118,4 @@ shape_arg:
   | shape_arg TIMES  shape_arg { Poly($1, Mult,  $3)   }
   | shape_arg DIVIDE shape_arg { Poly($1, Div,   $3)   }
   | shape_arg MOD    shape_arg { Poly($1, Mod,   $3)   }
-  | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   }
+  | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   } 
