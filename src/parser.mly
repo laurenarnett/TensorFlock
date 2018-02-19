@@ -2,7 +2,7 @@
 
 %{ open Ast %}
 
-%token SEMI COLON COMMA ARROW 
+%token SEMI COLON COMMA ARROW
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK LANGLE RANGLE
 %token DEFINE NOT EQ NEQ LT LEQ GT GEQ AND OR
 %token PLUS MINUS TIMES DIVIDE MOD EXPT
@@ -37,7 +37,7 @@ decls:
    /* empty program */ { [] }
  | decls funct { $2 :: $1 }
 
-funct: 
+funct:
   ftyp fdef { ($1, $2) }
 
 ftyp:
@@ -45,13 +45,18 @@ ftyp:
      { { fname = $1; types = $3; } }
 
 fdef:
-   ID DEFINE expr SEMI scope  
-     { { fname = $1; main_expr = $3; scope = $5; } } 
+   ID DEFINE expr SEMI scope
+     { { fname = $1; main_expr = $3; scope = $5; } }
 
 types:
   /* Don't pattern match on empty list because that should fail */
-  | typ ARROW types { $1 :: $3 }  
-  | typ { [$1] }  
+  | typ ARROW types { $1 :: $3 }
+  | typ { [$1] }
+
+tidx:
+  /* Don't match on an empty tensor index */
+  | LITERAL COMMA tidx { $1 :: $3 }
+  | LITERAL            { [$1] }
 
 typ:
     INT     { Int   }
@@ -78,19 +83,19 @@ expr:
   | expr LEQ    expr { Rop($1, Leq,   $3)   }
   | expr GT     expr { Rop($1, GT, $3) }
   | expr GEQ    expr { Rop($1, Geq,   $3)   }
-  /* Boolean ops */  
+  /* Boolean ops */
   | expr AND    expr { Boolop($1, And,   $3)   }
   | expr OR     expr { Boolop($1, Or,    $3)   }
-  /* Unary ops */    
+  /* Unary ops */
   | MINUS expr %prec NEG { Unop(Neg, $2)      }
   | NOT expr         { Unop(Not, $2)          }
   /* Parens */
   | LPAREN expr RPAREN { $2                   }
-  /* TODO:Function call */ 
-  /* TODO:Brackets */ 
+  /* TODO:Function call */
+  | ID LBRACK tidx RBRACK { TensorIdx($1, $3) }
 
 scope:
-  /* This only allows us to have scopes with one function in them */ 
+  /* This only allows us to have scopes with one function in them */
   /* TODO: Fix this */
            { [] }
    | LBRACE decls RBRACE { $2 }

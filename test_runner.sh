@@ -8,10 +8,13 @@ for f in tests/pass*.tf; do
         printf "."
     else
         printf "F"
-        failures+="--------------------\n"
-        failures+="Test $f failed.\n"
-        failures+="$output\n"
-        failures+="--------------------\n"
+        failures+=$'--------------------\n'
+        failures+=$'Test '
+        failures+="$f"
+        failures+=$' failed.\n'
+        failures+="$output"
+        failures+=$'\n'
+        failures+=$'--------------------\n'
     fi
 done
 
@@ -22,10 +25,13 @@ for f in tests/fail*.tf; do
         printf "."
     else
         printf "F"
-        failures+="--------------------\n"
-        failures+="Test $f failed.\n"
-        failures+="$output\n"
-        failures+="--------------------\n"
+        failures+=$'--------------------\n'
+        failures+=$'Test '
+        failures+="$f"
+        failures+=$' failed.\n'
+        failures+="$output"
+        failures+=$'\n'
+        failures+=$'--------------------\n'
     fi
 done
 
@@ -33,7 +39,7 @@ echo
 if [[ ! -z $failures ]]
 then
     echo
-    echo "$failures"
+    printf "%s" "$failures"
     exit 1
 fi
 
