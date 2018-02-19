@@ -59,8 +59,8 @@ types:
 
 tidx:
   /* Don't match on an empty tensor index */
-  | LITERAL COMMA tidx { $1 :: $3 }
-  | LITERAL            { [$1] }
+  | expr COMMA tidx { $1 :: $3 }
+  | expr            { [$1] }
 
 typ:
     INT     { Int   }

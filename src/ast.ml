@@ -36,7 +36,10 @@ type expr =
   | Rop of expr * rop * expr
   | Call of string * expr list
   | CondExpr of expr * expr * expr
-  | TensorIdx of string * tidx
+  | TensorIdx of string * expr list
+
+(* the indices of a tensor are a list of exprs *)
+(*type tidx = expr list*)
 
 type func_type = {
   fname : string;
@@ -98,7 +101,7 @@ let rec string_of_expr = function
         "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
         string_of_expr e3
   | TensorIdx(id, idxs) ->
-        id ^ "[" ^ String.concat ", " (List.map string_of_int idxs) ^ "]"
+        id ^ "[" ^ String.concat ", " (List.map string_of_expr idxs) ^ "]"
 
 let string_of_typ = function
     Bool -> "Bool"
