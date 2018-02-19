@@ -57,7 +57,7 @@ typ:
     INT     { Int   }
   | BOOL    { Bool  }
   | DOUBLE  { Double }
-  /* | TENSOR LANGLE shape RANGLE { Tensor($3) } */
+  | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 expr:
     LITERAL          { Literal($1)            }
@@ -94,3 +94,15 @@ scope:
   /* TODO: Fix this */
            { [] }
    | LBRACE decls RBRACE { $2 }
+
+
+shape:
+    /* 1 dimensional */     { [] }
+  | shape_arg COMMA shape   { $1 :: $3 }
+  | shape_arg               { [$1] }
+
+shape_arg:
+    LITERAL                     { Int }
+  | ID                          { Placeholder }
+  | shape_arg TIMES shape_arg   { Poly($1, Mult, $3) }
+
