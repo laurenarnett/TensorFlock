@@ -44,9 +44,13 @@ ftyp:
    ID COLON types SEMI
      { { fname = $1; types = $3; } }
 
+formals:
+    { [] }
+  | formals ID { $2 :: $1 }
+
 fdef:
-   ID DEFINE expr SEMI scope  
-     { { fname = $1; main_expr = $3; scope = $5; } } 
+   ID formals DEFINE expr SEMI scope  
+     { { fname = $1; fargs = List.rev $2; main_expr = $4; scope = $6; } } 
 
 types:
   /* Don't pattern match on empty list because that should fail */

@@ -41,6 +41,7 @@ type func_type = {
 
 type func_def = {
   fname : string;
+  fargs : string list;
   main_expr : expr;
   scope : (func_type * func_def) list;
 }
@@ -101,7 +102,7 @@ let string_of_typ = function
 
 let rec string_of_func_type (ftype : func_type) = 
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
-    ftype.types) ^ " \n"
+    ftype.types) ^ ";\n"
 
     and string_of_scope scope = match scope with
       []  -> ""
@@ -110,8 +111,8 @@ let rec string_of_func_type (ftype : func_type) =
         string_of_func_def fd) scope) ^ "}" 
 
     and string_of_func_def (fdef : func_def) = 
-      fdef.fname ^ " = " ^ string_of_expr fdef.main_expr ^ "; " ^ string_of_scope
-        fdef.scope ^ " \n"
+      fdef.fname ^ " " ^ String.concat " " (fdef.fargs) ^ " = " ^ 
+      string_of_expr fdef.main_expr ^ "; " ^ string_of_scope fdef.scope ^ " \n"
 
 let string_of_func (ft, fd) = 
     string_of_func_type ft ^ string_of_func_def fd
