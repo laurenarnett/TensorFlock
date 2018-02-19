@@ -52,6 +52,7 @@ fdef:
    ID formals DEFINE expr SEMI scope  
      { { fname = $1; fargs = List.rev $2; main_expr = $4; scope = $6; } } 
 
+
 types:
   /* Don't pattern match on empty list because that should fail */
   | typ ARROW types { $1 :: $3 }
@@ -73,6 +74,8 @@ expr:
   | FLIT	         { Fliteral($1)           }
   | BLIT             { BoolLit($1)            }
   | ID               { Id($1)                 }
+  | tcontents        { TLit($1) }
+
   /* Arithmetic ops */
   | expr PLUS   expr { Aop($1, Add,   $3)   }
   | expr MINUS  expr { Aop($1, Sub,   $3)   }
@@ -94,16 +97,25 @@ expr:
   | MINUS expr %prec NEG { Unop(Neg, $2)      }
   | NOT expr         { Unop(Not, $2)          }
   /* Parens */
-  | LPAREN expr RPAREN { $2                   }
-  /* TODO:Function call */
+  | LPAREN expr RPAREN { $2 }
+  /* Conditional Expressions */
+  | IF expr THEN expr ELSE expr { CondExpr($2, $4, $6) }
+  /* Bracket indexing */
   | ID LBRACK tidx RBRACK { TensorIdx($1, $3) }
-
+  /* TODO:Function call */  
+  
 scope:
-  /* This only allows us to have scopes with one function in them */
-  /* TODO: Fix this */
            { [] }
    | LBRACE decls RBRACE { $2 }
 
+
+tcontents:
+   LBRACK floats RBRACK { $2 } 
+   
+floats:
+       { [] }
+   | FLIT              { [$1] } 
+   | FLIT COMMA floats { $1 :: $3 } 
 
 shape:
     /* 0 dimensional */     { [] }
@@ -119,3 +131,5 @@ shape_arg:
   | shape_arg DIVIDE shape_arg { Poly($1, Div,   $3)   }
   | shape_arg MOD    shape_arg { Poly($1, Mod,   $3)   }
   | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   } 
+
+  /* TODO:Function call */

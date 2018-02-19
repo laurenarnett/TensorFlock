@@ -26,13 +26,14 @@ type expr =
     Literal of int
   | Fliteral of string
   | BoolLit of bool
+  | TLit of string list
   | Id of string
   | Aop of expr * aop * expr
   | Unop of uop * expr
   | Boolop of expr * bop * expr
   | Rop of expr * rop * expr
   | Call of string * expr list
-  | CondExpr of expr * expr * expr
+  | CondExpr of expr * expr * expr 
   | TensorIdx of string * expr list
 
 (* the indices of a tensor are a list of exprs *)
@@ -83,6 +84,7 @@ let rec string_of_expr = function
   | Fliteral(l) -> l
   | BoolLit(true) -> "True"
   | BoolLit(false) -> "False"
+  | TLit(l) -> "[" ^ String.concat ", " l ^ "]"
   | Id(s) -> s
   | Aop(e1, o, e2) ->
         string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2
@@ -110,6 +112,7 @@ let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
     ftype.types) ^ ";\n"
 
+
     and string_of_scope scope = match scope with
       []  -> ""
       | _ -> "{" ^ String.concat "\n"
@@ -122,6 +125,7 @@ let rec string_of_func_type (ftype : func_type) =
 
 let string_of_func (ft, fd) =
     string_of_func_type ft ^ string_of_func_def fd
+
 
 let string_of_program funcs =
     String.concat "\n" @@ List.map string_of_func funcs
