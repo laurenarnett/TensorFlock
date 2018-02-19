@@ -68,43 +68,25 @@ typ:
   | DOUBLE  { Double }
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
-aop:
-  | PLUS { Add }
-  | MINUS { Sub }
-  | TIMES { Mult }
-  | DIVIDE { Div }
-  | MOD { Mod }
-  | EXPT { Expt }
-
-rop:
-    EQ  { Eq  }
-  | NEQ { Neq }
-  | LT  { LT  }
-  | LEQ { Leq }
-  | GT  { GT  }
-  | GEQ { Geq }
-
 expr:
     LITERAL          { Literal($1)            }
   | FLIT	         { Fliteral($1)           }
   | BLIT             { BoolLit($1)            }
   | ID               { Id($1)                 }
   /* Arithmetic ops */
-  | expr aop expr    { Aop($1, $2, $3)      }
-  /* | expr PLUS   expr { Aop($1, Add,   $3)   }
+  | expr PLUS   expr { Aop($1, Add,   $3)   }
   | expr MINUS  expr { Aop($1, Sub,   $3)   }
   | expr TIMES  expr { Aop($1, Mult,  $3)   }
   | expr DIVIDE expr { Aop($1, Div,   $3)   }
   | expr MOD    expr { Aop($1, Mod,   $3)   }
-  | expr EXPT   expr { Aop($1, Expt,   $3)   } */
+  | expr EXPT   expr { Aop($1, Expt,   $3)   }
   /* Relational ops */
-  | expr rop expr    { Rop($1, $2, $3)      }
-  /* | expr EQ     expr { Rop($1, Eq, $3)   }
+  | expr EQ     expr { Rop($1, Eq, $3)   }
   | expr NEQ    expr { Rop($1, Neq,   $3)   }
   | expr LT     expr { Rop($1, LT,  $3)   }
   | expr LEQ    expr { Rop($1, Leq,   $3)   }
   | expr GT     expr { Rop($1, GT, $3) }
-  | expr GEQ    expr { Rop($1, Geq,   $3)   } */
+  | expr GEQ    expr { Rop($1, Geq,   $3)   } 
   /* Boolean ops */
   | expr AND    expr { Boolop($1, And,   $3)   }
   | expr OR     expr { Boolop($1, Or,    $3)   }
@@ -122,14 +104,17 @@ scope:
            { [] }
    | LBRACE decls RBRACE { $2 }
 
-
 shape:
-    /* 0 dimensional */     { [] }
+  /*   0 dimensional  */    { [] }
   | shape_arg COMMA shape   { $1 :: $3 }
   | shape_arg               { [$1] }
 
 shape_arg:
     LITERAL                     { Int }
   | ID                          { Placeholder }
-  | shape_arg aop shape_arg 		{ Poly($1, $2,   $3)   }
-
+  | shape_arg PLUS   shape_arg { Poly($1, Add,   $3)   }
+  | shape_arg MINUS  shape_arg { Poly($1, Sub,   $3)   }
+  | shape_arg TIMES  shape_arg { Poly($1, Mult,  $3)   }
+  | shape_arg DIVIDE shape_arg { Poly($1, Div,   $3)   }
+  | shape_arg MOD    shape_arg { Poly($1, Mod,   $3)   }
+  | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   }
