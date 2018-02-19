@@ -19,9 +19,6 @@ type shape_arg = Placeholder | Int | Poly of shape_arg * aop * shape_arg
 (* the shape of a tensor is a list of shapeargs *)
 type shape = shape_arg list
 
-(* the indices of a tensor are a list of ints *)
-type tidx = int list
-
 (* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
 type typ = Bool | Int | Double | Tensor of shape
 
