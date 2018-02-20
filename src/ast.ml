@@ -80,27 +80,29 @@ let string_of_uop = function
   | Neg  -> "-"
 
 let rec string_of_expr = function
-    Literal(l) -> string_of_int l
-  | Fliteral(l) -> l
+    Literal(l) -> "(" ^ string_of_int l ^ ")"
+  | Fliteral(l) -> "(" ^ l ^ ")"
   | BoolLit(true) -> "True"
   | BoolLit(false) -> "False"
   | TLit(l) -> "[" ^ String.concat ", " l ^ "]"
   | Id(s) -> s
   | Aop(e1, o, e2) ->
-        string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_aop o ^ " " 
+            ^ string_of_expr e2 ^ ")"
   | Unop(o, e) ->
-        string_of_uop o ^ string_of_expr e
+        "(" ^ string_of_uop o ^ string_of_expr e ^ ")"
   | Boolop(e1, o , e2) ->
-        string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr e2
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr
+          e2 ^ ")"
   | Rop(e1, o, e2) ->
-        string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr e2
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr
+          e2 ^ ")"
   | App(e1, e2) ->
-        string_of_expr e1 ^ string_of_expr e2
+        "(" ^ string_of_expr e1 ^ " applied to " ^ string_of_expr e2 ^ ")"
   | CondExpr(e1, e2, e3) ->
-        "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
-        string_of_expr e3
+        "(" ^ " if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^ string_of_expr e3 ^ ")"
   | TensorIdx(id, idxs) ->
-        id ^ "[" ^ String.concat ", " (List.map string_of_expr idxs) ^ "]"
+        "(" ^ id ^ "[" ^ String.concat ", " (List.map string_of_expr idxs) ^ "]" ^ ")"
 
 let string_of_typ = function
     Bool -> "Bool"
