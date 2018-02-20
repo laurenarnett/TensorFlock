@@ -32,7 +32,7 @@ type expr =
   | Unop of uop * expr
   | Boolop of expr * bop * expr
   | Rop of expr * rop * expr
-  | Call of string * expr list
+  | App of expr * expr
   | CondExpr of expr * expr * expr 
   | TensorIdx of string * expr list
 
@@ -94,8 +94,8 @@ let rec string_of_expr = function
         string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr e2
   | Rop(e1, o, e2) ->
         string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr e2
-  | Call(f, el) ->
-        f ^ " " ^ String.concat " " (List.map string_of_expr el)
+  | App(e1, e2) ->
+        string_of_expr e1 ^ string_of_expr e2
   | CondExpr(e1, e2, e3) ->
         "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
         string_of_expr e3

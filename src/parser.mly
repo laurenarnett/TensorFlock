@@ -26,6 +26,7 @@
 %left TIMES DIVIDE MOD
 %left EXPT
 %right NOT NEG
+%left APP
 
 
 %%
@@ -102,7 +103,8 @@ expr:
   | IF expr THEN expr ELSE expr { CondExpr($2, $4, $6) }
   /* Bracket indexing */
   | ID LBRACK tidx RBRACK { TensorIdx($1, $3) }
-  /* TODO:Function call */  
+  /* Function application */
+  | expr expr %prec APP { App($1, $2) }
   
 scope:
            { [] }
