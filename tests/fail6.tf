@@ -12,4 +12,3 @@ anInt = myTensor[]
 
 // Global Scope usage
 myTensor[1, 2, 3]
-
