@@ -1,3 +1,4 @@
+// Literal initialization
 w : Int;
 w = 3;
 
@@ -9,14 +10,3 @@ myFavoriteBool = True;
 
 aWorseBool' : Bool;
 aWorseBool' = False;
-
-scope : Double;
-scope = n; { n: Double; n = 4.12;
-q : Double; q = 12.; fun : Int; fun = 20;
-}
-
-
-
-
-
-
