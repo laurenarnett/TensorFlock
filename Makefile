@@ -16,20 +16,26 @@ $(PROJECT_EXTENSION): $(OCAML_SENTINAL) clean $(SRC_DIR)*
 
 state: $(OCAML_SENTINAL) clean
 	ocamlyacc -v $(SRC_DIR)$(PROJECT_PARSER).mly
+ifeq ($(wildcard _state),)
+	mkdir _state
+endif
+	mv $(SRC_DIR)$(PROJECT_PARSER).ml _state/.
+	mv $(SRC_DIR)$(PROJECT_PARSER).mli _state/.
+	mv $(SRC_DIR)$(PROJECT_PARSER).output _state/.
 
 test: $(PROJECT_EXTENSION) $(OCAML_SENTINAL)
 	bash ./test_runner.sh
 
+zip: clean
+	zip -r tensorflock.zip ../TensorFlock -x "*.git*" "*.gitignore*" "*.circleci*" "*.merlin*" "*_state*" "*proposal*"
+
 clean: 
 	ocamlbuild -clean
-ifneq ($(wildcard $(SRC_DIR)$(PROJECT_PARSER).ml),)
-	rm $(SRC_DIR)$(PROJECT_PARSER).ml
+ifneq ($(wildcard _state),)
+	rm -rf _state
 endif
-ifneq ($(wildcard $(SRC_DIR)$(PROJECT_PARSER).mli),)
-	rm $(SRC_DIR)$(PROJECT_PARSER).mli
-endif
-ifneq ($(wildcard $(SRC_DIR)$(PROJECT_PARSER).output),)
-	rm $(SRC_DIR)$(PROJECT_PARSER).output
+ifneq ($(wildcard *.zip),)
+	rm -f *.zip 
 endif
 
-.PHONY: state test clean
+.PHONY: state test clean zip
