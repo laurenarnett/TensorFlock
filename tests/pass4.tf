@@ -17,7 +17,10 @@ aDouble = myTensor[brahms != wagner, boulez >= stockhausen, bruch == soporific];
 
 // Parens
 parens : Int;
-parens = (a + b) * 3;
+parens = (a + b) * 3 / (2 - 3);
 
-/* parens2 : Bool; */
-/* parens2 = (a || b) && c */
+parens1 : Bool;
+parens1 = (d != a) < (b == c);
+
+parens2 : Bool;
+parens2 = (a || b) && c;

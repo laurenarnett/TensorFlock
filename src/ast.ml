@@ -10,6 +10,10 @@ type rop = Eq | Neq | LT | Leq | GT | Geq
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
 
+type binop =Add | Sub | Mult | Div | Mod | Expt |
+            Eq | Neq | LT | Leq | GT | Geq |
+            And | Or
+
 (* unary operators *)
 type uop = Neg
 
@@ -33,10 +37,11 @@ type expr =
   | BoolLit of bool
   | TLit of string list
   | Id of string
-  | Aop of expr * aop * expr
   | Unop of uop * expr
-  | Boolop of expr * bop * expr
-  | Rop of expr * rop * expr
+  | Binop of expr * binop * expr
+  (* | Aop of expr * aop * expr *)
+  (* | Boolop of expr * bop * expr *)
+  (* | Rop of expr * rop * expr *)
   | App of expr * expr
   | CondExpr of expr * expr * expr 
   | TensorIdx of string * expr list
@@ -60,7 +65,7 @@ type func = func_type * func_def
 type program = func list
 
 (* Pretty printing *)
-let string_of_aop = function
+let (string_of_aop : aop -> string) = function
     Add  -> "+"
   | Sub  -> "-"
   | Mult -> "*"
@@ -68,7 +73,7 @@ let string_of_aop = function
   | Mod  -> "%"
   | Expt -> "^"
 
-let string_of_rop = function
+let (string_of_rop : rop -> string)= function
     Eq  -> "=="
   | Neq -> "!="
   | LT  -> "<"
@@ -76,8 +81,24 @@ let string_of_rop = function
   | Leq -> "<="
   | Geq -> ">="
 
-let string_of_bop = function
+let (string_of_bop : bop -> string) = function
     And -> "&&"
+  | Or  -> "||"
+
+let string_of_binop = function
+    Add  -> "+"
+  | Sub  -> "-"
+  | Mult -> "*"
+  | Div  -> "/"
+  | Mod  -> "%"
+  | Expt -> "^"
+  | Eq  -> "=="
+  | Neq -> "!="
+  | LT  -> "<"
+  | GT  -> ">"
+  | Leq -> "<="
+  | Geq -> ">="
+  | And -> "&&"
   | Or  -> "||"
 
 let string_of_uop = function
@@ -102,17 +123,20 @@ let rec string_of_expr = function
   | BoolLit(false) -> "False"
   | TLit(l) -> "[" ^ String.concat ", " l ^ "]"
   | Id(s) -> s
-  | Aop(e1, o, e2) ->
-        "(" ^ string_of_expr e1 ^ " " ^ string_of_aop o ^ " " 
-            ^ string_of_expr e2 ^ ")"
   | Unop(o, e) ->
         "(" ^ string_of_uop o ^ string_of_expr e ^ ")"
-  | Boolop(e1, o , e2) ->
-        "(" ^ string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr
-          e2 ^ ")"
-  | Rop(e1, o, e2) ->
-        "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr
-          e2 ^ ")"
+  (* | Aop(e1, o, e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_aop o ^ " " *) 
+  (*           ^ string_of_expr e2 ^ ")" *)
+  (* | Boolop(e1, o , e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr *)
+  (*         e2 ^ ")" *)
+  (* | Rop(e1, o, e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr *)
+  (*         e2 ^ ")" *)
+  | Binop(e1, o, e2) ->
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_binop o ^ " " 
+            ^ string_of_expr e2 ^ ")"
   | App(e1, e2) ->
         "(" ^ string_of_expr e1 ^ " applied to " ^ string_of_expr e2 ^ ")"
   | CondExpr(e1, e2, e3) ->

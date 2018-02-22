@@ -24,8 +24,9 @@
 %left LANGLE RANGLE LEQ GEQ
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
-%right EXPT
 %right NEG
+%right EXPT
+%nonassoc LPAREN RPAREN
 
 
 %%
@@ -66,31 +67,27 @@ typ:
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 /* Expression starting point */
-expr:
-  | boolexpr { $1 }
+expr: binexpr { $1 }
 
-boolexpr:
-  | IF boolexpr THEN boolexpr ELSE boolexpr { CondExpr($2, $4, $6) }
-  | boolexpr OR  boolexpr { Boolop($1, Or, $3) }
-  | boolexpr AND boolexpr { Boolop($1, And, $3) }
-  | boolexpr EQ  boolexpr { Rop($1, Eq, $3) }
-  | boolexpr NEQ boolexpr { Rop($1, Neq, $3) }
-  | boolexpr LANGLE  boolexpr { Rop($1, LT, $3) }
-  | boolexpr LEQ boolexpr { Rop($1, Leq, $3) }
-  | boolexpr RANGLE  boolexpr { Rop($1, GT, $3) }
-  | boolexpr GEQ boolexpr { Rop($1, Geq, $3) }
-  | aexpr { $1 }
-
-aexpr:
-  | aexpr PLUS   aexpr { Aop($1, Add, $3)  }
-  | aexpr MINUS  aexpr { Aop($1, Sub, $3)  }
-  | aexpr TIMES  aexpr { Aop($1, Mult, $3) }
-  | aexpr DIVIDE aexpr { Aop($1, Div, $3)  }
-  | aexpr MOD    aexpr { Aop($1, Mod, $3)  }
-  | aexpr EXPT   aexpr { Aop($1, Expt, $3) }
-  | MINUS aexpr %prec NEG { Unop(Neg, $2) }
-  | LPAREN aexpr RPAREN { $2 }
-  | fexpr { $1 }
+binexpr:
+  | IF binexpr THEN binexpr ELSE binexpr { CondExpr($2, $4, $6) }
+  | binexpr OR  binexpr     { Binop($1, Or, $3)   }
+  | binexpr AND binexpr     { Binop($1, And, $3)  }
+  | binexpr EQ  binexpr     { Binop($1, Eq, $3)   }
+  | binexpr NEQ binexpr     { Binop($1, Neq, $3)  }
+  | binexpr LANGLE  binexpr { Binop($1, LT, $3)   }
+  | binexpr LEQ binexpr     { Binop($1, Leq, $3)  }
+  | binexpr RANGLE  binexpr { Binop($1, GT, $3)   }
+  | binexpr GEQ binexpr     { Binop($1, Geq, $3)  }
+  | binexpr PLUS   binexpr  { Binop($1, Add, $3)  }
+  | binexpr MINUS  binexpr  { Binop($1, Sub, $3)  }
+  | binexpr TIMES  binexpr  { Binop($1, Mult, $3) }
+  | binexpr DIVIDE binexpr  { Binop($1, Div, $3)  }
+  | binexpr MOD    binexpr  { Binop($1, Mod, $3)  }
+  | MINUS binexpr %prec NEG { Unop(Neg, $2)       }
+  | binexpr EXPT   binexpr  { Binop($1, Expt, $3) }
+  | LPAREN binexpr RPAREN   { $2 }
+  | fexpr                   { $1 }
 
 fexpr:
       fexpr bexpr { App($1, $2) }
@@ -135,14 +132,14 @@ shape:
 sexpr: saexpr { $1 }
 
 saexpr:
-      saexpr PLUS saexpr { Aop($1, Add, $3) : aexpr }
-  | saexpr MINUS saexpr  { Aop($1, Sub, $3) }
-  | saexpr TIMES saexpr  { Aop($1, Mult, $3) }
-  | saexpr DIVIDE saexpr  { Aop($1, Div, $3) }
-  | saexpr MOD    saexpr  { Aop($1, Mod, $3) }
-  | saexpr EXPT saexpr { Aop($1, Expt, $3) }
+      saexpr PLUS saexpr   { Aop($1, Add, $3) : aexpr }
+  | saexpr MINUS saexpr    { Aop($1, Sub, $3) }
+  | saexpr TIMES saexpr    { Aop($1, Mult, $3) }
+  | saexpr DIVIDE saexpr   { Aop($1, Div, $3) }
+  | saexpr MOD    saexpr   { Aop($1, Mod, $3) }
+  | saexpr EXPT saexpr     { Aop($1, Expt, $3) }
   | MINUS saexpr %prec NEG { Unop(Neg, $2) }
-  | sfexpr { $1 }
+  | sfexpr                 { $1 }
 
 sfexpr:
       sfexpr slexpr { App($1, $2) }
@@ -150,6 +147,6 @@ sfexpr:
 
 
 slexpr:
-    LITERAL          { Literal($1)            }
-  | ID               { Id($1) }       
+    LITERAL          { Literal($1) }
+  | ID               { Id($1)      }
 
