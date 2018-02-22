@@ -24,7 +24,7 @@
 %left LANGLE RANGLE LEQ GEQ
 %left PLUS MINUS
 %left TIMES DIVIDE MOD
-%left EXPT
+%right EXPT
 %right NEG
 
 
