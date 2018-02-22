@@ -59,16 +59,11 @@ types:
   | typ ARROW types { $1 :: $3 }
   | typ { [$1] }
 
-tidx:
-  /* Don't match on an empty tensor index */
-  | expr COMMA tidx { $1 :: $3 }
-  | expr            { [$1] }
-
 typ:
     INT     { Int   }
   | BOOL    { Bool  }
   | DOUBLE  { Double }
-  /* | TENSOR LANGLE shape RANGLE { Tensor($3) } */
+  | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 /* Expression starting point */
 expr:
@@ -93,10 +88,7 @@ aexpr:
   | aexpr DIVIDE aexpr  { Aop($1, Div, $3) }
   | aexpr MOD    aexpr  { Aop($1, Mod, $3) }
   | aexpr EXPT aexpr { Aop($1, Expt, $3) }
-  | uexpr { $1 }
-
-uexpr:
-      MINUS uexpr { Unop(Neg, $2) }
+  | MINUS aexpr %prec NEG { Unop(Neg, $2) }
   | fexpr { $1 }
 
 fexpr:
@@ -115,6 +107,11 @@ lexpr:
   | ID               { Id($1) }       
   | tcontents        { TLit($1) }
 
+tidx:
+  /* Don't match on an empty tensor index */
+  | expr COMMA tidx { $1 :: $3 }
+  | expr            { [$1] }
+
 scope:
            { [] }
    | LBRACE decls RBRACE { $2 }
@@ -130,15 +127,28 @@ floats:
 
 shape:
     /* 0 dimensional */     { [] }
-  | shape_arg COMMA shape   { $1 :: $3 }
-  | shape_arg               { [$1] }
+  | sexpr COMMA shape   { $1 :: $3 }
+  | sexpr               { [$1] }
 
-shape_arg:
-    LITERAL                     { Int($1) }
-  | ID                          { Placeholder($1) }
-  | shape_arg PLUS   shape_arg { Poly($1, Add,   $3)   }
-  | shape_arg MINUS  shape_arg { Poly($1, Sub,   $3)   }
-  | shape_arg TIMES  shape_arg { Poly($1, Mult,  $3)   }
-  | shape_arg DIVIDE shape_arg { Poly($1, Div,   $3)   }
-  | shape_arg MOD    shape_arg { Poly($1, Mod,   $3)   }
-  | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   } 
+/* Tensor shape starting point */
+sexpr: saexpr { $1 }
+
+saexpr:
+      saexpr PLUS saexpr { Aop($1, Add, $3) : aexpr }
+  | saexpr MINUS saexpr  { Aop($1, Sub, $3) }
+  | saexpr TIMES saexpr  { Aop($1, Mult, $3) }
+  | saexpr DIVIDE saexpr  { Aop($1, Div, $3) }
+  | saexpr MOD    saexpr  { Aop($1, Mod, $3) }
+  | saexpr EXPT saexpr { Aop($1, Expt, $3) }
+  | MINUS saexpr %prec NEG { Unop(Neg, $2) }
+  | sfexpr { $1 }
+
+sfexpr:
+      sfexpr slexpr { App($1, $2) }
+  | slexpr { $1 }
+
+
+slexpr:
+    LITERAL          { Literal($1)            }
+  | ID               { Id($1) }       
+

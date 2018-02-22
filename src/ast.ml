@@ -13,12 +13,16 @@ type bop = And | Or
 (* unary operators *)
 type uop = Neg
 
-(* tensor shape arguments TODO: come up with better names *)
-type shape_arg = Placeholder of string | Int of int |
-                 Poly of shape_arg * aop * shape_arg
+(* restricted class of expressions that can go in tensor shapes *)
+type aexpr = 
+    Literal of int
+  | Id of string
+  | Aop of aexpr * aop * aexpr
+  | Unop of uop * aexpr
+  | App of aexpr * aexpr
 
-(* the shape of a tensor is a list of shapeargs *)
-type shape = shape_arg list
+
+type shape = aexpr list
 
 (* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
 type typ = Bool | Int | Double | Tensor of shape
@@ -79,6 +83,18 @@ let string_of_bop = function
 let string_of_uop = function
     Neg  -> "-"
 
+let rec (string_of_aexpr : aexpr -> string) = function
+    Literal(l) -> "(" ^ string_of_int l ^ ")"
+  | Id(s) -> s
+  | Aop(e1, o, e2) ->
+        "(" ^ string_of_aexpr e1 ^ " " ^ string_of_aop o ^ " " 
+            ^ string_of_aexpr e2 ^ ")"
+  | Unop(o, e) ->
+        "(" ^ string_of_uop o ^ string_of_aexpr e ^ ")"
+  | App(e1, e2) ->
+        "(" ^ string_of_aexpr e1 ^ " applied to " ^ string_of_aexpr e2 ^ ")"
+
+
 let rec string_of_expr = function
     Literal(l) -> "(" ^ string_of_int l ^ ")"
   | Fliteral(l) -> "(" ^ l ^ ")"
@@ -106,17 +122,12 @@ let rec string_of_expr = function
         "(" ^ id ^ "[" ^ String.concat ", " 
             (List.map string_of_expr idxs) ^ "]" ^ ")"
 
-let rec string_of_shape_arg = function
-    Placeholder(s) -> s
-  | Int(i) -> string_of_int i
-  | Poly(a1, aop, a2) -> string_of_shape_arg a1 
-                         ^ string_of_aop aop ^ string_of_shape_arg a2
 
 let string_of_typ = function
     Bool -> "Bool"
   | Int -> "Int"
   | Double -> "Double"
-  | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_shape_arg s) ^ ">"
+  | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
 
 let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
