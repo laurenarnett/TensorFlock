@@ -1,9 +1,14 @@
+// Literal initialization
+w : Int;
+w = 3;
+
 
 myFavoriteDouble : Double;
 myFavoriteDouble = 3.14e12 + 12. * 38 - 23 ^ 1.e2400;
 
 
-aWorseBool' : Bool -> Int -> Double;
+
+aWorseBool' : Bool;
 aWorseBool' = False && True || 3 == 4 + 5 - 3 - -3;
 
 
@@ -15,9 +20,3 @@ scope : Double;
 scope = n; { n: Double; n = 4.12;
 q : Double; q = 12.; fun : Int; fun = 20;
 }
-
-
-
-
-
-
