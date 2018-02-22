@@ -11,7 +11,7 @@ type rop = Eq | Neq | LT | Leq | GT | Geq
 type bop = And | Or
 
 (* unary operators *)
-type uop = Not | Neg
+type uop = Neg
 
 (* tensor shape arguments TODO: come up with better names *)
 type shape_arg = Placeholder of string | Int of int |
@@ -77,8 +77,7 @@ let string_of_bop = function
   | Or  -> "||"
 
 let string_of_uop = function
-    Not  -> "!"
-  | Neg  -> "-"
+    Neg  -> "-"
 
 let rec string_of_expr = function
     Literal(l) -> "(" ^ string_of_int l ^ ")"

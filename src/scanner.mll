@@ -26,7 +26,6 @@ rule token = parse
 | '<'      { LANGLE }
 | '>'      { RANGLE }
 | "=="     { EQ }
-| "!"      { NOT }
 | '='      { DEFINE }
 | "!="     { NEQ }
 | '+'      { PLUS }
