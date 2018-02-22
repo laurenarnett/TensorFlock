@@ -14,7 +14,8 @@ type bop = And | Or
 type uop = Not | Neg
 
 (* tensor shape arguments TODO: come up with better names *)
-type shape_arg = Placeholder | Int | Poly of shape_arg * aop * shape_arg
+type shape_arg = Placeholder of string | Int of int |
+                 Poly of shape_arg * aop * shape_arg
 
 (* the shape of a tensor is a list of shapeargs *)
 type shape = shape_arg list
@@ -106,11 +107,17 @@ let rec string_of_expr = function
         "(" ^ id ^ "[" ^ String.concat ", " 
             (List.map string_of_expr idxs) ^ "]" ^ ")"
 
+let rec string_of_shape_arg = function
+    Placeholder(s) -> s
+  | Int(i) -> string_of_int i
+  | Poly(a1, aop, a2) -> string_of_shape_arg a1 
+                         ^ string_of_aop aop ^ string_of_shape_arg a2
+
 let string_of_typ = function
     Bool -> "Bool"
   | Int -> "Int"
   | Double -> "Double"
-  | Tensor _ -> "T<WIP>"
+  | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_shape_arg s) ^ ">"
 
 let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ

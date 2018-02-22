@@ -128,17 +128,17 @@ floats:
    | FLIT              { [$1] } 
    | FLIT COMMA floats { $1 :: $3 } 
 
-/* shape: */
-/*     /1* 0 dimensional *1/     { [] } */
-/*   | shape_arg COMMA shape   { $1 :: $3 } */
-/*   | shape_arg               { [$1] } */
+shape:
+    /* 0 dimensional */     { [] }
+  | shape_arg COMMA shape   { $1 :: $3 }
+  | shape_arg               { [$1] }
 
-/* shape_arg: */
-/*     LITERAL                     { Int } */
-/*   | ID                          { Placeholder } */
-/*   | shape_arg PLUS   shape_arg { Poly($1, Add,   $3)   } */
-/*   | shape_arg MINUS  shape_arg { Poly($1, Sub,   $3)   } */
-/*   | shape_arg TIMES  shape_arg { Poly($1, Mult,  $3)   } */
-/*   | shape_arg DIVIDE shape_arg { Poly($1, Div,   $3)   } */
-/*   | shape_arg MOD    shape_arg { Poly($1, Mod,   $3)   } */
-/*   | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   } */ 
+shape_arg:
+    LITERAL                     { Int($1) }
+  | ID                          { Placeholder($1) }
+  | shape_arg PLUS   shape_arg { Poly($1, Add,   $3)   }
+  | shape_arg MINUS  shape_arg { Poly($1, Sub,   $3)   }
+  | shape_arg TIMES  shape_arg { Poly($1, Mult,  $3)   }
+  | shape_arg DIVIDE shape_arg { Poly($1, Div,   $3)   }
+  | shape_arg MOD    shape_arg { Poly($1, Mod,   $3)   }
+  | shape_arg EXPT   shape_arg { Poly($1, Expt,   $3)   } 
