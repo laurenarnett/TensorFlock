@@ -5,7 +5,7 @@ First, ensure that you have opam version 1.2.2 or greater installed. Then just r
 
 ## Execution
 After running make, you can execute our compiler by running:
-./toplevel.native -a <file name>.tf
+./toplevel.native -a tests/<file name>.tf
 
 ## Testing
 To run our tests, run "make test".
