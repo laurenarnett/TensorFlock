@@ -123,8 +123,8 @@ shape:
   | shape_arg               { [$1] }
 
 shape_arg:
-    LITERAL                     { Int }
-  | ID                          { Placeholder }
+    LITERAL                     { Int($1) }
+  | ID                          { Placeholder($1) }
   | shape_arg PLUS   shape_arg { Poly($1, Add,   $3)   }
   | shape_arg MINUS  shape_arg { Poly($1, Sub,   $3)   }
   | shape_arg TIMES  shape_arg { Poly($1, Mult,  $3)   }
