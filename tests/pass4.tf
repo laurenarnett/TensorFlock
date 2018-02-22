@@ -13,3 +13,10 @@ aDouble = myTensor[lizard, robot, moon_unit];
 // Other expressions
 aDouble : Double;
 aDouble = myTensor[brahms != wagner, boulez >= stockhausen, bruch == soporific];
+
+// Parens
+parens : Int;
+parens = (a + b) * 3;
+
+/* parens2 : Bool; */
+/* parens2 = (a || b) && c */

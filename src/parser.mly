@@ -67,7 +67,7 @@ typ:
 
 /* Expression starting point */
 expr:
-    boolexpr { $1 }
+  | boolexpr { $1 }
 
 boolexpr:
   | IF boolexpr THEN boolexpr ELSE boolexpr { CondExpr($2, $4, $6) }
@@ -82,13 +82,14 @@ boolexpr:
   | aexpr { $1 }
 
 aexpr:
-      aexpr PLUS aexpr { Aop($1, Add, $3) }
-  | aexpr MINUS aexpr  { Aop($1, Sub, $3) }
-  | aexpr TIMES aexpr  { Aop($1, Mult, $3) }
-  | aexpr DIVIDE aexpr  { Aop($1, Div, $3) }
-  | aexpr MOD    aexpr  { Aop($1, Mod, $3) }
-  | aexpr EXPT aexpr { Aop($1, Expt, $3) }
+  | aexpr PLUS   aexpr { Aop($1, Add, $3)  }
+  | aexpr MINUS  aexpr { Aop($1, Sub, $3)  }
+  | aexpr TIMES  aexpr { Aop($1, Mult, $3) }
+  | aexpr DIVIDE aexpr { Aop($1, Div, $3)  }
+  | aexpr MOD    aexpr { Aop($1, Mod, $3)  }
+  | aexpr EXPT   aexpr { Aop($1, Expt, $3) }
   | MINUS aexpr %prec NEG { Unop(Neg, $2) }
+  | LPAREN aexpr RPAREN { $2 }
   | fexpr { $1 }
 
 fexpr:
