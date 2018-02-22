@@ -100,9 +100,11 @@ let rec string_of_expr = function
   | App(e1, e2) ->
         "(" ^ string_of_expr e1 ^ " applied to " ^ string_of_expr e2 ^ ")"
   | CondExpr(e1, e2, e3) ->
-        "(" ^ " if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^ string_of_expr e3 ^ ")"
+        "(" ^ " if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 
+            ^ " else " ^ string_of_expr e3 ^ ")"
   | TensorIdx(id, idxs) ->
-        "(" ^ id ^ "[" ^ String.concat ", " (List.map string_of_expr idxs) ^ "]" ^ ")"
+        "(" ^ id ^ "[" ^ String.concat ", " 
+            (List.map string_of_expr idxs) ^ "]" ^ ")"
 
 let string_of_typ = function
     Bool -> "Bool"
