@@ -10,7 +10,7 @@
 
 %token <int> LITERAL
 %token <bool> BLIT
-%token <string> ID FLIT
+%token <string> ID FLIT TIDX
 %token EOF
 
 %start program
@@ -118,7 +118,9 @@ fexpr:
   | bexpr { $1 }
 
 bexpr:
-      ID LBRACK tidx RBRACK { TensorIdx($1, $3) }
+      /* ID LBRACK tidx RBRACK { TensorIdx($1, $3) } */
+      TIDX tidx RBRACK { let id = List.hd (String.split_on_char '[' $1) 
+                         in TensorIdx(id, $2) }
   | lexpr { $1 }
 
 lexpr:
