@@ -43,7 +43,7 @@ funct:
 
 ftyp:
    ID COLON types SEMI
-     { { fname = $1; types = $3; } }
+     { { fname = $1; types = List.rev $3; } }
 
 formals:
     { [] }
@@ -57,7 +57,7 @@ fdef:
 
 types:
   /* Don't pattern match on empty list because that should fail */
-  | typ ARROW types { $1 :: $3 }
+  | types ARROW typ { $3 :: $1 }
   | typ { [$1] }
 
 typ:
@@ -90,12 +90,12 @@ binexpr:
   | fexpr                   { $1 }
 
 fexpr:
-      fexpr bexpr { App($1, $2) }
-  | bexpr { $1 }
+      fexpr brackexpr { App($1, $2) }
+  | brackexpr { $1 }
 
-bexpr:
-    TIDX tidx RBRACK 
-      { let id = List.hd (String.split_on_char '[' $1) in TensorIdx(id, $2) }
+brackexpr:
+    TIDX tidx RBRACK { let id = List.hd (String.split_on_char '[' $1) 
+                       in TensorIdx(id, List.rev $2) }
   | lexpr { $1 }
 
 lexpr:
@@ -103,12 +103,12 @@ lexpr:
   | FLIT	         { Fliteral($1)           }
   | BLIT             { BoolLit($1)            }
   | ID               { Id($1) }       
-  | tcontents        { TLit($1) }
+  | LBRACK tcontents RBRACK        { TLit(List.rev $2) }
 
 tidx:
   /* Don't match on an empty tensor index */
-  | expr COMMA tidx { $1 :: $3 }
   | expr            { [$1] }
+  | tidx COMMA expr { $3 :: $1 }
 
 scope:
            { [] }
@@ -116,12 +116,14 @@ scope:
 
 
 tcontents:
-   LBRACK floats RBRACK { $2 } 
-   
-floats:
-       { [] }
-   | FLIT              { [$1] } 
-   | FLIT COMMA floats { $1 :: $3 } 
+       /* We begin the tcontents parsing at the lexpr section so that we only */
+       /* admit literal values in tensor literals. Should we be so inclined, */
+       /* admitting arbitrary expressions in tensor */
+       /* literals can be accomplished by replacing lexpr in */
+       /* the following two lines with expr */ 
+       lexpr { [$1] }
+   | tcontents COMMA lexpr { $3 :: $1 }
+
 
 shape:
     /* 0 dimensional */     { [] }

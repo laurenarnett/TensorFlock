@@ -35,7 +35,7 @@ type expr =
     Literal of int
   | Fliteral of string
   | BoolLit of bool
-  | TLit of string list
+  | TLit of expr list
   | Id of string
   | Unop of uop * expr
   | Binop of expr * binop * expr
@@ -121,7 +121,7 @@ let rec string_of_expr = function
   | Fliteral(l) -> "(" ^ l ^ ")"
   | BoolLit(true) -> "True"
   | BoolLit(false) -> "False"
-  | TLit(l) -> "[" ^ String.concat ", " l ^ "]"
+  | TLit(es) -> "[" ^ String.concat ", " (List.map string_of_expr es) ^ "]"
   | Id(s) -> s
   | Unop(o, e) ->
         "(" ^ string_of_uop o ^ string_of_expr e ^ ")"

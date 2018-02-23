@@ -22,5 +22,5 @@ parens = (a + b) * 3 / (2 - 3);
 parens1 : Bool;
 parens1 = (d != a) < (b == c);
 
-parens2 : Bool;
+parens2 : Bool -> Int -> Double;
 parens2 = (a || b) && c;
