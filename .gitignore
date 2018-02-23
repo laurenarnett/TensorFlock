@@ -16,3 +16,4 @@ _build
 *.output
 parser.ml
 parser.mli
+*.zip

@@ -1,3 +1,6 @@
+fn : T<1+ a - 3 * 14 ^ 72,2>;
+fn arg1 arg2 = arg1[i,j];
+
 // Scope usage
 scope : Double;
 scope = n; { n: Double; n = 4.12;
@@ -17,3 +20,4 @@ nestedScope = x != y;
         }
       y : Double; y = 7;
     }
+

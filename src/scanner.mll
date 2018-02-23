@@ -4,9 +4,11 @@
 
 let digit = ['0' - '9']
 let digits = digit+
+let id = ['a'-'z' 'A'-'Z']['a'-'z' 'A'-'Z' '0'-'9' '_']* ('\'')* 
+let whitespace = [' ' '\t' '\r' '\n']
 
 rule token = parse
-  [' ' '\t' '\r' '\n'] { token lexbuf } (* Whitespace *)
+   whitespace { token lexbuf } (* Whitespace *)
 | "/*"     { block_comment lexbuf }     (* Block Comments *)
 | "//"     { line_comment lexbuf }      (* Line  Comments *)
 | ';'      { SEMI }
@@ -19,14 +21,11 @@ rule token = parse
 | '}'      { RBRACE }
 | '['      { LBRACK }
 | ']'      { RBRACK }
-(* unclear if <= needs to be before < in order
- * for < to not succeed by default every time *)
 | ">="     { GEQ }
 | "<="     { LEQ }
 | '<'      { LANGLE }
 | '>'      { RANGLE }
 | "=="     { EQ }
-| "!"      { NOT }
 | '='      { DEFINE }
 | "!="     { NEQ }
 | '+'      { PLUS }
@@ -35,9 +34,6 @@ rule token = parse
 | '/'      { DIVIDE }
 | '%'      { MOD }
 | '^'      { EXPT }
-(* TODO: decide how to disambiguate tensor shape and GT/LT *)
-(* | '<'      { LT } *)
-(* | ">"      { GT } *)
 | "&&"     { AND }
 | "||"     { OR }
 | "if"     { IF }
@@ -51,7 +47,8 @@ rule token = parse
 | 'T'      { TENSOR }
 | digits as lxm { LITERAL(int_of_string lxm) }
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
-| ['a'-'z' 'A'-'Z']['a'-'z' 'A'-'Z' '0'-'9' '_']* ('\'')*    as lxm { ID(lxm) }
+| id   as lxm { ID(lxm) }
+| id '[' as lxm { TIDX (lxm) }
 | eof { EOF }
 | _ as char { raise (Failure("illegal character " ^ Char.escaped char)) }
 

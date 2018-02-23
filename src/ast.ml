@@ -10,14 +10,23 @@ type rop = Eq | Neq | LT | Leq | GT | Geq
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
 
+type binop =Add | Sub | Mult | Div | Mod | Expt |
+            Eq | Neq | LT | Leq | GT | Geq |
+            And | Or
+
 (* unary operators *)
-type uop = Not | Neg
+type uop = Neg
 
-(* tensor shape arguments TODO: come up with better names *)
-type shape_arg = Placeholder | Int | Poly of shape_arg * aop * shape_arg
+(* restricted class of expressions that can go in tensor shapes *)
+type aexpr = 
+    Literal of int
+  | Id of string
+  | Aop of aexpr * aop * aexpr
+  | Unop of uop * aexpr
+  | App of aexpr * aexpr
 
-(* the shape of a tensor is a list of shapeargs *)
-type shape = shape_arg list
+
+type shape = aexpr list
 
 (* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
 type typ = Bool | Int | Double | Tensor of shape
@@ -26,13 +35,14 @@ type expr =
     Literal of int
   | Fliteral of string
   | BoolLit of bool
-  | TLit of string list
+  | TLit of expr list
   | Id of string
-  | Aop of expr * aop * expr
   | Unop of uop * expr
-  | Boolop of expr * bop * expr
-  | Rop of expr * rop * expr
-  | Call of string * expr list
+  | Binop of expr * binop * expr
+  (* | Aop of expr * aop * expr *)
+  (* | Boolop of expr * bop * expr *)
+  (* | Rop of expr * rop * expr *)
+  | App of expr * expr
   | CondExpr of expr * expr * expr 
   | TensorIdx of string * expr list
 
@@ -55,7 +65,7 @@ type func = func_type * func_def
 type program = func list
 
 (* Pretty printing *)
-let string_of_aop = function
+let (string_of_aop : aop -> string) = function
     Add  -> "+"
   | Sub  -> "-"
   | Mult -> "*"
@@ -63,7 +73,7 @@ let string_of_aop = function
   | Mod  -> "%"
   | Expt -> "^"
 
-let string_of_rop = function
+let (string_of_rop : rop -> string)= function
     Eq  -> "=="
   | Neq -> "!="
   | LT  -> "<"
@@ -71,42 +81,77 @@ let string_of_rop = function
   | Leq -> "<="
   | Geq -> ">="
 
-let string_of_bop = function
+let (string_of_bop : bop -> string) = function
     And -> "&&"
   | Or  -> "||"
 
-let string_of_uop = function
-    Not  -> "!"
-  | Neg  -> "-"
+let string_of_binop = function
+    Add  -> "+"
+  | Sub  -> "-"
+  | Mult -> "*"
+  | Div  -> "/"
+  | Mod  -> "%"
+  | Expt -> "^"
+  | Eq  -> "=="
+  | Neq -> "!="
+  | LT  -> "<"
+  | GT  -> ">"
+  | Leq -> "<="
+  | Geq -> ">="
+  | And -> "&&"
+  | Or  -> "||"
 
-let rec string_of_expr = function
-    Literal(l) -> string_of_int l
-  | Fliteral(l) -> l
-  | BoolLit(true) -> "True"
-  | BoolLit(false) -> "False"
-  | TLit(l) -> "[" ^ String.concat ", " l ^ "]"
+let string_of_uop = function
+    Neg  -> "-"
+
+let rec (string_of_aexpr : aexpr -> string) = function
+    Literal(l) -> "(" ^ string_of_int l ^ ")"
   | Id(s) -> s
   | Aop(e1, o, e2) ->
-        string_of_expr e1 ^ " " ^ string_of_aop o ^ " " ^ string_of_expr e2
+        "(" ^ string_of_aexpr e1 ^ " " ^ string_of_aop o ^ " " 
+            ^ string_of_aexpr e2 ^ ")"
   | Unop(o, e) ->
-        string_of_uop o ^ string_of_expr e
-  | Boolop(e1, o , e2) ->
-        string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr e2
-  | Rop(e1, o, e2) ->
-        string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr e2
-  | Call(f, el) ->
-        f ^ " " ^ String.concat " " (List.map string_of_expr el)
+        "(" ^ string_of_uop o ^ string_of_aexpr e ^ ")"
+  | App(e1, e2) ->
+        "(" ^ string_of_aexpr e1 ^ " applied to " ^ string_of_aexpr e2 ^ ")"
+
+
+let rec string_of_expr = function
+    Literal(l) -> "(" ^ string_of_int l ^ ")"
+  | Fliteral(l) -> "(" ^ l ^ ")"
+  | BoolLit(true) -> "True"
+  | BoolLit(false) -> "False"
+  | TLit(es) -> "[" ^ String.concat ", " (List.map string_of_expr es) ^ "]"
+  | Id(s) -> s
+  | Unop(o, e) ->
+        "(" ^ string_of_uop o ^ string_of_expr e ^ ")"
+  (* | Aop(e1, o, e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_aop o ^ " " *) 
+  (*           ^ string_of_expr e2 ^ ")" *)
+  (* | Boolop(e1, o , e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr *)
+  (*         e2 ^ ")" *)
+  (* | Rop(e1, o, e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr *)
+  (*         e2 ^ ")" *)
+  | Binop(e1, o, e2) ->
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_binop o ^ " " 
+            ^ string_of_expr e2 ^ ")"
+  | App(e1, e2) ->
+        "(" ^ string_of_expr e1 ^ " applied to " ^ string_of_expr e2 ^ ")"
   | CondExpr(e1, e2, e3) ->
-        "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^
-        string_of_expr e3
+        "(" ^ " if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 
+            ^ " else " ^ string_of_expr e3 ^ ")"
   | TensorIdx(id, idxs) ->
-        id ^ "[" ^ String.concat ", " (List.map string_of_expr idxs) ^ "]"
+        "(" ^ id ^ "[" ^ String.concat ", " 
+            (List.map string_of_expr idxs) ^ "]" ^ ")"
+
 
 let string_of_typ = function
     Bool -> "Bool"
   | Int -> "Int"
   | Double -> "Double"
-  | Tensor _ -> "T<WIP>"
+  | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
 
 let rec string_of_func_type (ftype : func_type) =
     ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
