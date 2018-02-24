@@ -1,4 +1,6 @@
-\title{TensorFlock: A Functional Tensor-Manipulation Language}
+\title{TensorFlock: A Functional Tensor-Manipulation Language\\
+    Language Reference Manual
+}
 
 \author{Joseph Morag - Language Guru (jm4157@columbia.edu)\\
 Lauren Arnett - System Architect (lba2138@columbia.edu)\\
@@ -9,11 +11,11 @@ Nick Buonincontri - Tester (nb2413@columbia.edu)
 \date{February 26, 2018}
 
 \documentclass[12pt]{article}
+\usepackage{import} 
 \usepackage{listings}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage[letterpaper, portrait, margin=1in]{geometry}
-
 % {{{ Code formatting
 \usepackage{color}
 \usepackage{xcolor}
@@ -63,5 +65,13 @@ Nick Buonincontri - Tester (nb2413@columbia.edu)
 
 \begin{document}
 \maketitle
+
+\import{./}{intro.tex}
+\import{./}{types.tex}
+\import{./}{syntax.tex}
+\import{./}{operators.tex}
+\import{./}{casting.tex}
+\import{./}{esum.tex}
+
 
 \end{document}
