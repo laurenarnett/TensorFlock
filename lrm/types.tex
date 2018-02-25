@@ -1,4 +1,44 @@
 \section{Types}%
 \label{sec:types}
 
+TensorFlock defines a small number of primitives: Bool, Int, Double, and Tensor. They are declared (\emph{id} : \emph{type};) and defined (\emph{id} = \emph{literal};) in two lines, as shown in the following examples. 
+
+\subsection{Booleans}
+Bools can take on the boolean literals \emph{True} or \emph{False}, or other boolean expressions.
+\begin{lstlisting}
+p : Bool;
+p = True;
+\end{lstlisting}
+
+\subsection{Integers}
+Our integer type is declared as Int.
+\begin{lstlisting}
+x : Int;
+x = 44;
+\end{lstlisting}
+
+\subsection{Doubles}
+When defining literals, Doubles must begin with a digit and contain a period. They can also be defined in scientific notation using the letter 'E' or 'e', followed by the exponent to be raised by 10. 
+\begin{lstlisting}
+d1 : Double;
+d1 = 3.14159265359;
+
+d2 : Double;
+d2 = 1.234567e-8;
+
+d3 : Double;
+d3 = 1.;
+\end{lstlisting}
+
+\subsection{Tensors}
+Tensors are declared using a mandatory set of angled brackets that specify the shape ($< >$). The indices of a Tensor must be of type Int, whether it is a variable or literal. The contents of a Tensor, however, must be of type Double. \\
+Tensor literals are defined using square brackets, which can be nested for dimensions higher than 1. The contents of a Tensor are accessed with square brackets that contain indices for the correct position. 
+\begin{lstlisting}
+t : T<a, b>;
+t = [[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]];
+
+v : Double;
+v = t[0, 1];
+\end{lstlisting}
+
 
