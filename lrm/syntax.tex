@@ -1,15 +1,19 @@
 \section{Syntax}%
 \label{sec:syntax}
 \subsection{Comments}
-Comments in TensorFlock generally follow the C-style convention. Single line comments are introduced with two forward slashes: \lstinline|//|. Multi-line comments are introduced with \lstinline|/*| and conclude with \lstinline|*/|
+Comments in TensorFlock generally follow the C-style convention. Single line
+comments are introduced with two forward slashes: \lstinline|//|. Multi-line
+comments are introduced with \lstinline|/*| and conclude with \lstinline|*/|.
+TensorFlock does not support nested multiline comments.
 \subsection{Identifiers}
-Identifiers in TensorFlock consist of a single upper or lower case letter; followed by zero or more letters of either case, numbers, or underbar \lstinline|_|.  Identifiers may also conclude with zero or more single apostrophes \lstinline|'| .
+Identifiers in TensorFlock consist of a single lower case letter; followed by zero 
+or more letters of either case, numbers, or underbar \lstinline|_|.
+Identifiers may also conclude with zero or more single apostrophes \lstinline|'| .
 \subsection{Keywords}
 Keywords in TensorFlock consist of primitive types and conditional control flow:
 \begin{lstlisting}
 Int
 Bool
-Double
 T
 If
 Then
@@ -21,67 +25,85 @@ False
 Scope in TensorFlock is indicated with the use of \lstinline|{}|. The opening brace can be considered analogous to a \lstinline|where| statement.
 \begin{lstlisting}
 // Scope usage
-scope : Double;
-scope = n; { n: Double; n = 4.12;
-    q : Double; q = 12.; fun : Int; fun = 20;
+scope : T<>;
+scope = n; 
+{ 
+    n: T<>; n = 4.12;
+    q : T<>; q = 12.; 
+    p : Int; p = 20;
 }
 \end{lstlisting}
-TensorFlock follows general lexical scoping rules.  The scope of an identifier persists from the line of its definition through the end of the scope in which it was declared. If an identifier is redeclared within the same scope, the previous value is lost. For clarity, TensorFlock does not support shadowing. If an identifier of the same name is declared within a nested scope, the compiler throws an error.
+Functions defined inside of the curly braces are visible to the right hand
+side of their corresponding function's definition and to everything defined
+within their own scope. TensorFlock does not support name shadowing of any
+kind. If a function name is used twice, the compiler will complain.
 
-For example, scope blocks may be nested:
-\begin{lstlisting}
-nestedScope : Bool;
-nestedScope = x != y;
-    { x : Double; x = j*k;
-         { j : Double; j = 2;
-           k : Double; k = 3;
-         }
-      y : Double; y = 7;
-    }    
-\end{lstlisting}
-
-Identifiers may not be shadowed within in a subsequent nested scope. The example below results in a compile time error.
 \begin{lstlisting}
 shadowedScope : Int;
 shadowedScope = a; {
-    a : Int; a = b + c ;
-        { b : Int; b = 2;
-           c : Int; c = a;
-              { a : Int; a = 2;}
-         }
-     }
+    a : Int; a = b + c; {
+        b : Int; b = 2;
+        c : Int; c = a; { 
+            a : Int; a = 2; //Error!
+        }
+    }
+}
 \end{lstlisting}
+
+\begin{lstlisting}
+nestedScope : Bool;
+nestedScope = x != y;
+{// this is an example of properly nested scope that contains no shadowing
+ // and will therefore compile.
+    x : T<>; x = j*k;
+    { 
+        j : T<>; j = 2.;
+        k : T<>; k = 3.;
+    }
+    y : T<>; y = 7.;
+}    
+\end{lstlisting}
+
 \subsection{Primitives}
-Primitives consist of a declaration, followed by a definition on the subsequent line. Declarations are composed of an identifier, a semicolon, and then type. Definitions consist of the same identifier, the assignment operator \lstinline|=|, and an expression. For example:
+Primitives consist of a declaration, followed by a definition on the subsequent line. 
+Declarations are composed of an identifier, a semicolon, and then type. 
+Definitions consist of the same identifier, the assignment operator \lstinline|=|, 
+and an expression. For example:
 \begin{lstlisting}
 anInt : Int;
 anInt = 3;
 
-aDouble : Double;
+aDouble : T<>;
 aDouble = 3.14
 
 aBoolean : Bool;
-aBoolean: True;
+aBoolean = True;
 \end{lstlisting}
 
-N-dimensional tensors are the primary feature of TensorFlock, and as such, are considered a primitive in the language. Like above, tensors are declared with their dimensions, and then defined. Tensor components can only consist of type Double. 
+N-dimensional tensors are the primary feature of TensorFlock, and as such, 
+are considered a primitive in the language. Like above, tensors are declared 
+with their dimensions, and then defined. Tensor components can only consist of type Double. 
 \begin{lstlisting}
 aTensor : T<2, 2, 2>
-aTensor = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+aTensor = [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]];
 \end{lstlisting}
-Tensor components are arranged in row-major order may be indexed using square brackets.
+Tensor components are arranged in row-major order may be indexed using square
+brackets and commas.
 \begin{lstlisting}
 someDouble : Double;
-someDouble = aTensor[0][1][1];
+someDouble = aTensor[0,1,1]; // == 4.0
 \end{lstlisting}
 \subsection{Function Declaration and Definition}
-Functions are introduced with a single line declaration followed by a function definition of one or more lines. Declarations are composed of a function identifier, a semicolon, and then type definitions for its arguments and return value.
+Functions are introduced with a single line declaration followed by a function definition of 
+one or more lines. Declarations are composed of a function identifier, a semicolon, 
+and then type definitions for its arguments and return value.
 \begin{lstlisting}
 add : Int -> Int -> Int;
 add x y = x + y;
 \end{lstlisting}
 \subsection{Function Application}
-Function application consists of juxtaposition of a function identifier and its subsequent arguments.
+Function application consists of juxtaposition of a function identifier and its 
+subsequent arguments.
 \begin{lstlisting}
 add : Int -> Int -> Int;
 add x y = x + y;
@@ -90,7 +112,13 @@ a : Int;
 a = add 2 3;
 \end{lstlisting}
 
-Partial application of functions are not supported. If fewer than the specified number of arguments are provided, the compiler will return an error.  Additionally TensorFlock does not support higher-order functions. If more arguments are provided to a function than the specified number, again the compiler will throw an error.
+Partial application of functions is not supported. If fewer than the specified number of 
+arguments are provided, the compiler will return an error. Additionally TensorFlock 
+does not support higher-order functions. Functions cannot be passed to
+other functions as values nor can they be returned from other functions. While
+this may seem like a large limitation for a functional language, most, if not
+all of the standard map or fold operations that one could think of applying to
+tensors can be implemented by other means in TensorFlock.
 \subsection{Grammar}
 \begin{tt}
 \textit{
@@ -117,8 +145,8 @@ types & $\rightarrow$ & type\textsubscript{1}, \ldots, type\textsubscript{n} \\
  & & \\
 type & $\rightarrow$ & \emph{Int} \\
  & \emph{|} & \emph{Bool} \\
- & \emph{|} & \emph{Double} \\
- & \emph{|} & \emph{T<}shape-expr\textsubscript{1}, \ldots, shape-expr\textsubscript{n}\emph{>} \\
+ & \emph{|} & \emph{T<}shape-expr\textsubscript{1}, \ldots, 
+              shape-expr\textsubscript{n}\emph{>} \\
  & & \\
 expr & $\rightarrow$ & \emph{if} expr \emph{then} expr \emph{else} expr \\
 & \emph{|} & expr \emph{||} expr \\
@@ -135,18 +163,19 @@ expr & $\rightarrow$ & \emph{if} expr \emph{then} expr \emph{else} expr \\
 & \emph{|} & expr \emph{/} expr \\
 & \emph{|} & expr \emph{\%} expr \\
 & \emph{|} & \emph{-} expr \\
-& \emph{|} & \emph{\^} expr \\
-& \emph{|} & function-expression \\
-& \emph{|} & function-id expr\textsubscript{1}, \ldots, expr\textsubscript{n} \\
+& \emph{|} & expr \emph{\^} expr \\
+& \emph{|} & expr expr \\
 & \emph{|} & tensor-id\emph{[}expr\textsubscript{1}, \ldots, expr\textsubscript{n}\emph{]} \\
 & \emph{|} & literal \\
 & & \\
 literal & $\rightarrow$ &  integer-literal \\
-& \emph{|} & double-literal \\
-& \emph{|} & Boolean-literal \\
-& \emph{|} & tensor-literal \\
+& \emph{|} & floating-literal \\
+& \emph{|} & boolean-literal \\
+& \emph{|} & \emph{[}tensor-literal-list\emph{]} \\
 & & \\
-tensor-literal & $\rightarrow$ & \emph{[}literal\textsubscript{1}, \ldots, literal\textsubscript{n}\emph{]} \\
+tensor-literal-list & $\rightarrow$ & 
+        literal\\
+& \emph{|} & tensor-literal-list, literal\\
 & & \\
 shape-expr & $\rightarrow$ & shape-expr \emph{+} shape-expr \\
 & \emph{|} & shape-expr \emph{-} shape-expr \\
@@ -154,7 +183,7 @@ shape-expr & $\rightarrow$ & shape-expr \emph{+} shape-expr \\
 & \emph{|} & shape-expr \emph{/} shape-expr \\
 & \emph{|} & shape-expr \emph{\%} shape-expr \\
 & \emph{|} & \emph{-}shape-expr \\
-& \emph{|} & \emph{\^}shape-expr \\
+& \emph{|} & shape-expr \emph{\^} shape-expr \\
 & \emph{|} & shape-function-expression \\
 & \emph{|} & shape-function-id shape-expr\textsubscript{1}, \ldots, shape-expr\textsubscript{n} \\
 & \emph{|} & shape-literal \\
