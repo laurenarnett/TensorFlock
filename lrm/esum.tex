@@ -1,4 +1,81 @@
 \section{Einstein Summation Convention}%
 \label{sec:einstein_summation_convention}
 
+In TensorFlock, we follow the summation convention created by Einstein for
+tensors. Any index that is repeated in a term \footnote{A term is a monomial.}  
+is summed over. The dot product of two vectors, $\mathbf{u}$ and $\mathbf{v}$
+can be expressed easily as: 
+\[\mathbf{u} \cdot \mathbf{v} = \sum^{n}_{i=1} u_i * v_i \rightarrow u_i * v_i\] by
+convention. In code, this takes the form:
+\begin{lstlisting}[language=haskell]
+    dotProd : T<n> -> T<n> -> T<>;
+    dotProd u v = u[i] * v[i];
+\end{lstlisting}
 
+For tensors with rank $> 1$, the convention applies as well. Repeated indices,
+also called ``dummy'' indices, are still summed over, while indices which are
+not repeated, or ``free'' indices, are carried over to the resulting
+expression. The matrix-vector product of matrix $\mathbf{A}$ and vector
+$\mathbf{x}$ is  
+\[ \mathbf{A} \mathbf{x} = \sum^{m}_{j=1} A_{ij} x_j \rightarrow A_{ij} x_j \]
+\begin{lstlisting}[language=haskell]
+    matVecProd : T<n,m> -> T<m> -> T<n>;
+    matVecProd a x = a[i,j] * x[j];
+\end{lstlisting}
+
+The matrix-matrix product of $ \mathbf{A} $ and $ \mathbf{B} $ is 
+\[ \mathbf{A} \mathbf{B} = \sum^{m}_{j=1} A_{ij} B_{jk} 
+   \rightarrow A_{ij} B_{jk} \]
+\begin{lstlisting}[language=haskell]
+    matMatProd : T<n,m> -> T<m,l> -> T<n,l>;
+    matMatProd a b = a[i,j] * b[j,k];
+\end{lstlisting}
+
+Indices can be repeated within a single term as well. The trace of a square
+matrix A is \[ \texttt{trace}( \mathbf{A} ) = \sum^{n}_{i=1} A_{ii} \rightarrow A_{ii}\] 
+\begin{lstlisting}[language=haskell]
+    trace : T<n,n> -> T<>;
+    trace a = a[i,i];
+\end{lstlisting}
+
+When no indices are repeated, every index is considered free, and therefore
+must appear in the returned expression. This allows us to express the outer
+product of two vectors $ \mathbf{v} $ and $ \mathbf{u} $ as 
+\[ \texttt{outer} (\mathbf{v} \mathbf{u}) = \mathbf{v}^T \mathbf{u} \rightarrow  v_i u_j\]
+\begin{lstlisting}[language=haskell]
+    outer : T<n> -> T<m> -> T<n,m>;
+    outer v u = v[i] * u[j];
+\end{lstlisting}
+
+% This doesn't quite work in our language, but maybe we can figure it out later
+% The general tensor product 
+% \footnote{https://en.wikipedia.org/wiki/Tensor\_product\#Tensor\_product\_of\_linear\_maps}
+% for two 2$\times$2 matricies is slightly more mathematically complicated, but
+% still very easily expressible in our language.
+% \[
+% {\begin{bmatrix}a_{1,1}& a_{1,2}\\a_{2,1}& a_{2,2}\\\end{bmatrix}}\otimes
+% {\begin{bmatrix}b_{1,1}& b_{1,2}\\b_{2,1}& b_{2,2}\\\end{bmatrix}} =
+% {\begin{bmatrix}a_{1,1}
+%     {\begin{bmatrix}b_{1,1}& b_{1,2}\\b_{2,1}& b_{2,2}\\\end{bmatrix}}
+%                            & a_{1,2}
+%     {\begin{bmatrix}b_{1,1}& b_{1,2}\\b_{2,1}& b_{2,2}\\\end{bmatrix}}\\
+%                          & \\a_{2,1}
+% {\begin{bmatrix}b_{1,1}& b_{1,2}\\b_{2,1}& b_{2,2}\\\end{bmatrix}}
+%                        & a_{2,2}
+%     {\begin{bmatrix}b_{1,1}& b_{1,2}\\b_{2,1}& b_{2,2}\\\end{bmatrix}}\\ \end{bmatrix}}=
+% {\begin{bmatrix}a_{1,1}b_{1,1}& a_{1,1}b_{1,2}& a_{1,2}b_{1,1}& a_{1,2}b_{1,2}\\
+% a_{1,1}b_{2,1}& a_{1,1}b_{2,2}& a_{1,2}b_{2,1}& a_{1,2}b_{2,2}\\
+% a_{2,1}b_{1,1}& a_{2,1}b_{1,2}& a_{2,2}b_{1,1}& a_{2,2}b_{1,2}\\
+% a_{2,1}b_{2,1}& a_{2,1}b_{2,2}& a_{2,2}b_{2,1}& a_{2,2}b_{2,2}\\\end{bmatrix}}
+% \]
+% \begin{lstlisting}[language=haskell]
+%     tensorProd2x2 : T<2,2> -> T<2,2> -> T<4,4>;
+%     tensorProd2x2 a b = c;
+%     {
+%         c' : T<2,2,2,2>;
+%         c' = a[i',j'] * b[k',l'];
+
+%         c : T<4,4>;
+%         c[2*i'+j', 2*k'+l] = c'[i',j',k',l'];
+%     }
+% \end{lstlisting}
