@@ -36,7 +36,11 @@ scope = n;
 Functions defined inside of the curly braces are visible to the right hand
 side of their corresponding function's definition and to everything defined
 within their own scope. TensorFlock does not support name shadowing of any
-kind. If a function name is used twice, the compiler will complain.
+kind. If a function name is used twice, the compiler will complain. Should one
+feel especially inclined to reuse a name, the recommended style to simulate
+this is to use the name followed by an apostrophe, and to add an apostrophe
+after every subsequent attempt at shadowing. Chances are, if one accumulates
+more than two or three apostrophes, there is a design flaw in the program.
 
 \begin{lstlisting}
 shadowedScope : Int;
@@ -82,7 +86,8 @@ aBoolean = True;
 
 N-dimensional tensors are the primary feature of TensorFlock, and as such, 
 are considered a primitive in the language. Like above, tensors are declared 
-with their dimensions, and then defined. Tensor components can only consist of type Double. 
+with their dimensions, and then defined. Tensor components can only consist of
+floating point values. 
 \begin{lstlisting}
 aTensor : T<2, 2, 2>
 aTensor = [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]];
@@ -90,7 +95,7 @@ aTensor = [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]];
 Tensor components are arranged in row-major order may be indexed using square
 brackets and commas.
 \begin{lstlisting}
-someDouble : Double;
+someDouble : T<>;
 someDouble = aTensor[0,1,1]; // == 4.0
 \end{lstlisting}
 \subsection{Function Declaration and Definition}
