@@ -11,23 +11,25 @@ supported by TensorFlock are:
  \hline
  1 & Tensor Indexing & \verb|[]| & Left to Right\\
  \hline
- 2 & Unary Operators & \verb|-,!| & Right to Left \\
+ 2 & Function Application & \verb|f| & Left to Right \\
  \hline
  3 & Exponentiation & \verb|^| & Left to Right\\
  \hline
- 4 & Multiplicative Operators & \verb|*,/,%| & Left to Right\\
+ 4 & Unary Operators & \verb|-| & Right to Left \\
  \hline
- 5 & Additive Binary Operators & \verb|+,-| & Left to Right\\
+ 5 & Multiplicative Operators & \verb|*,/,%| & Left to Right\\
  \hline
- 6 & Relational & \verb|<,>,<=,>=| & Left to Right\\
+ 6 & Additive Binary Operators & \verb|+,-| & Left to Right\\
  \hline
- 7 & Equality & \verb|==,!=| & Left to Right\\
+ 7 & Relational & \verb|<,>,<=,>=| & Left to Right\\
  \hline
- 8 & Logical And & \verb|&&| & Left to Right\\
+ 8 & Equality & \verb|==,!=| & Left to Right\\
  \hline
- 9 & Logical Or & \verb!||! & Left to Right\\
+ 9 & Logical And & \verb|&&| & Left to Right\\
  \hline
- 10 & Assignment & \verb|=| & Right to Left\\
+ 10 & Logical Or & \verb!||! & Left to Right\\
+ \hline
+ 11 & Assignment & \verb|=| & Right to Left\\
  \hline
 \end{tabular}
 \end{center}
@@ -35,8 +37,8 @@ supported by TensorFlock are:
 \subsection{Tensor Operators}
 The following operators can operate on tensors in a per-component manner:
 \begin{itemize}
-    \item Unary Operators
     \item Exponentiation (to a scalar)
+    \item Unary Operators
     \item Multiplicative Operators
     \item Additive Binary Operators
     \item Relational 
@@ -46,16 +48,16 @@ The following operators can operate on tensors in a per-component manner:
 \end{itemize}
 For example, the following function declaration is well defined:
 \begin{lstlisting}
-scalar_mult : Double -> T<a,b> -> T<a,b>
-scalar_mult n t = n * t
+scalar_mult : Double -> T<a,b> -> T<a,b>;
+scalar_mult n t = n * t[i,j];
 \end{lstlisting}
 This will return a new tensor of the same shape with each component multiplied
 by n. Likewise, equality comparison is calculated componentwise. Relational
-operations, logical and, and logical or  on \verb|T<n,m> OP T<n,m>| return a 
-new tensor of 1's and 0's by comparison of components.
+operations, logical and, and logical on tensors are only defined on rank
+0 tensors.
 \\
-For any of these operations between tensors, correct tensor shape is immediately checked to
-determine whether the operation is allowed.
+For any of these operations between tensors, correct tensor shape is
+compile-time checked to determine whether the operation is allowed.
 
 \subsection{Scope and Definition}
 Function definition in a function declaration, must have an
