@@ -1,7 +1,7 @@
 \section{Operators and Precedences}%
 \label{sec:operators_and_precedences}
 
-The operators on integer, double, boolean, and tensor literal types
+The operators on \verb|Int|, \verb|Bool|, and \verb|T<>| types
 supported by TensorFlock are:
 
 \begin{center}
@@ -11,7 +11,7 @@ supported by TensorFlock are:
  \hline
  1 & Tensor Indexing & \verb|[]| & Left to Right\\
  \hline
- 2 & Function Application & \verb|f| & Left to Right \\
+ 2 & Function Application & \{\textit{whitespace}\} & Left to Right \\
  \hline
  3 & Exponentiation & \verb|^| & Left to Right\\
  \hline
@@ -29,34 +29,26 @@ supported by TensorFlock are:
  \hline
  10 & Logical Or & \verb!||! & Left to Right\\
  \hline
- 11 & Assignment & \verb|=| & Right to Left\\
+ 11 & Conditional & \verb!if _ then _ else _! & Left to Right\\
+ \hline
+ 12 & Definition & \verb|=| & Right to Left\\
  \hline
 \end{tabular}
 \end{center}
 
 \subsection{Tensor Operators}
-The following operators can operate on tensors in a per-component manner:
-\begin{itemize}
-    \item Exponentiation (to a scalar)
-    \item Unary Operators
-    \item Multiplicative Operators
-    \item Additive Binary Operators
-    \item Relational 
-    \item Equality
-    \item Logical And
-    \item Logical Or
-\end{itemize}
+For tensors of rank $> 0$, only the arithmetic operators are defined. All
+operators returning \verb|Bool| do not type check when applied to objects of
+type \verb|T|.
 For example, the following function declaration is well defined:
 \begin{lstlisting}
-scalar_mult : Double -> T<a,b> -> T<a,b>;
+scalar_mult : T<> -> T<a,b> -> T<a,b>;
 scalar_mult n t = n * t[i,j];
 \end{lstlisting}
 This will return a new tensor of the same shape with each component multiplied
 by n. Likewise, equality comparison is calculated componentwise. Relational
 operations, logical and, and logical on tensors are only defined on rank
-0 tensors.
-\\
-For any of these operations between tensors, correct tensor shape is
+0 tensors.  For any of these operations between tensors, correct tensor shape is
 compile-time checked to determine whether the operation is allowed.
 
 \subsection{Scope and Definition}
@@ -65,11 +57,11 @@ identifier followed by zero or more formal arguments on the left-hand side. On
 the right-hand side, the expression given may be followed by a scope of locally
 declared variables. For example:
 \begin{lstlisting}
-addDouble : Double; 
+addDouble : T<>; 
 addDouble = a + b; 
 { 
-    a : Double; a = 3.14;
-    b : Double; b = 6.28;
+    a : T<>; a = 3.14;
+    b : T<>; b = 6.28;
 }
 \end{lstlisting}
 Definition that occurs in the declaration scope such that the operation 
