@@ -1,4 +1,37 @@
 \section{Casting conventions}%
 \label{sec:casting_conventions}
 
+Since TensorFlock is a \emph{strongly} typed language, C-style casts between
+integers and floating point values are not supported. However, having to type
+\verb|fromIntegral| every time one wants to convert the number \verb|2| to
+\verb|2.0| is very painful. Such an operation should not require 12 keystrokes
+plus a modifier key. Instead, we provide the \emph{only} polymorphic function
+in TensorFlock, \verb|cast| that accomplishes this task. Its behavior is
+defined in the table below:
 
+\begin{table}[h]
+    \centering
+    \caption{Casting conventions: \emph{from} column \emph{to} row}
+    \label{tab:label}
+    \begin{tabular}{|p{.9cm}||p{5.5cm}|p{5cm}|p{4.5cm}|}
+        \hline
+        & \verb|Int| & \verb|T<>| & \verb|Bool| \\
+        \hline
+        \verb|Int| & \verb|cast n == identity n|& ex. \verb|cast 3 == 3.0| & 
+        \verb|cast n =| \verb|n != 0;| & 
+        \hline
+        \verb|T<>| & ex. \verb|cast 3.6 == 3|
+                   \newline Calling cast on doubles truncates them. If the
+                   desired behavior is something else, one should call \verb|round|,
+                   \verb|floor|, or \verb|ceiling|.  
+                   & \verb|cast n == identity n| &
+                   \verb|cast n =| \verb|n != 0.0;|&
+        \hline
+        \verb|Bool| & \verb|cast True  == 1| \newline \verb|cast False == 0| &
+                      \verb|cast True  == 1.0| \newline \verb|cast False == 0.0| &
+                      \verb|cast b ==| \verb|identity b| \\
+        \hline
+    \end{tabular}
+\end{table}
+\noindent At this time, TensorFlock does not support casting between the numeric types
+and \verb|Bool|. 
