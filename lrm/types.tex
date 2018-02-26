@@ -1,4 +1,54 @@
 \section{Types}%
 \label{sec:types}
 
+TensorFlock defines three primitive types: \verb|Bool|, \verb|Int|, and \verb|T|. 
+They are declared \\ (\emph{id} : \emph{type};) and defined (\emph{id} = \emph{literal};) 
+in two lines, as shown in the following examples. 
+
+\subsection{Booleans}
+Bools can take on the boolean values \emph{True} or \emph{False}\footnote{note that
+boolean literals are capitalized in TensorFlock}.
+\begin{lstlisting}
+p : Bool;
+p = True;
+\end{lstlisting}
+
+\subsection{Integers}
+Our integer type is denoted \verb|Int|.
+\begin{lstlisting}
+x : Int;
+x = 44;
+\end{lstlisting}
+
+\subsection{Doubles}
+In TensorFlock, double precision floating point numbers are analogous to rank-0
+tensors, and are thus represented by the type \verb|T<>|. When declaring
+literal doubles, they must contain a decimal point. Scientific notation using
+both \verb|e| and \verb|E| is supported.
+\begin{lstlisting}
+d1 : T<>;
+d1 = 3.14159265359;
+
+d2 : T<>;
+d2 = 1.234567e-8;
+
+d3 : T<>;
+d3 = 1.;
+\end{lstlisting}
+
+\subsection{Tensors}
+Higher rank tensors are declared using a non-empty set of angled brackets 
+that specify the shape \verb|(< >)|. The indices of a Tensor must be of type Int, 
+whether it is a variable or literal. The contents of a Tensor, however, 
+must be of type Double.  Tensor literals are defined using square brackets, 
+which can be arbitrarily nested to represent ranks 2 and above. The contents of a 
+Tensor are accessed with square brackets that contain indices for the correct position. 
+\begin{lstlisting}
+t : T<a, b>;
+t = [[0.0, 1.0], [2.0, 3.0], [4.0, 5.0]];
+
+v : T<>;
+v = t[0, 1];
+\end{lstlisting}
+
 
