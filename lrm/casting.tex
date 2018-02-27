@@ -9,7 +9,7 @@ plus a modifier key. Instead, we provide the \emph{only} polymorphic function
 in TensorFlock, \verb|cast| that accomplishes this task. Its behavior is
 defined in the table below:
 
-\begin{table}[h]
+\begin{table}[ht]
     \centering
     \caption{Casting conventions: \emph{from} column \emph{to} row}
     \label{tab:label}
@@ -18,7 +18,7 @@ defined in the table below:
         & \verb|Int| & \verb|T<>| & \verb|Bool| \\
         \hline
         \verb|Int| & \verb|cast n == identity n|& ex. \verb|cast 3 == 3.0| & 
-        \verb|cast n =| \verb|n != 0;| & 
+        \verb|cast n =| \verb|n != 0;| \\ 
         \hline
         \verb|T<>| & ex. \verb|cast 3.6 == 3|
                    \newline Calling cast on doubles truncates them. If the
