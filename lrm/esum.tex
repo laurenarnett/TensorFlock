@@ -2,9 +2,19 @@
 \section{Einstein Summation Convention}%
 \label{sec:einstein_summation_convention}
 
-In TensorFlock, we follow the summation convention created by Einstein for
-tensors. Any index that is repeated in a term \footnote{A term is a monomial.}  
-is summed over. The dot product of two vectors, $\mathbf{u}$ and $\mathbf{v}$
+In TensorFlock, we follow the summation convention created by Einstein
+\footnote{http://mathworld.wolfram.com/EinsteinSummation.html} 
+for tensors. This removes the need for the user to manually write iteration or
+recursion to traverse tensors and makes coding mathematical operations on
+tensors extremely concise. The tradeoff is that some algorithms which requre
+non-standard traversals of tensors are not so easily expressible in
+TensorFlock. However, they are usually still possible to implement, albeit
+complicated. 
+
+The rules of the Einstein summation convention are simple. 
+Any index that is repeated in a term \footnote{A term is a monomial.}  
+is summed over and any index that is not repeated in a term is left alone.
+For example, the dot product of two vectors, $\mathbf{u}$ and $\mathbf{v}$
 can be expressed easily as: 
 \[\mathbf{u} \cdot \mathbf{v} = \sum^{n}_{i=1} u_i * v_i \rightarrow u_i * v_i\] by
 convention. In code, this takes the form:
