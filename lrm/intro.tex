@@ -1,4 +1,39 @@
 \section{Introduction}%
 \label{sec:introduction}
 
+TensorFlock is an attempt to marry numerical and functional programming.
+To date, numerical programming has been dominated by DSLs like Matlab and
+Julia, or libraries written in other dynamically typed, procedural languages,
+like Python's NumPy. Despite the obvious connection between numerical
+programming and actual mathematical functions, efforts to do linear algebra in
+purely functional languages tend to go awry. Haskell's \verb|hmatrix|
+\footnote{https://hackage.haskell.org/package/hmatrix}  
+library, for example, exports five separate operators: $<.>, \#>, <\#, !\#>, \text{ and} <>$, 
+for matrix and vector operations. Good luck figuring out what they do without
+looking them up in documentation.
+
+Strong, statically typed languages, like Haskell, define such awkward interfaces for numerical 
+programming by nature of their type systems, which do not allow for easy operator 
+definitions between arbitrary objects. This is not a problem with
+dynamically typed languages, but the tradeoff comes in the form of runtime
+errors, some of which can occur several hours, or even days, into
+a computation, forcing the whole program to be restarted.
+
+TensorFlock maintains a strong type system while simultaneously providing
+ease of use by generalizing vectors and matrices commonly found in other
+languages to Tensors 
+\footnote{For the mathematically inclined, the technical definition of a tensor is, unhelpfully
+,``something that transforms like a tensor.'' This language takes the simpler
+treatment of a map from indices to scalars and avoids dealing with the concepts
+of contravariance or covariance found in General Relativity, or other fields
+that make heavy use of tensors.},
+and simply treating all operations between tensors at the component level. 
+For the purposes of this language, a Tensor
+can be thought of as an object with rank $r$ that
+maps an r-tuple of natural numbers to a real, or complex number. Rank 1 tensors
+correspond to vectors and rank 2 tensors correspond to matrices. Using this
+concept of rank, we can have arbitrary higher dimensional tensors of any rank,
+or even rank 0 tensors, which are simply scalars. Since scalars are simply
+a sub-class of tensors, we can repurpose the familiar scalar arithmetic
+operations for tensors and eschew the need for confusing operators.
 
