@@ -1,0 +1,36 @@
+\section{Tensor Indexing}%
+\label{sec:tensor_indexing}
+Tensor indexing is evaluated as follows:
+\begin{itemize}
+    \item When an index appears in a bracket, bind immediately to that shape.
+    \item In the case of an unbound index, defer binding until 
+        innermost scope has been explored.
+\end{itemize}
+
+\begin{lstlisting}[title={Fill a rank 1 tensor with entries 1 to n}]
+one_through_n : Int -> T<n>;
+one_through_n n = t; 
+    { t : T<n>; 
+      t[i] = cast(i+1);
+    }
+\end{lstlisting}
+\verb|i| gets cast to n immediately on LHS of definition.
+
+\begin{lstlisting}[title={Transpose of a Product}]
+f: T<n,m> -> T<m,k> -> T<n,k>;
+f a b = c; 
+    { c : T<n,k>;
+      c[i,j] = d[j,i];
+        { d : T<k,n>;
+          d = a[j,l] * b[l,i];
+        }
+    } 
+\end{lstlisting}
+Binding of \verb|j|, \verb|l|, and \verb|i| to their appropriate 
+dimensions is deferred until evaluation of innermost scope. 
+\par One can also use \verb|_| to set all entries to some 
+constant without the need to bind another variable. For example,
+\begin{lstlisting}
+t : T<n>;
+t[_] = 0;
+\end{lstlisting}
