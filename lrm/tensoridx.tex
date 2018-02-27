@@ -11,10 +11,10 @@ Tensor indexing is evaluated as follows:
 one_through_n : Int -> T<n>;
 one_through_n n = t; 
     { t : T<n>; 
-      t[i] = cast(i+1);
+      t[i] = cast (i+1);
     }
 \end{lstlisting}
-\verb|i| gets cast to n immediately on LHS of definition.
+\verb|i| gets bound to n immediately on LHS of definition.
 
 \begin{lstlisting}[title={Transpose of a Product}]
 f: T<n,m> -> T<m,k> -> T<n,k>;
