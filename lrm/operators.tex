@@ -37,10 +37,7 @@ supported by TensorFlock are:
  12 & Definition & \verb|=| & Right to Left\\
  \hline
 \end{tabular}
-    
 \end{table}
-\begin{center}
-\end{center}
 
 \subsection{Tensor Operators}
 For tensors of rank $> 0$, only the arithmetic operators are defined. All
@@ -53,7 +50,7 @@ scalar_mult n t = n * t[i,j];
 \end{lstlisting}
 This will return a new tensor of the same shape with each component multiplied
 by n. Likewise, equality comparison is calculated componentwise. Relational
-operations, logical and, and logical on tensors are only defined on rank
+operations, logical and, and logical or on tensors are only defined on rank
 0 tensors.  For any of these operations between tensors, correct tensor shape is
 compile-time checked to determine whether the operation is allowed.
 
