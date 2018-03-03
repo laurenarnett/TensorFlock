@@ -94,8 +94,8 @@ fexpr:
   | brackexpr { $1 }
 
 brackexpr:
-    TIDX tidx RBRACK { let id = List.hd (String.split_on_char '[' $1) 
-                       in TensorIdx(id, List.rev $2) }
+    TIDX tidx RBRACK 
+      { TensorIdx($1, $2) }
   | lexpr { $1 }
 
 lexpr:
