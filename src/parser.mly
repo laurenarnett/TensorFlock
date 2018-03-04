@@ -91,6 +91,7 @@ binexpr:
 
 fexpr:
       fexpr brackexpr { App($1, $2) }
+  | fexpr LPAREN expr RPAREN { App($1, $3) }
   | brackexpr { $1 }
 
 brackexpr:
