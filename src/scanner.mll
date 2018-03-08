@@ -45,6 +45,7 @@ rule token = parse
 | "True"   { BLIT(true)  }
 | "False"  { BLIT(false) }
 | 'T'      { TENSOR }
+| "main"   { MAIN }
 | digits as lxm { LITERAL(int_of_string lxm) }
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
 | id   as lxm { ID(lxm) }

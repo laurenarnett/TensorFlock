@@ -62,7 +62,7 @@ type func_def = {
 }
 
 type func = func_type * func_def
-type program = func list
+type program = expr * func list
 
 (* Pretty printing *)
 let (string_of_aop : aop -> string) = function
@@ -172,5 +172,5 @@ let string_of_func (ft, fd) =
     string_of_func_type ft ^ string_of_func_def fd
 
 
-let string_of_program funcs =
-    String.concat "\n" @@ List.map string_of_func funcs
+let string_of_program (expr, funcs) = "main = " ^
+    string_of_expr expr ^ "\n" ^ (String.concat "\n" @@ List.map string_of_func funcs)
