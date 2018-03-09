@@ -6,7 +6,7 @@
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK LANGLE RANGLE
 %token DEFINE EQ NEQ LT LEQ GT GEQ AND OR
 %token PLUS MINUS TIMES DIVIDE MOD EXPT
-%token IF THEN ELSE INT DOUBLE BOOL TENSOR
+%token IF THEN ELSE NAT BOOL TENSOR
 
 %token <int> LITERAL
 %token <bool> BLIT
@@ -61,7 +61,7 @@ types:
   | typ { [$1] }
 
 typ:
-    INT     { Int   }
+    NAT     { Nat   }
   | BOOL    { Bool  }
   | DOUBLE  { Double }
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
