@@ -66,7 +66,6 @@ types:
 typ:
     NAT     { Nat   }
   | BOOL    { Bool  }
-  | DOUBLE  { Double }
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 /* Expression starting point */
