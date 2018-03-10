@@ -39,9 +39,8 @@ rule token = parse
 | "if"     { IF }
 | "then"   { THEN }
 | "else"   { ELSE }
-| "Int"    { INT }
+| "Nat"    { NAT }
 | "Bool"   { BOOL }
-| "Double" { DOUBLE }
 | "True"   { BLIT(true)  }
 | "False"  { BLIT(false) }
 | 'T'      { TENSOR }
