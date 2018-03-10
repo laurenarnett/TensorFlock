@@ -171,7 +171,6 @@ let rec string_of_func_type (ftype : func_type) =
 let string_of_func (ft, fd) =
     string_of_func_type ft ^ string_of_func_def fd
 
-
 let string_of_program (main_expr, funcs) =
     "main = " ^ string_of_expr main_expr ^ "\n" ^ 
     String.concat "\n" @@ List.map string_of_func funcs

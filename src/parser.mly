@@ -32,7 +32,10 @@
 %%
 
 program:
-  decls EOF { List.rev $1 }
+  main decls EOF { List.rev $1 }
+
+main:
+  MAIN EQ expr SEMI
 
 decls:
    /* empty program */ { [] }
