@@ -5,3 +5,5 @@
 * blah blah blah
 * it has some things in it
 */
+
+main = True;
