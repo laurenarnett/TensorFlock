@@ -29,7 +29,7 @@ type aexpr =
 type shape = aexpr list
 
 (* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
-type typ = Bool | Int | Double | Tensor of shape
+type typ = Bool | Nat | Tensor of shape
 
 type expr =
     Literal of int
@@ -149,8 +149,7 @@ let rec string_of_expr = function
 
 let string_of_typ = function
     Bool -> "Bool"
-  | Int -> "Int"
-  | Double -> "Double"
+  | Nat -> "Nat"
   | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
 
 let rec string_of_func_type (ftype : func_type) =

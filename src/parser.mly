@@ -6,7 +6,7 @@
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK LANGLE RANGLE
 %token DEFINE EQ NEQ LT LEQ GT GEQ AND OR
 %token PLUS MINUS TIMES DIVIDE MOD EXPT
-%token IF THEN ELSE NAT BOOL TENSOR
+%token IF THEN ELSE NAT BOOL TENSOR MAIN
 
 %token <int> LITERAL
 %token <bool> BLIT
@@ -32,10 +32,10 @@
 %%
 
 program:
-  main decls EOF { List.rev $1 }
+  main decls EOF { ($1, List.rev $2) }
 
 main:
-  MAIN EQ expr SEMI
+  MAIN DEFINE expr SEMI {  $3 }
 
 decls:
    /* empty program */ { [] }
@@ -66,7 +66,6 @@ types:
 typ:
     NAT     { Nat   }
   | BOOL    { Bool  }
-  | DOUBLE  { Double }
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 /* Expression starting point */
