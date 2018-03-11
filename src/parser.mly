@@ -42,11 +42,15 @@ decls:
  | decls funct { $2 :: $1 }
 
 funct:
-  ftyp fdef { ($1, $2) }
+  ftyp fdef 
+    { if $1.ftyp_name <> $2.fdef_name then raise 
+      (Failure ("\nName of function in type: " ^ $1.ftyp_name ^ 
+                "\nand in definition: " ^ $2.fdef_name ^ "\ndo not match\n"))
+      else ($1, $2) }
 
 ftyp:
    ID COLON types SEMI
-     { { fname = $1; types = List.rev $3; } }
+     { { ftyp_name = $1; types = List.rev $3; } }
 
 formals:
     { [] }
@@ -54,7 +58,7 @@ formals:
 
 fdef:
    ID formals DEFINE expr SEMI scope  
-     { { fname = $1; fargs = List.rev $2; 
+     { { fdef_name = $1; fargs = List.rev $2; 
          main_expr = $4; scope = List.rev $6; } } 
 
 
