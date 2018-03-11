@@ -12,7 +12,4 @@ depends: [
   "ocamllex" {build & test & = "4.06.0"}
   "ocamlyacc" {build & test & = "4.06.0"}
   "llvm" {build & test & = "3.8"}
-  "merlin" {build & >= "3.0.5"}
-  "ocp-indent" {build & >= "1.6.1"}
-  "utop" {build & >= "2.0.2"}
 ]

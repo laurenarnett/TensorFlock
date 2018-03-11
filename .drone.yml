@@ -1,53 +1,7 @@
 pipeline:
-  restore-cache:
-    image: drillster/drone-volume-cache
-    restore: true
-    mount:
-      - opam-bak 
-    volumes:
-      - /tmp/cache:/cache
-
-
   test:
-    image: ubuntu:latest
-    environment:
-      - OCAML_VERSION=4.06.0
-      # Tells opam to not ask any questons
-      - OPAMYES=1
-      - OPAMJOBS=2
-      - OPAMROOTISOK=1
+    image: nbuonin/ocaml4.06-llvm3.6:latest
+    pull: true
     commands:
-      # Install some things we need to get started
-      - apt-get update && apt-get install -y wget build-essential make m4 patch unzip git pkg-config
-      # Install LLVM
-      - wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-      - echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial main" >> /etc/apt/sources.list
-      - echo "deb-src http://apt.llvm.org/xenial/ llvm-toolchain-xenial main" >> /etc/apt/sources.list
-      - apt-get install -y clang-3.8 lldb-3.8
-      # Install Opam
-      - wget -O $${HOME}/opam https://github.com/ocaml/opam/releases/download/2.0.0-rc/opam-2.0.0-rc-x86_64-linux
-      - chmod +x $${HOME}/opam
-      - $${HOME}/opam --version 
-      # Compile OCaml
-      - if [ -d opam-bak ]; then mv opam-bak /root/.opam; fi
-      - if [ ! -d /root/.opam ]; then $${HOME}/opam init --compiler=$${OCAML_VERSION}; fi
-      - if [ -d /root/.opam ]; then cp -r /root/.opam opam-bak; fi
-      # Manually set $${HOME}/opam config env 
-      - ln $${HOME}/opam /bin
-      - export OPAM_SWITCH_PREFIX=/root/.opam/4.06.0
-      - export CAML_LD_LIBRARY_PATH=/root/.opam/4.06.0/lib/stublibs:/root/.opam/4.06.0/lib/ocaml/stublibs:/root/.opam/4.06.0/lib/ocaml
-      - export OCAML_TOPLEVEL_PATH=/root/.opam/4.06.0/lib/toplevel
-      - export MANPATH=:/root/.opam/4.06.0/man
-      - export PATH=$${PATH}:/root/.opam/4.06.0/bin
       - touch opam
-      # Manually link lli and llc
-      - ln -s /usr/bin/lli-3.8 /usr/bin/lli && ln -s /usr/bin/llc-3.8 /usr/bin/llc
       - make test
-
-  rebuild-cache:
-    image: drillster/drone-volume-cache
-    rebuild: true
-    mount:
-      - opam-bak 
-    volumes:
-      - /tmp/cache:/cache
