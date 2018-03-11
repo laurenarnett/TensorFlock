@@ -20,6 +20,8 @@ let () =
   let ast = Parser.program Scanner.token lexbuf in  
   match !action with
      Ast -> print_string (Ast.string_of_program ast)
-   | Sast -> print_string (Sast.string_of_sprogram (Semant.check ast))
+   | Sast -> let symbol_table = Semant.build_table Semant.empty_table (snd ast) in
+               print_string ("WIP\n" ^ (Semant.string_of_table symbol_table))
+               (* (Sast.string_of_sprogram (Semant.check ast)) *)
    | LLVM_IR -> print_string ("Not implemented")  
    | Compile -> print_string ("Not implemented")  

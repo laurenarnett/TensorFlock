@@ -10,9 +10,9 @@ type rop = Eq | Neq | LT | Leq | GT | Geq
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
 
-type binop =Add | Sub | Mult | Div | Mod | Expt |
-            Eq | Neq | LT | Leq | GT | Geq |
-            And | Or
+type binop = Add | Sub | Mult | Div | Mod | Expt |
+             Eq  | Neq | LT | Leq | GT | Geq |
+             And | Or
 
 (* unary operators *)
 type uop = Neg
@@ -27,8 +27,6 @@ type aexpr =
 
 
 type shape = aexpr list
-
-(* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
 type typ = Bool | Nat | Tensor of shape
 
 type expr =
@@ -46,16 +44,13 @@ type expr =
   | CondExpr of expr * expr * expr 
   | TensorIdx of string * expr list
 
-(* the indices of a tensor are a list of exprs *)
-(*type tidx = expr list*)
-
 type func_type = {
-  fname : string;
+  ftyp_name : string;
   types : typ list;
 }
 
 type func_def = {
-  fname : string;
+  fdef_name : string;
   fargs : string list;
   main_expr : expr;
   scope : (func_type * func_def) list;
@@ -153,7 +148,7 @@ let string_of_typ = function
   | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
 
 let rec string_of_func_type (ftype : func_type) =
-    ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
+    ftype.ftyp_name ^ " : " ^ String.concat " -> " (List.map string_of_typ
     ftype.types) ^ ";\n"
 
 
@@ -164,7 +159,7 @@ let rec string_of_func_type (ftype : func_type) =
         string_of_func_def fd) scope) ^ "}"
 
     and string_of_func_def (fdef : func_def) = 
-      fdef.fname ^ " " ^ String.concat " " (fdef.fargs) ^ " = " ^ 
+      fdef.fdef_name ^ " " ^ String.concat " " (fdef.fargs) ^ " = " ^ 
       string_of_expr fdef.main_expr ^ "; " ^ string_of_scope fdef.scope ^ " \n"
 
 let string_of_func (ft, fd) =

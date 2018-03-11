@@ -21,5 +21,4 @@ type sfunc = {
     sscope : sfunc list;
 }
 
-type sfunc = sfunc_type * sfunc_def
 type sprogram = sexpr * sfunc list
