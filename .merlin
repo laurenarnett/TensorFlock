@@ -4,6 +4,7 @@
 
 # Bare minimum: look for things in the src/ directory of our project
 S src/**
+B src/**
 
 # Look for binaries in the build dir
 B _build/**
