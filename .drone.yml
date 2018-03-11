@@ -3,7 +3,7 @@ pipeline:
     image: drillster/drone-volume-cache
     restore: true
     mount:
-      - .opam 
+      - opam-bak 
     volumes:
       - /tmp/cache:/cache
 
@@ -12,7 +12,6 @@ pipeline:
     image: ubuntu:latest
     environment:
       - OCAML_VERSION=4.06.0
-      - OPAMROOT=/drone
       # Tells opam to not ask any questons
       - OPAMYES=1
       - OPAMJOBS=2
@@ -30,14 +29,16 @@ pipeline:
       - chmod +x $${HOME}/opam
       - $${HOME}/opam --version 
       # Compile OCaml
-      - if [ ! -d .opam ]; then $${HOME}/opam init --compiler=$${OCAML_VERSION}; fi
+      - if [ -d opam-bak ]; then mv opam-bak /root/.opam; fi
+      - if [ ! -d /root/.opam ]; then $${HOME}/opam init --compiler=$${OCAML_VERSION}; fi
+      - if [ -d /root/.opam ]; then cp -r /root/.opam opam-bak; fi
       # Manually set $${HOME}/opam config env 
       - ln $${HOME}/opam /bin
-      - export OPAM_SWITCH_PREFIX=/$${OPAMROOT}/.opam/4.06.0
-      - export CAML_LD_LIBRARY_PATH=/$${OPAMROOT}/.opam/4.06.0/lib/stublibs:/$${OPAMROOT}/.opam/4.06.0/lib/ocaml/stublibs:/$${OPAMROOT}/.opam/4.06.0/lib/ocaml
-      - export OCAML_TOPLEVEL_PATH=/$${OPAMROOT}/.opam/4.06.0/lib/toplevel
-      - export MANPATH=:/$${OPAMROOT}/.opam/4.06.0/man
-      - export PATH=$${PATH}:/$${OPAMROOT}/.opam/4.06.0/bin
+      - export OPAM_SWITCH_PREFIX=/root/.opam/4.06.0
+      - export CAML_LD_LIBRARY_PATH=/root/.opam/4.06.0/lib/stublibs:/root/.opam/4.06.0/lib/ocaml/stublibs:/root/.opam/4.06.0/lib/ocaml
+      - export OCAML_TOPLEVEL_PATH=/root/.opam/4.06.0/lib/toplevel
+      - export MANPATH=:/root/.opam/4.06.0/man
+      - export PATH=$${PATH}:/root/.opam/4.06.0/bin
       - touch opam
       # Manually link lli and llc
       - ln -s /usr/bin/lli-3.8 /usr/bin/lli && ln -s /usr/bin/llc-3.8 /usr/bin/llc
@@ -47,6 +48,6 @@ pipeline:
     image: drillster/drone-volume-cache
     rebuild: true
     mount:
-      - .opam 
+      - opam-bak 
     volumes:
       - /tmp/cache:/cache
