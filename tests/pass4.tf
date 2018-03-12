@@ -7,7 +7,7 @@ aDouble = myTensor[2];
 
 // Multiple index
 anotherDouble : T<>;
-aDouble = myTensor[1000, 2000, 3000];
+anotherDouble = myTensor[1000, 2000, 3000];
 
 // Reference IDs
 aDouble : T<>;
