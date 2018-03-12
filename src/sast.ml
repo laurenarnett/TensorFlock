@@ -16,7 +16,7 @@ and sexpr_detail =
 type sfunc = {
     sfname : string;
     stype : typ list;
-    sfargs : string list;
+    sfparams : string list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }

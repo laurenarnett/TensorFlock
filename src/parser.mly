@@ -58,8 +58,8 @@ formals:
 
 fdef:
    ID formals DEFINE expr SEMI scope  
-     { { fdef_name = $1; fargs = List.rev $2; 
-         main_expr = $4; scope = List.rev $6; } } 
+     { { fdef_name = $1; fparams = List.rev $2; 
+         main_expr = $4; scope   = List.rev $6; } } 
 
 
 types:
