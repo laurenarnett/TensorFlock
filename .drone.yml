@@ -1,0 +1,7 @@
+pipeline:
+  test:
+    image: nbuonin/ocaml4.06-llvm3.6:latest
+    pull: true
+    commands:
+      - touch opam
+      - make test

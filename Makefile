@@ -38,4 +38,7 @@ ifneq ($(wildcard *.zip),)
 	rm -f *.zip 
 endif
 
-.PHONY: state test clean zip
+docker:
+	docker build -t nbuonin/ocaml4.06-llvm3.6 docker
+
+.PHONY: state test clean zip docker
