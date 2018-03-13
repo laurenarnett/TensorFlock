@@ -1,9 +1,0 @@
-version: 2
-jobs:
-  build:
-    docker:
-      - image: nbuonin/ocaml4.06-llvm3.6:latest
-    steps:
-      - checkout
-      - run: touch opam
-      - run: make test
