@@ -27,7 +27,8 @@ type aexpr =
 
 
 type shape = aexpr list
-type typ = Bool | Nat | Tensor of shape
+type unit_type = Bool | Nat | Tensor of shape
+type typ = Unit of unit_type | Arrow of unit_type * typ
 
 type expr =
     Literal of int
@@ -46,7 +47,7 @@ type expr =
 
 type func_type = {
   ftyp_name : string;
-  types : typ list;
+  types : typ;
 }
 
 type func_def = {
@@ -142,14 +143,17 @@ let rec string_of_expr = function
             (List.map string_of_expr idxs) ^ "]" ^ ")"
 
 
-let string_of_typ = function
+let string_of_unit_type = function
     Bool -> "Bool"
   | Nat -> "Nat"
   | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
 
+let rec string_of_typ = function
+    Unit(t) -> string_of_unit_type t
+  | Arrow(t, ts) -> string_of_unit_type t ^ " -> " ^ string_of_typ ts
+
 let rec string_of_func_type (ftype : func_type) =
-    ftype.ftyp_name ^ " : " ^ String.concat " -> " (List.map string_of_typ
-    ftype.types) ^ ";\n"
+    ftype.ftyp_name ^ " : " ^ string_of_typ ftype.types ^ ";\n"
 
 
     and string_of_scope scope = match scope with
