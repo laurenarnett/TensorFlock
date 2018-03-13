@@ -52,16 +52,35 @@ let string_of_table { cur_scope = m; parent = p} =
     | Some parent -> string_of_table' parent.cur_scope
                      ^ "{\n" ^ string_of_table' m ^ "\n}\n"
 
+let find' key map = 
+    try Some (StringMap.find key map)
+    with Not_found -> None
+
+let rec lookup_symb symb { cur_scope = m; parent = p} = 
+  match find' symb m with
+    | None -> (match p with
+                | None -> raise (Failure "Undefined symbol")
+                | Some table -> lookup_symb symb table)
+    | Some typ_list -> typ_list
+    
+    
 (* Check functions: return sfunc list or error *)
-(* let rec check_expr expression table = (* WIP *) *)
+let rec check_expr expression table = 
+  match expression with
+    | Literal(i) -> (Nat, SLiteral(i))
+    | Fliteral(s) -> (Tensor([]), SFliteral(s))
+    | BoolLit(b) -> (Bool, SBoolLit(b))
+    | TLit(_) -> raise (Failure "not yet implemented")
+    | Id(s) -> (List.hd (lookup_symb s table), SId(s))
+
 
 let rec check_funcs funcs = 
-  let global_table = build_global_table in
+  let global_table = build_global_table funcs in
   match funcs with
     | [] -> []
     | (ftyp, fdef) :: fns ->
-    let local_table = build_arg_table (ftyp, fdef) Some global_table in
+    let local_table = build_arg_table (ftyp, fdef) (Some global_table) in
     let this_sexpr = check_expr fdef.main_expr local_table in
     let this_func = { sfname = ftyp.ftyp_name; stype = ftyp.types; 
                       sfparams = fdef.fparams; sfexpr = this_sexpr; sscope = [] }
-  in this_func :: check_funcs fn
+  in this_func :: check_funcs fns
