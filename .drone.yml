@@ -5,3 +5,4 @@ pipeline:
     commands:
       - touch opam
       - make test
+
