@@ -8,7 +8,7 @@ pipeline:
 
   slack:
     image: plugins/slack
-    webhook: https://hooks.slack.com/services/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
+    webhook: https://hooks.slack.com/services/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
     channel: general
     username: Stephen Edwards 
     icon_url: http://www.cs.columbia.edu/~sedwards/images/edwards-fishburger-small.jpg
