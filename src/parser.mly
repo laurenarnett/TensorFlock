@@ -50,7 +50,7 @@ funct:
 
 ftyp:
    ID COLON types SEMI
-     { { ftyp_name = $1; types = List.rev $3; } }
+     { { ftyp_name = $1; types = $3; } }
 
 formals:
     { [] }
@@ -64,13 +64,13 @@ fdef:
 
 types:
   /* Don't pattern match on empty list because that should fail */
-  | types ARROW typ { $3 :: $1 }
-  | typ { [$1] }
+  | typ ARROW types { Arrow($1, $3) }
+  | typ { $1 }
 
 typ:
-    NAT     { Nat   }
-  | BOOL    { Bool  }
-  | TENSOR LANGLE shape RANGLE { Tensor($3) }
+    NAT     { Unit(Nat)   }
+  | BOOL    { Unit(Bool)  }
+  | TENSOR LANGLE shape RANGLE { Unit(Tensor($3)) }
 
 /* Expression starting point */
 expr: binexpr { $1 }

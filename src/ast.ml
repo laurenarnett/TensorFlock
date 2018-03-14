@@ -154,8 +154,6 @@ let rec string_of_typ = function
 
 let rec string_of_func_type (ftype : func_type) =
     ftype.ftyp_name ^ " : " ^ string_of_typ ftype.types ^ ";\n"
-
-
     and string_of_scope scope = match scope with
       []  -> ""
       | _ -> "{" ^ String.concat "\n"
