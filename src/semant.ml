@@ -67,13 +67,56 @@ let rec lookup_symb symb { cur_scope = m; parent = p} =
     
 (* Check functions: return sfunc list or error *)
 let rec check_expr expression table = 
+  let type_of expr = fst (check_expr expr table) in
   match expression with
     | Literal(i) -> (Unit(Nat), SLiteral(i))
     | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
     | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
     | TLit(_) -> raise (Failure "not yet implemented")
     | Id(s) -> (lookup_symb s table, SId(s))
-
+    | Unop(Neg, expr) -> raise (Failure 
+          "You can't negate Nats and tensors haven't been implemented yet") 
+    | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
+        (Failure "Detected arithmetic operation on incompatible types") else
+        (match type_of expr1 with
+        | Unit(Nat) -> (Unit(Nat),
+                SAop((check_expr expr1 table), op, (check_expr expr2 table)))
+        | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
+        | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+        | Arrow(_,_) -> raise 
+                (Failure "Arithmetic operation on partially applied function")
+        )
+    | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
+        (Failure "Detected boolean operation on incompatible types") else
+        (match type_of expr1 with
+        | Unit(Nat) -> raise (Failure "Detected boolean operation on Nats")
+        | Unit(Bool) -> (Unit(Bool),
+                SBoolop((check_expr expr1 table), op, (check_expr expr2 table)))
+        | Unit(Tensor(_)) -> raise 
+                (Failure "Detected boolean operation on incompatible types")
+        | Arrow(_,_) -> raise 
+                (Failure "Boolean operation on partially applied function")
+        )
+    | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
+        (Failure "Detected relational operation on incompatible types") else
+        (match type_of expr1 with
+        | Unit(Nat) -> (Unit(Bool),
+                SRop((check_expr expr1 table), op, (check_expr expr2 table)))
+        | Unit(Bool) -> raise (Failure "Detected relational operation on boolean")
+        | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+        | Arrow(_,_) -> raise 
+                (Failure "Relational operation on partially applied function")
+        )
+    | App(expr1, expr2) -> raise (Failure "Not yet implemented")
+    | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> Unit(Bool)
+        then raise (Failure "Non-boolean expression in if statement") 
+        else if type_of expr2 <> type_of expr3 then raise
+        (Failure "Incompatible types in conditional expressions") else
+        (type_of expr2, 
+         SCondExpr(check_expr expr1 table, 
+                   check_expr expr2 table, check_expr expr3 table))
+    | TensorIdx(_,_) -> raise (Failure "Not yet implemented")
+        
 
 let rec check_funcs funcs = 
   let global_table = build_global_table funcs in
