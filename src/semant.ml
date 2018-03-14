@@ -7,7 +7,7 @@ module StringMap = Map.Make (String)
 type symbol_table = {
   (* symbols map to lists of types because this is how we represent the types
    * of functions *) 
-  cur_scope : (typ list) StringMap.t;
+  cur_scope : typ StringMap.t;
   parent : symbol_table option;
 }
 
@@ -31,21 +31,22 @@ let build_global_table =
 in build_table empty_table
 
 let build_arg_table (ftyp, fdef) parent = 
- let param_types = List.tl ftyp.types in
- let assoc_list = List.map2 (fun param typ -> (param, [typ])) 
-                    fdef.fparams param_types in
- let cur_scope = List.fold_left (fun table (param, typ) -> 
-        if StringMap.mem param table then raise
-            (Failure ("\nUse of non-linear pattern " ^ param ^ "\n"))
-        else StringMap.add param typ table) StringMap.empty assoc_list
-in { cur_scope = cur_scope; parent = parent }
+  let rec list_of_type typ = match typ with 
+    | Unit(t) -> [t] | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2 in
+  let but_last lst = List.rev lst |> List.tl |> List.rev in
+  let types = but_last @@ list_of_type ftyp.types and params = fdef.fparams in
+  let build_arg_map types params = List.fold_left2 (fun map typ param ->
+    if StringMap.mem param map then raise (Failure 
+     ("Non-linear pattern match encountered in definition of symbol " ^ param))
+    else StringMap.add param (Unit(typ)) map) StringMap.empty types params
+in { cur_scope = build_arg_map types params; parent = parent }
+
 
 (* Pretty printing *)
 let string_of_table { cur_scope = m; parent = p} =
   let string_of_table' map =  
   (String.concat "\n" @@
-  List.map (fun (name, types) -> name ^ " : " ^ String.concat " -> " 
-                (List.map string_of_typ types)
+  List.map (fun (name, types) -> name ^ " : " ^ (string_of_typ types)
            ) (StringMap.bindings map)) ^ "\n"
   in match p with
     | None -> string_of_table' m
@@ -67,11 +68,11 @@ let rec lookup_symb symb { cur_scope = m; parent = p} =
 (* Check functions: return sfunc list or error *)
 let rec check_expr expression table = 
   match expression with
-    | Literal(i) -> (Nat, SLiteral(i))
-    | Fliteral(s) -> (Tensor([]), SFliteral(s))
-    | BoolLit(b) -> (Bool, SBoolLit(b))
+    | Literal(i) -> (Unit(Nat), SLiteral(i))
+    | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
+    | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
     | TLit(_) -> raise (Failure "not yet implemented")
-    | Id(s) -> (List.hd (lookup_symb s table), SId(s))
+    | Id(s) -> (lookup_symb s table, SId(s))
 
 
 let rec check_funcs funcs = 
