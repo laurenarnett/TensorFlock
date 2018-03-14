@@ -33,9 +33,15 @@ in build_table empty_table
 let build_arg_table (ftyp, fdef) parent = 
   let rec list_of_type typ = match typ with 
     | Unit(t) -> [t] | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2 in
-  let but_last lst = List.rev lst |> List.tl |> List.rev in
-  let types = but_last @@ list_of_type ftyp.types and params = fdef.fparams in
-  let build_arg_map types params = List.fold_left2 (fun map typ param ->
+  let but_last lst = List.rev @@ List.tl @@ List.rev lst in
+  let types = 
+    but_last @@ 
+    list_of_type ftyp.types and params = fdef.fparams in
+  let build_arg_map types params = 
+    (* DEBUG *)
+    (* print_string (String.concat " -> " @@ List.map string_of_unit_type types); *)
+    (* print_string (String.concat "  " @@ params); *)
+    List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure 
      ("Non-linear pattern match encountered in definition of symbol " ^ param))
     else StringMap.add param (Unit(typ)) map) StringMap.empty types params
