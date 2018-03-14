@@ -25,3 +25,33 @@ type sfunc = {
 }
 
 type sprogram = sexpr * sfunc list
+
+(* Pretty printing *)
+let rec string_of_sexpr_detail e = match e with
+    | SLiteral(i) -> string_of_int i
+    | SFliteral(s) -> s
+    | STLit(shape, strlist) -> "Not yet implemented"
+    | SId(s) -> s
+    | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
+    | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr
+    | SAop(sexpr1, op, sexpr2) -> 
+      string_of_sexpr sexpr1 ^ " " ^ string_of_aop op ^ " " ^
+      string_of_sexpr sexpr2
+    | SBoolop(sexpr1, op, sexpr2) -> 
+      string_of_sexpr sexpr1 ^ " " ^ string_of_bop op ^ " " ^
+      string_of_sexpr sexpr2
+    | SRop(sexpr1, op, sexpr2) -> 
+      string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
+      string_of_sexpr sexpr2
+    | SApp(sexpr1, sexpr2) -> 
+      string_of_sexpr sexpr1 ^ " " ^ string_of_sexpr sexpr2
+    | SCondExpr(sexpr1, sexpr2, sexpr3) ->
+      "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
+      ^ " else " ^ string_of_sexpr sexpr3
+    | STensorIdx(_,_,_) -> "Not yet implemented"
+and string_of_sexpr (t, det) =
+  string_of_sexpr_detail det ^ " : " ^ string_of_typ t
+
+
+
+    
