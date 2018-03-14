@@ -61,5 +61,3 @@ let rec string_of_sfunc sfunc =
 let string_of_sprogram (main_expr, sfuncs) = 
   "main = " ^ string_of_sexpr main_expr ^ "\n" 
   ^ String.concat "\n" @@ List.map string_of_sfunc sfuncs
-
-    

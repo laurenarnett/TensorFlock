@@ -128,3 +128,8 @@ let rec check_funcs funcs =
     let this_func = { sfname = ftyp.ftyp_name; stype = ftyp.types; 
                       sfparams = fdef.fparams; sfexpr = this_sexpr; sscope = [] }
   in this_func :: check_funcs fns
+
+(* Check entire program *)
+let check (main_expr, funcs) = 
+  let global_table = build_global_table funcs in
+  (check_expr main_expr global_table, check_funcs funcs)
