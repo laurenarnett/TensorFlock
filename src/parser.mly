@@ -77,21 +77,21 @@ expr: binexpr { $1 }
 
 binexpr:
   | IF binexpr THEN binexpr ELSE binexpr { CondExpr($2, $4, $6) }
-  | binexpr OR  binexpr     { Binop($1, Or, $3)   }
-  | binexpr AND binexpr     { Binop($1, And, $3)  }
-  | binexpr EQ  binexpr     { Binop($1, Eq, $3)   }
-  | binexpr NEQ binexpr     { Binop($1, Neq, $3)  }
-  | binexpr LANGLE  binexpr { Binop($1, LT, $3)   }
-  | binexpr LEQ binexpr     { Binop($1, Leq, $3)  }
-  | binexpr RANGLE  binexpr { Binop($1, GT, $3)   }
-  | binexpr GEQ binexpr     { Binop($1, Geq, $3)  }
-  | binexpr PLUS   binexpr  { Binop($1, Add, $3)  }
-  | binexpr MINUS  binexpr  { Binop($1, Sub, $3)  }
-  | binexpr TIMES  binexpr  { Binop($1, Mult, $3) }
-  | binexpr DIVIDE binexpr  { Binop($1, Div, $3)  }
-  | binexpr MOD    binexpr  { Binop($1, Mod, $3)  }
+  | binexpr OR  binexpr     { Boolop($1, Or, $3)   }
+  | binexpr AND binexpr     { Boolop($1, And, $3)  }
+  | binexpr EQ  binexpr     { Rop($1, Eq, $3)   }
+  | binexpr NEQ binexpr     { Rop($1, Neq, $3)  }
+  | binexpr LANGLE  binexpr { Rop($1, LT, $3)   }
+  | binexpr LEQ binexpr     { Rop($1, Leq, $3)  }
+  | binexpr RANGLE  binexpr { Rop($1, GT, $3)   }
+  | binexpr GEQ binexpr     { Rop($1, Geq, $3)  }
+  | binexpr PLUS   binexpr  { Aop($1, Add, $3)  }
+  | binexpr MINUS  binexpr  { Aop($1, Sub, $3)  }
+  | binexpr TIMES  binexpr  { Aop($1, Mult, $3) }
+  | binexpr DIVIDE binexpr  { Aop($1, Div, $3)  }
+  | binexpr MOD    binexpr  { Aop($1, Mod, $3)  }
   | MINUS binexpr %prec NEG { Unop(Neg, $2)       }
-  | binexpr EXPT   binexpr  { Binop($1, Expt, $3) }
+  | binexpr EXPT   binexpr  { Aop($1, Expt, $3) }
   | LPAREN binexpr RPAREN   { $2 }
   | fexpr                   { $1 }
 

@@ -8,7 +8,10 @@ and sexpr_detail =
   | STLit of shape * string list 
   | SId of string
   | SUnop of uop * sexpr
-  | SBinop of sexpr * binop * sexpr
+  (* | SBinop of sexpr * binop * sexpr *)
+  | SAop of sexpr * aop * sexpr
+  | SBoolop of sexpr * bop * sexpr
+  | SRop of sexpr * rop * sexpr
   | SApp of sexpr * sexpr
   | SCondExpr of sexpr * sexpr * sexpr
   | STensorIdx of shape * string * sexpr list
