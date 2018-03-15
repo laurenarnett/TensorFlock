@@ -10,9 +10,9 @@ type rop = Eq | Neq | LT | Leq | GT | Geq
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
 
-type binop =Add | Sub | Mult | Div | Mod | Expt |
-            Eq | Neq | LT | Leq | GT | Geq |
-            And | Or
+(* type binop = Add | Sub | Mult | Div | Mod | Expt | *)
+(*              Eq  | Neq | LT | Leq | GT | Geq | *)
+(*              And | Or *)
 
 (* unary operators *)
 type uop = Neg
@@ -27,9 +27,8 @@ type aexpr =
 
 
 type shape = aexpr list
-
-(* types: TODO decide if we support Ints or just Naturals (i.e) unsigned ints *)
-type typ = Bool | Nat | Tensor of shape
+type unit_type = Bool | Nat | Tensor of shape
+type typ = Unit of unit_type | Arrow of typ * typ
 
 type expr =
     Literal of int
@@ -38,25 +37,22 @@ type expr =
   | TLit of expr list
   | Id of string
   | Unop of uop * expr
-  | Binop of expr * binop * expr
-  (* | Aop of expr * aop * expr *)
-  (* | Boolop of expr * bop * expr *)
-  (* | Rop of expr * rop * expr *)
+  (* | Binop of expr * binop * expr *)
+  | Aop of expr * aop * expr
+  | Boolop of expr * bop * expr
+  | Rop of expr * rop * expr
   | App of expr * expr
   | CondExpr of expr * expr * expr 
   | TensorIdx of string * expr list
 
-(* the indices of a tensor are a list of exprs *)
-(*type tidx = expr list*)
-
 type func_type = {
-  fname : string;
-  types : typ list;
+  ftyp_name : string;
+  types : typ;
 }
 
 type func_def = {
-  fname : string;
-  fargs : string list;
+  fdef_name : string;
+  fparams : string list;
   main_expr : expr;
   scope : (func_type * func_def) list;
 }
@@ -85,21 +81,21 @@ let (string_of_bop : bop -> string) = function
     And -> "&&"
   | Or  -> "||"
 
-let string_of_binop = function
-    Add  -> "+"
-  | Sub  -> "-"
-  | Mult -> "*"
-  | Div  -> "/"
-  | Mod  -> "%"
-  | Expt -> "^"
-  | Eq  -> "=="
-  | Neq -> "!="
-  | LT  -> "<"
-  | GT  -> ">"
-  | Leq -> "<="
-  | Geq -> ">="
-  | And -> "&&"
-  | Or  -> "||"
+(* let string_of_binop = function *)
+(*     Add  -> "+" *)
+(*   | Sub  -> "-" *)
+(*   | Mult -> "*" *)
+(*   | Div  -> "/" *)
+(*   | Mod  -> "%" *)
+(*   | Expt -> "^" *)
+(*   | Eq  -> "==" *)
+(*   | Neq -> "!=" *)
+(*   | LT  -> "<" *)
+(*   | GT  -> ">" *)
+(*   | Leq -> "<=" *)
+(*   | Geq -> ">=" *)
+(*   | And -> "&&" *)
+(*   | Or  -> "||" *)
 
 let string_of_uop = function
     Neg  -> "-"
@@ -125,18 +121,18 @@ let rec string_of_expr = function
   | Id(s) -> s
   | Unop(o, e) ->
         "(" ^ string_of_uop o ^ string_of_expr e ^ ")"
-  (* | Aop(e1, o, e2) -> *)
-  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_aop o ^ " " *) 
-  (*           ^ string_of_expr e2 ^ ")" *)
-  (* | Boolop(e1, o , e2) -> *)
-  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr *)
-  (*         e2 ^ ")" *)
-  (* | Rop(e1, o, e2) -> *)
-  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr *)
-  (*         e2 ^ ")" *)
-  | Binop(e1, o, e2) ->
-        "(" ^ string_of_expr e1 ^ " " ^ string_of_binop o ^ " " 
+  | Aop(e1, o, e2) ->
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_aop o ^ " " 
             ^ string_of_expr e2 ^ ")"
+  | Boolop(e1, o , e2) ->
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_bop o ^ " " ^ string_of_expr
+          e2 ^ ")"
+  | Rop(e1, o, e2) ->
+        "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr
+          e2 ^ ")"
+  (* | Binop(e1, o, e2) -> *)
+  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_binop o ^ " " *) 
+  (*           ^ string_of_expr e2 ^ ")" *)
   | App(e1, e2) ->
         "(" ^ string_of_expr e1 ^ " applied to " ^ string_of_expr e2 ^ ")"
   | CondExpr(e1, e2, e3) ->
@@ -147,16 +143,17 @@ let rec string_of_expr = function
             (List.map string_of_expr idxs) ^ "]" ^ ")"
 
 
-let string_of_typ = function
+let string_of_unit_type = function
     Bool -> "Bool"
   | Nat -> "Nat"
   | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
 
+let rec string_of_typ = function
+    Unit(t) -> string_of_unit_type t
+  | Arrow(t, ts) -> string_of_typ t ^ " -> " ^ string_of_typ ts
+
 let rec string_of_func_type (ftype : func_type) =
-    ftype.fname ^ " : " ^ String.concat " -> " (List.map string_of_typ
-    ftype.types) ^ ";\n"
-
-
+    ftype.ftyp_name ^ " : " ^ string_of_typ ftype.types ^ ";\n"
     and string_of_scope scope = match scope with
       []  -> ""
       | _ -> "{" ^ String.concat "\n"
@@ -164,7 +161,7 @@ let rec string_of_func_type (ftype : func_type) =
         string_of_func_def fd) scope) ^ "}"
 
     and string_of_func_def (fdef : func_def) = 
-      fdef.fname ^ " " ^ String.concat " " (fdef.fargs) ^ " = " ^ 
+      fdef.fdef_name ^ " " ^ String.concat " " (fdef.fparams) ^ " = " ^ 
       string_of_expr fdef.main_expr ^ "; " ^ string_of_scope fdef.scope ^ " \n"
 
 let string_of_func (ft, fd) =

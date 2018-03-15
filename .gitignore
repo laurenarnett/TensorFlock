@@ -7,7 +7,6 @@
 *.synctex.gz
 *.pdf
 
-*.zip
 .opam
 _opam
 _build
@@ -17,3 +16,4 @@ _build
 parser.ml
 parser.mli
 *.zip
+:merlin-log:

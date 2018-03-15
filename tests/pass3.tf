@@ -23,3 +23,6 @@ nestedScope = x != y;
       y : T<>; y = 7;
     }
 
+
+s : Bool;
+s = True;
