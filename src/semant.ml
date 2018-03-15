@@ -138,4 +138,7 @@ let rec check_funcs funcs =
 (* Check entire program *)
 let check (main_expr, funcs) = 
   let global_table = build_global_table funcs in
-  (check_expr main_expr global_table, check_funcs funcs)
+  let check_main = check_expr main_expr global_table in
+  match check_main with
+    | (Unit(_), _) -> (check_main, check_funcs funcs)
+    | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")
