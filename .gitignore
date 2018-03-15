@@ -17,3 +17,6 @@ parser.ml
 parser.mli
 *.zip
 :merlin-log:
+
+# Ignore vim session files
+*.vim
