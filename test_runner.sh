@@ -31,7 +31,7 @@ for f in ./tests/syntax_tests/fail*.tf; do
 done
 
 for f in ./tests/semant_tests/pass/*.tf; do
-    run_test $f a 0
+    run_test $f s 0
 done
 
 echo
