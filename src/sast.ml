@@ -56,7 +56,8 @@ let rec string_of_sfunc sfunc =
   "(" ^ sfunc.sfname ^ (String.concat " " sfunc.sfparams)
   ^ " : " ^ string_of_typ sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
-  ^ String.concat "\n" @@ List.map string_of_sfunc sfunc.sscope
+  ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope) 
+  ^ "\n}"
 
 let string_of_sprogram (main_expr, sfuncs) = 
   "main = " ^ string_of_sexpr main_expr ^ "\n" 
