@@ -8,3 +8,6 @@ B src/**
 
 # Look for binaries in the build dir
 B _build/**
+
+# Find llvm module
+PKG llvm
