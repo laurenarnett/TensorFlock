@@ -5,3 +5,16 @@ pipeline:
     commands:
       - touch opam
       - make test
+
+  slack:
+    image: plugins/slack
+    webhook: https://hooks.slack.com/services/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
+    channel: monitoring
+    username: Stephen Edwards 
+    icon_url: http://www.cs.columbia.edu/~sedwards/images/edwards-fishburger-small.jpg
+    template: >
+      {{#success build.status}}
+        Build {{build.number}} succeeded. Great job TensorFlockernauts.
+      {{else}}
+        Build {{build.number}} failed. Umm...
+      {{/success}}
