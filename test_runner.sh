@@ -1,9 +1,13 @@
 #! /bin/bash
 
 failures=""
-for f in ./tests/syntax_tests/pass*.tf; do
-    output=$(./toplevel.native -a $f 2>&1)
-    if [ $? -eq 0 ]
+
+function run_test {
+    # Param $1: file name
+    # Param $2: compiler flag
+    # Param $3: passing exit code
+    output=$(./toplevel.native -$2 $1 2>&1)
+    if [ $? -eq $3 ]
     then
         printf "."
     else
@@ -16,40 +20,18 @@ for f in ./tests/syntax_tests/pass*.tf; do
         failures+=$'\n'
         failures+=$'--------------------\n'
     fi
+}
+
+for f in ./tests/syntax_tests/pass*.tf; do
+    run_test $f a 0
 done
 
 for f in ./tests/syntax_tests/fail*.tf; do
-    output=$(./toplevel.native -a $f 2>&1)
-    if [ $? -eq 2 ]
-    then
-        printf "."
-    else
-        printf "F"
-        failures+=$'--------------------\n'
-        failures+=$'Test '
-        failures+="$f"
-        failures+=$' failed.\n'
-        failures+="$output"
-        failures+=$'\n'
-        failures+=$'--------------------\n'
-    fi
+    run_test $f a 2
 done
 
 for f in ./tests/semant_tests/pass/*.tf; do
-    output=$(./toplevel.native -a $f 2>&1)
-    if [ $? -eq 0 ]
-    then
-        printf "."
-    else
-        printf "F"
-        failures+=$'--------------------\n'
-        failures+=$'Test '
-        failures+="$f"
-        failures+=$' failed.\n'
-        failures+="$output"
-        failures+=$'\n'
-        failures+=$'--------------------\n'
-    fi
+    run_test $f s 0
 done
 
 echo
