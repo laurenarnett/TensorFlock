@@ -11,15 +11,17 @@ let () =
     ("-l", Arg.Unit (set_action LLVM_IR), "Print the generated LLVM IR");
     ("-c", Arg.Unit (set_action Compile),
       "Check and print the generated LLVM IR (default)");
-  ] in  
+  ] in
   let usage_msg = "usage: ./toplevel.native [-a|-s|-l|-c] [file.tf]" in
   let channel = ref stdin in
   Arg.parse speclist (fun filename -> channel := open_in filename) usage_msg;
-  
+
   let lexbuf = Lexing.from_channel !channel in
-  let ast = Parser.program Scanner.token lexbuf in  
+  let ast = Parser.program Scanner.token lexbuf in
   match !action with
      Ast -> print_string (Ast.string_of_program ast)
    | Sast -> print_string (Sast.string_of_sprogram (Semant.check ast))
-   | LLVM_IR -> print_string ("Not implemented")  
-   | Compile -> print_string ("Not implemented")  
+   | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate (Semant.check ast)))
+   | Compile -> let mdl = Codegen.translate (Semant.check ast) in
+   Llvm_analysis.assert_valid_module mdl;
+   ignore @@ Llvm_bitwriter.write_bitcode_file mdl "output.ll"
