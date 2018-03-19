@@ -6,6 +6,12 @@ OCAML_SENTINAL ?= .ocaml-sentinal
 PROJECT_PARSER ?= parser
 OPAM_FILE ?= opam
 
+SHELL=/bin/bash
+ifeq ($(shell uname), Darwin)
+export PATH:=$(shell brew --prefix llvm)/bin:$(PATH)
+endif
+
+
 $(OCAML_SENTINAL): $(OPAM_FILE)
 	opam pin add --no-action $(PROJECT) . -y
 	opam install --deps-only $(PROJECT)
@@ -26,11 +32,18 @@ endif
 test: $(PROJECT_EXTENSION) $(OCAML_SENTINAL)
 	bash ./test_runner.sh
 
+demo: $(PROJECT_EXTENTION)
+	./toplevel.native -c tests/codegen/pass/interesting_math.tf
+	lli output.ll
+
 zip: clean
 	zip -r tensorflock.zip ../TensorFlock -x "*.git*" "*.gitignore*" "*.circleci*" "*.merlin*" "*_state*" "*proposal*"
 
 clean: 
 	ocamlbuild -clean
+ifneq ($(wildcard *.ll),)
+	rm *.ll
+endif
 ifneq ($(wildcard _state),)
 	rm -rf _state
 endif
@@ -41,4 +54,4 @@ endif
 docker:
 	docker build -t nbuonin/ocaml4.06-llvm3.6 docker
 
-.PHONY: state test clean zip docker
+.PHONY: state test clean zip docker demo
