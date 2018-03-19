@@ -6,6 +6,7 @@
 *latexmk
 *.synctex.gz
 *.pdf
+*.ll
 
 .opam
 _opam

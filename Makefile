@@ -12,7 +12,7 @@ $(OCAML_SENTINAL): $(OPAM_FILE)
 	touch $@
 
 $(PROJECT_EXTENSION): $(OCAML_SENTINAL) clean $(SRC_DIR)* 
-	ocamlbuild $@
+	ocamlbuild -use-ocamlfind -package llvm,llvm.analysis,llvm.bitwriter $@
 
 state: $(OCAML_SENTINAL) clean
 	ocamlyacc -v $(SRC_DIR)$(PROJECT_PARSER).mly
