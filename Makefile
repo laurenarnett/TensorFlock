@@ -51,7 +51,16 @@ ifneq ($(wildcard *.zip),)
 	rm -f *.zip 
 endif
 
-docker:
-	docker build -t nbuonin/ocaml4.06-llvm3.6 docker
+docker-build-image:
+	docker build -t nbuonin/ocaml4.06-llvm3.8 docker
 
-.PHONY: state test clean zip docker demo
+docker-shell:
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash nbuonin/ocaml4.06-llvm3.6
+
+docker-make:
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.6 make
+
+docker-make-test:
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.6 make test
+
+.PHONY: state test clean zip docker demo docker-shell docker-make docker-make-test

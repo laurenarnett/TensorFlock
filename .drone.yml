@@ -1,6 +1,6 @@
 pipeline:
   test:
-    image: nbuonin/ocaml4.06-llvm3.6:latest
+    image: nbuonin/ocaml4.06-llvm3.8:latest
     pull: true
     commands:
       - touch opam
