@@ -112,7 +112,7 @@ let rec (string_of_aexpr : aexpr -> string) = function
         "(" ^ string_of_aexpr e1 ^ " applied to " ^ string_of_aexpr e2 ^ ")"
 
 
-let rec string_of_expr = function
+let rec (string_of_expr : expr -> string) = function
     Literal(l) -> "(" ^ string_of_int l ^ ")"
   | Fliteral(l) -> "(" ^ l ^ ")"
   | BoolLit(true) -> "True"

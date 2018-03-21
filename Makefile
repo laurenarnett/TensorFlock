@@ -5,6 +5,8 @@ PROJECT_EXTENSION ?= src/toplevel.native
 OCAML_SENTINAL ?= .ocaml-sentinal
 PROJECT_PARSER ?= parser
 OPAM_FILE ?= opam
+COMPILER_FLAGS = -cflag -warn-error=+A-4-42-27
+COMPILER_PACKAGES = -use-ocamlfind -package llvm,llvm.analysis,llvm.bitwriter 
 
 SHELL=/bin/bash
 ifeq ($(shell uname), Darwin)
@@ -18,7 +20,7 @@ $(OCAML_SENTINAL): $(OPAM_FILE)
 	touch $@
 
 $(PROJECT_EXTENSION): $(OCAML_SENTINAL) clean $(SRC_DIR)* 
-	ocamlbuild -use-ocamlfind -package llvm,llvm.analysis,llvm.bitwriter $@
+	ocamlbuild $(COMPILER_FLAGS) $(COMPILER_PACKAGES) $@
 
 state: $(OCAML_SENTINAL) clean
 	ocamlyacc -v $(SRC_DIR)$(PROJECT_PARSER).mly
