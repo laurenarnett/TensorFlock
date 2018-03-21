@@ -74,7 +74,7 @@ let rec lookup_symb symb { cur_scope = m; parent = p} =
 (* Check functions: return sfunc list or error *)
 let rec check_expr expression table = 
   let type_of expr = fst (check_expr expr table) in
-  match expression with
+  match (expression : expr) with
     | Literal(i) -> (Unit(Nat), SLiteral(i))
     | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
     | BoolLit(b) -> (Unit(Bool), SBoolLit(b))

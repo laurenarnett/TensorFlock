@@ -5,7 +5,7 @@ PROJECT_EXTENSION ?= src/toplevel.native
 OCAML_SENTINAL ?= .ocaml-sentinal
 PROJECT_PARSER ?= parser
 OPAM_FILE ?= opam
-COMPILER_FLAGS = -cflag -w=+A 
+COMPILER_FLAGS = -cflag -w=+A-42
 COMPILER_PACKAGES = -use-ocamlfind -package llvm,llvm.analysis,llvm.bitwriter 
 
 SHELL=/bin/bash
