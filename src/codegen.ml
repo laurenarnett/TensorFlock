@@ -9,12 +9,12 @@ let nat_t = L.i32_type context
 let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let ltype_of_typ = function
-    A.Unit(Nat) -> nat_t
-  | A.Unit(Bool) -> bool_t
+    A.Unit(A.Nat) -> nat_t
+  | A.Unit(A.Bool) -> bool_t
   | t -> raise (Failure ("Type " ^ A.string_of_typ t ^ " not implemented."))
 
 let rec codegen_sexpr (typ, detail) builder = match typ with
-  | A.Unit(Nat) ->
+  | A.Unit(A.Nat) ->
     begin
       match detail with
       | SLiteral(i) -> L.const_int nat_t i
@@ -23,12 +23,12 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
         let rhs = codegen_sexpr sexpr2 builder in
         begin
           match aop with
-          | Add -> L.build_add lhs rhs "addnattmp" builder
-          | Sub -> L.build_sub lhs rhs "subnattmp" builder
-          | Mult -> L.build_mul lhs rhs "mulnattmp" builder
-          | Div -> L.build_udiv lhs rhs "divnattmp" builder
-          | Mod -> L.build_urem lhs rhs "modnattmp" builder
-          | Expt -> raise (Failure "WIP")
+          | A.Add -> L.build_add lhs rhs "addnattmp" builder
+          | A.Sub -> L.build_sub lhs rhs "subnattmp" builder
+          | A.Mult -> L.build_mul lhs rhs "mulnattmp" builder
+          | A.Div -> L.build_udiv lhs rhs "divnattmp" builder
+          | A.Mod -> L.build_urem lhs rhs "modnattmp" builder
+          | A.Expt -> raise (Failure "WIP")
         end
       | SId(s) -> raise (Failure "WIP")
       | SApp(_,_) -> raise (Failure "Not yet implemented")
