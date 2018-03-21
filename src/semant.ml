@@ -84,37 +84,75 @@ let rec check_expr expression table =
           "You can't negate Nats and tensors haven't been implemented yet") 
     | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
         (Failure "Detected arithmetic operation on incompatible types") else
-        (match type_of expr1 with
-        | Unit(Nat) -> (Unit(Nat),
-                SAop((check_expr expr1 table), op, (check_expr expr2 table)))
-        | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
-        | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
-        | Arrow(_,_) -> raise 
-                (Failure "Arithmetic operation on partially applied function")
-        )
+        begin
+            match type_of expr1 with
+                | Unit(Nat) -> (Unit(Nat),
+                        SAop((check_expr expr1 table), op, (check_expr expr2 table)))
+                | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
+                | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+                | Arrow(_,_) -> raise 
+                        (Failure "Arithmetic operation on partially applied function")
+        end
     | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
         (Failure "Detected boolean operation on incompatible types") else
-        (match type_of expr1 with
-        | Unit(Nat) -> raise (Failure "Detected boolean operation on Nats")
-        | Unit(Bool) -> (Unit(Bool),
-                SBoolop((check_expr expr1 table), op, (check_expr expr2 table)))
-        | Unit(Tensor(_)) -> raise 
-                (Failure "Detected boolean operation on incompatible types")
-        | Arrow(_,_) -> raise 
-                (Failure "Boolean operation on partially applied function")
-        )
+        begin
+            match type_of expr1 with
+            | Unit(Nat) -> raise (Failure "Detected boolean operation on Nats")
+            | Unit(Bool) -> (Unit(Bool),
+                    SBoolop((check_expr expr1 table), op, (check_expr expr2 table)))
+            | Unit(Tensor(_)) -> raise 
+                    (Failure "Detected boolean operation on incompatible types")
+            | Arrow(_,_) -> raise 
+                    (Failure "Boolean operation on partially applied function")
+        end
     | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
         (Failure "Detected relational operation on incompatible types") else
-        (match type_of expr1 with
-        | Unit(Nat) -> (Unit(Bool),
-                SRop((check_expr expr1 table), op, (check_expr expr2 table)))
-        | Unit(Bool) -> raise (Failure "Detected relational operation on boolean")
-        | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
-        | Arrow(_,_) -> raise 
-                (Failure "Relational operation on partially applied function")
-        )
-    | App(_expr1, _expr2) -> 
+        begin
+            match type_of expr1 with
+            | Unit(Nat) -> (Unit(Bool),
+                    SRop((check_expr expr1 table), op, (check_expr expr2 table)))
+            | Unit(Bool) -> raise (Failure "Detected relational operation on boolean")
+            | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+            | Arrow(_,_) -> raise 
+                        (Failure "Relational operation on partially applied function")
+        end
+    | App(expr1, expr2) -> 
+      begin
+        match expr1 with
+        | App(expr1', expr2') ->
+          begin 
+                raise (Failure "Only implemented functions of single args so far. Come back later.")
+          end
+        | _ -> 
+          begin match type_of expr1 with 
+                | Arrow(param_type, return_type) -> 
+                  (* DEBUG *)
+                  (* print_string @@ string_of_typ param_type; *)
+                  (* print_string @@ string_of_typ return_type; *)
+                  if type_of expr2 = param_type 
+                     then (return_type, SApp(check_expr expr1 table, [check_expr expr2 table]))
+                  else 
+                     raise (Failure ("Expected type " ^ string_of_typ param_type 
+                           ^ " but instead received " ^ string_of_typ (type_of expr2)))
+                | _ -> raise (Failure "Type error")
+          end
 
+            (* f : Nat -> Nat; *)
+            (* f x = x + 1; *)
+            (*              f 12 *)
+          (* f g h x -> ((f g) h) x -> f(g,h,x) *)
+          (* match type_of expr1 with *)
+          (* | Arrow(t1, t2) -> *) 
+          (*   begin *)
+          (*     match type_of expr2 with *)
+          (*     | Unit(t) -> if t == t2 then SApp(check_expr expr1, [check_expr expr2]) *)
+          (*       else raise *) 
+          (*           (Failure @@ string_of_expr expr1 ^ " applied to *)
+          (*           expression of incompatible type " ^ string_of_typ t ^ "\n *)
+          (*           Expected expression of type " ^ string_of_typ t2) *)
+          (*   end *)
+          (* | Unit(_) -> raise (Failure @@ string_of_expr expr1 ^ " is of unit type and cannot be applied.") *)  
+      end
     | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> Unit(Bool)
         then raise (Failure "Non-boolean expression in if statement") 
         else if type_of expr2 <> type_of expr3 then raise
