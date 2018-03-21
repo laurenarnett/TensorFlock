@@ -80,7 +80,7 @@ let rec check_expr expression table =
     | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
     | TLit(_) -> raise (Failure "not yet implemented")
     | Id(s) -> (lookup_symb s table, SId(s))
-    | Unop(Neg, expr) -> raise (Failure 
+    | Unop(Neg, _expr) -> raise (Failure 
           "You can't negate Nats and tensors haven't been implemented yet") 
     | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise 
         (Failure "Detected arithmetic operation on incompatible types") else
@@ -113,7 +113,8 @@ let rec check_expr expression table =
         | Arrow(_,_) -> raise 
                 (Failure "Relational operation on partially applied function")
         )
-    | App(expr1, expr2) -> raise (Failure "Not yet implemented")
+    | App(_expr1, _expr2) -> 
+
     | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> Unit(Bool)
         then raise (Failure "Non-boolean expression in if statement") 
         else if type_of expr2 <> type_of expr3 then raise
