@@ -13,4 +13,4 @@ B _build/**
 PKG llvm
 
 # Add -wall to merlin so that the warnings appear in the editor
-FLG -w +a-42
+FLG -w +a-4-42
