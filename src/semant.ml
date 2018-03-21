@@ -121,37 +121,34 @@ let rec check_expr expression table =
         match expr1 with
         | App(expr1', expr2') ->
           begin 
-                raise (Failure "Only implemented functions of single args so far. Come back later.")
+            match type_of expr1' with
+            | Arrow(first_param_type, remaining_types) ->
+              let rec last_type types = 
+                  (match types with | Arrow(_, ts) -> last_type ts 
+                                    | Unit(t) -> Unit(t)) in
+              if type_of expr2' = first_param_type
+                 then (last_type remaining_types, SApp(check_expr expr1' table,
+                                                 check_expr expr2' table ::
+                                                 [check_expr expr2 table]))
+              else 
+                 raise (Failure ("Expected type " ^ string_of_typ first_param_type 
+                       ^ " but instead received " ^ string_of_typ (type_of expr2)))
+            | _ -> raise (Failure "Type error")
           end
         | _ -> 
-          begin match type_of expr1 with 
-                | Arrow(param_type, return_type) -> 
-                  (* DEBUG *)
-                  (* print_string @@ string_of_typ param_type; *)
-                  (* print_string @@ string_of_typ return_type; *)
-                  if type_of expr2 = param_type 
-                     then (return_type, SApp(check_expr expr1 table, [check_expr expr2 table]))
-                  else 
-                     raise (Failure ("Expected type " ^ string_of_typ param_type 
-                           ^ " but instead received " ^ string_of_typ (type_of expr2)))
-                | _ -> raise (Failure "Type error")
+          begin 
+            match type_of expr1 with 
+            | Arrow(param_type, return_type) -> 
+              (* DEBUG *)
+              (* print_string @@ string_of_typ param_type; *)
+              (* print_string @@ string_of_typ return_type; *)
+              if type_of expr2 = param_type 
+                 then (return_type, SApp(check_expr expr1 table, [check_expr expr2 table]))
+              else 
+                 raise (Failure ("Expected type " ^ string_of_typ param_type 
+                       ^ " but instead received " ^ string_of_typ (type_of expr2)))
+            | _ -> raise (Failure "Type error")
           end
-
-            (* f : Nat -> Nat; *)
-            (* f x = x + 1; *)
-            (*              f 12 *)
-          (* f g h x -> ((f g) h) x -> f(g,h,x) *)
-          (* match type_of expr1 with *)
-          (* | Arrow(t1, t2) -> *) 
-          (*   begin *)
-          (*     match type_of expr2 with *)
-          (*     | Unit(t) -> if t == t2 then SApp(check_expr expr1, [check_expr expr2]) *)
-          (*       else raise *) 
-          (*           (Failure @@ string_of_expr expr1 ^ " applied to *)
-          (*           expression of incompatible type " ^ string_of_typ t ^ "\n *)
-          (*           Expected expression of type " ^ string_of_typ t2) *)
-          (*   end *)
-          (* | Unit(_) -> raise (Failure @@ string_of_expr expr1 ^ " is of unit type and cannot be applied.") *)  
       end
     | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> Unit(Bool)
         then raise (Failure "Non-boolean expression in if statement") 
@@ -178,6 +175,7 @@ let rec check_funcs funcs =
 let check (main_expr, funcs) = 
   let global_table = build_global_table funcs in
   let check_main = check_expr main_expr global_table in
+  print_string @@ "main : " ^ string_of_typ (fst check_main) ^ "\n";
   match check_main with
     | (Unit(_), _) -> (check_main, check_funcs funcs)
     | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")
