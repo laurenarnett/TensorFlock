@@ -30,35 +30,35 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
           | A.Mod -> L.build_urem lhs rhs "modnattmp" builder
           | A.Expt -> raise (Failure "WIP")
         end
-      | SId(s) -> raise (Failure "WIP")
+      | SId(_) -> raise (Failure "WIP")
       | SApp(_,_) -> raise (Failure "Not yet implemented")
       | SCondExpr(_,_,_) -> raise (Failure "WIP")
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
-  | A.Unit(Bool) ->
+  | A.Unit(A.Bool) ->
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
-      | SId(str) -> raise (Failure "WIP")
+      | SId(_) -> raise (Failure "WIP")
       | SBoolop(sexpr1, bop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 builder in
         let rhs = codegen_sexpr sexpr2 builder in
         begin
           match bop with
-          | And -> L.build_and lhs rhs "andtmp" builder
-          | Or  -> L.build_or  lhs rhs "ortmp"  builder
+          | A.And -> L.build_and lhs rhs "andtmp" builder
+          | A.Or  -> L.build_or  lhs rhs "ortmp"  builder
         end
       | SRop(sexpr1, rop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 builder in
         let rhs = codegen_sexpr sexpr2 builder in
         begin
           match rop with
-          | Eq  -> L.build_icmp L.Icmp.Eq  lhs rhs "eqtemp"  builder
-          | Neq -> L.build_icmp L.Icmp.Ne  lhs rhs "neqtemp" builder
-          | LT  -> L.build_icmp L.Icmp.Ult lhs rhs "lttemp"  builder
-          | Leq -> L.build_icmp L.Icmp.Ule lhs rhs "leqtemp" builder
-          | GT  -> L.build_icmp L.Icmp.Ugt lhs rhs "gttemp"  builder
-          | Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
+          | A.Eq  -> L.build_icmp L.Icmp.Eq  lhs rhs "eqtemp"  builder
+          | A.Neq -> L.build_icmp L.Icmp.Ne  lhs rhs "neqtemp" builder
+          | A.LT  -> L.build_icmp L.Icmp.Ult lhs rhs "lttemp"  builder
+          | A.Leq -> L.build_icmp L.Icmp.Ule lhs rhs "leqtemp" builder
+          | A.GT  -> L.build_icmp L.Icmp.Ugt lhs rhs "gttemp"  builder
+          | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
       | SApp(_,_) -> raise (Failure "WIP")
       | SCondExpr(_,_,_) -> raise (Failure "WIP")
