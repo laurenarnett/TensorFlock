@@ -41,6 +41,9 @@ zip: clean
 
 clean: 
 	ocamlbuild -clean
+ifneq ($(wildcard *.native),)
+	rm *.native
+endif
 ifneq ($(wildcard *.ll),)
 	rm *.ll
 endif
