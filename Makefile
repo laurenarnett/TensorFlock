@@ -42,10 +42,10 @@ zip: clean
 	zip -r tensorflock.zip ../TensorFlock -x "*.git*" "*.gitignore*" "*.circleci*" "*.merlin*" "*_state*" "*proposal*"
 
 clean: 
-	ocamlbuild -clean
 ifneq ($(wildcard *.native),)
 	rm *.native
 endif
+	ocamlbuild -clean
 ifneq ($(wildcard *.ll),)
 	rm *.ll
 endif
@@ -65,7 +65,7 @@ docker-shell:
 docker-make:
 	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.6 make
 
-docker-make-test:
+docker-test:
 	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.6 make test
 
 .PHONY: state test clean zip docker demo docker-shell docker-make docker-make-test
