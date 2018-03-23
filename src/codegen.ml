@@ -74,19 +74,27 @@ let translate sprogram =
   let printf_func : L.llvalue =
     L.declare_function "printf" printf_t the_module in
 
-  (*let to_imp str = raise (Failure ("Not yet implemented: " ^ str)) in*)
+  let to_imp str = raise (Failure ("Not yet implemented: " ^ str)) in
 
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
   let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
+  let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
+  let true_str = L.build_global_stringptr "True" "true_str" builder in
+  let false_str = L.build_global_stringptr "False" "false_str" builder in
 
   let the_expression = codegen_sexpr (fst sprogram) builder
   (* in let the_main_global = L.define_global "main" the_expression the_module
    * *)
-  in ignore @@ L.build_call printf_func [| int_format_str ; the_expression |]
-    "printf" builder;
+  in ignore @@ (match fst (fst sprogram) with 
+    | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
+                 "printf" builder
+    | A.Unit(A.Bool) -> L.build_call printf_func [| bool_format_str ; 
+            if the_expression = L.const_int bool_t 0 then false_str else true_str |]
+                 "printf" builder
+    | _ -> to_imp "No tensors yet"
+    );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
   the_module
-
