@@ -41,19 +41,27 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
            * to it at the end of the function. *)
           let start_bb = L.insertion_block builder in
           let the_function = L.block_parent start_bb in
+
           let then_bb = L.append_block context "then" the_function in
           L.position_at_end then_bb builder;
           let then_val = codegen_sexpr cons builder in
+
+          (* Creating a new then bb allows if_then_else 
+           * expressions to be nested recursively *)
           let new_then_bb = L.insertion_block builder in
 
           let else_bb = L.append_block context "else" the_function in
           L.position_at_end else_bb builder;
           let else_val = codegen_sexpr alt builder in
 
+          (* Creating a new else bb allows if_then_else 
+           * expressions to be nested recursively *)
           let new_else_bb = L.insertion_block builder in
 
+          (* Create merge basic block to wire everything up *)
           let merge_bb = L.append_block context "ifcont" the_function in
           L.position_at_end merge_bb builder;
+
           let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
           let phi = L.build_phi incoming "iftmp" builder in
 
@@ -96,7 +104,50 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
           | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
       | SApp(_,_) -> raise (Failure "WIP")
-      | SCondExpr(_,_,_) -> raise (Failure "WIP")
+      | SCondExpr(pred, cons, alt) -> 
+        begin
+          (* Wholesale copying of the Kaleidescope tutorial's conditional
+           * expression codegen *)
+          let cond = codegen_sexpr pred builder in
+          (* Grab the first block so that we might later add the conditional branch
+           * to it at the end of the function. *)
+          let start_bb = L.insertion_block builder in
+          let the_function = L.block_parent start_bb in
+
+          let then_bb = L.append_block context "then" the_function in
+          L.position_at_end then_bb builder;
+          let then_val = codegen_sexpr cons builder in
+
+          (* Creating a new then bb allows if_then_else 
+           * expressions to be nested recursively *)
+          let new_then_bb = L.insertion_block builder in
+
+          let else_bb = L.append_block context "else" the_function in
+          L.position_at_end else_bb builder;
+          let else_val = codegen_sexpr alt builder in
+
+          (* Creating a new else bb allows if_then_else 
+           * expressions to be nested recursively *)
+          let new_else_bb = L.insertion_block builder in
+
+          (* Create merge basic block to wire everything up *)
+          let merge_bb = L.append_block context "ifcont" the_function in
+          L.position_at_end merge_bb builder;
+
+          let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
+          let phi = L.build_phi incoming "iftmp" builder in
+
+          L.position_at_end start_bb builder;
+          ignore (L.build_cond_br cond then_bb else_bb builder);
+
+          L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
+          L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
+
+          (* Finally, set the builder to the end of the merge block. *)
+          L.position_at_end merge_bb builder;
+
+          phi
+        end
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   | _ -> raise (Failure "Not yet implemented")
