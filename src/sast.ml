@@ -5,6 +5,7 @@ and sexpr_detail =
     SLiteral of int
   | SFliteral of string
   | SBoolLit of bool
+  (* These are strings because SFLiterals are strings *)
   | STLit of shape * string list 
   | SId of string
   | SUnop of uop * sexpr
