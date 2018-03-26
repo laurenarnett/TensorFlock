@@ -5,14 +5,17 @@
 TensorFlock requires the following to be installed on your local system:
 - opam, version 1.2.2 or greater
 - OCaml, version 4.06 or greater, installed with opam
+-- Though it has not been tested we've tried to avoid language features added after 4.03; earlier versions of OCaml will likely work, but we make no guarantees.
 - LLVM, version 3.8
 - OCaml's LLVM bindings, version 3.8, installed with opam
 -- LLVM and OCaml's LLVM bindings may use later versions but the versions must match
 
 ### Build
-First, you need to declare where LLVM's binaries are located on your system. To do so, create a file named `local.mk` in the root directory of the project. In `local.mk` add this assignment: `LLVM_PATH = /path/to/llvm/bin`. Note that the trailing slash is left off.
+First, you need to declare where LLVM's binaries are located on your system. If LLVM's bin is already in your path then you can skip this step.
 
-The `Makefile` contains a target to verify that either `lli` can be found on the system path, or that the LLVM_PATH variable has been set. If neither condition is met it will error with a message when attempting to run make targets that require LLVM.
+To declare LLVM's location cp the file named `local.example` to local.mk` In `local.mk` add this assignment: `LLVM_PATH = /path/to/llvm/bin`. Note that the trailing slash is left off.
+
+The `Makefile` contains a target to first verify `lli` can be found on the system path, then if the LLVM_PATH variable has been set - always in that order, the path takes precedence over the LLVM_PATH variable. If neither condition is met it will error with a message when attempting to run make targets that require LLVM.
 
 If using the Docker container described below, you do not need to setup `local.mk`. The container has LLVM's bin in the system path.
 
