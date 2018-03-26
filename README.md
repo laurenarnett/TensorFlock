@@ -14,6 +14,8 @@ First, you need to declare where LLVM's binaries are located on your system. To 
 
 The `Makefile` contains a target to verify that either `lli` can be found on the system path, or that the LLVM_PATH variable has been set. If neither condition is met it will error with a message when attempting to run make targets that require LLVM.
 
+If using the Docker container described below, you do not need to setup `local.mk`. The container has LLVM's bin in the system path.
+
 Run `make` to compile TensorFlock's compiler. TensorFlock is packaged with an opam file that will install any needed dependencies as a local pin.
 
 After running `make` the compiler will be named `toplevel.native` and can be found in the root directory of the project.
