@@ -6,8 +6,8 @@
 *latexmk
 *.synctex.gz
 *.pdf
-*.ll
 
+# Build artifacts
 .opam
 _opam
 _build
@@ -18,6 +18,10 @@ parser.ml
 parser.mli
 *.zip
 :merlin-log:
+local.mk
+
+# LLVM IR
+*.ll
 
 # Ignore vim session files
 *.vim

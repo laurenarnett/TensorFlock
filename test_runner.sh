@@ -1,12 +1,5 @@
 #! /bin/bash
 
-if [ ! $(which lli) ]
-then
-    echo "lli not found"
-    echo "Please run this script from make, or add lli to your path"
-    exit 1
-fi
-
 # Format functions lifed from here:
 #bold://askubuntu.com/questions/528928/how-to-do-underline-bold-italic-strikethrough-color-background-and-size-i 
 bold()          { ansi 1 "$@"; }
@@ -17,12 +10,19 @@ red()           { ansi 31 "$@"; }
 green()         { ansi 32 "$@"; }
 ansi()          { printf "\e[${1}m${*:2}\e[0m"; }
 
+if [ ! $(which lli) ]
+then
+    echo $(bold $(red "LLVM not found."))
+    echo $(bold $(red "Please run this script using make, or add the location of LLVM binaries to your path."))
+    exit 1
+fi
+
 
 failures=""
 
 function run_compile_test {
     # Param $1: file name
-    passing_output_file=$(echo $1 | perl -pe 's/(.*\/)(.*\.)(tf)/\1\2pass/')
+    passing_output_file=$(echo $1 | sed -E 's/(.*\/)(.*\.)(tf)/\1\2pass/')
     passing_output=$(cat $passing_output_file)
     generated_output=$(./toplevel.native -l $1 | lli)
     if [ $generated_output != $passing_output ]

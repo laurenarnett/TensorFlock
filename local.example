@@ -1,0 +1,11 @@
+# Steps for declaring your LLVM path
+# - Assign the path of your LLVM bin below
+# - cp this file local.example => local.mk
+LLVM_PATH = /path/to/llvm/bin
+
+# Optional: TensorFlock will always refer to the LLVM bin in your path if
+# already exists, even if you assign a different path above. 
+# If you have a version of LLVM on your path, and you wish to use a different
+# version, assign it to the variable above, and un-comment the line below.
+# NOTE: This will break the usage of LLVM in the Docker container.
+# export PATH:=$(LLVM_PATH):$(PATH)
