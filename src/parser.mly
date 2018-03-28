@@ -129,7 +129,7 @@ tcontents:
        /* literals can be accomplished by replacing lexpr in */
        /* the following two lines with expr */ 
        lexpr { [$1] }
-   | tcontents COMMA lexpr { $3 :: $1 }
+   | tcontents lexpr { $2 :: $1 }
 
 
 shape:
