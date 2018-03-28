@@ -42,9 +42,9 @@ decls:
  | decls funct { $2 :: $1 }
 
 funct:
-  ftyp fdef 
-    { if $1.ftyp_name <> $2.fdef_name then raise 
-      (Failure ("\nName of function in type: " ^ $1.ftyp_name ^ 
+  ftyp fdef
+    { if $1.ftyp_name <> $2.fdef_name then raise
+      (Failure ("\nName of function in type: " ^ $1.ftyp_name ^
                 "\nand in definition: " ^ $2.fdef_name ^ "\ndo not match\n"))
       else ($1, $2) }
 
@@ -57,9 +57,9 @@ formals:
   | formals ID { $2 :: $1 }
 
 fdef:
-   ID formals DEFINE expr SEMI scope  
-     { { fdef_name = $1; fparams = List.rev $2; 
-         main_expr = $4; scope   = List.rev $6; } } 
+   ID formals DEFINE expr SEMI scope
+     { { fdef_name = $1; fparams = List.rev $2;
+         main_expr = $4; scope   = List.rev $6; } }
 
 
 types:
@@ -101,7 +101,7 @@ fexpr:
   | brackexpr { $1 }
 
 brackexpr:
-    TIDX tidx RBRACK 
+    TIDX tidx RBRACK
       { TensorIdx($1, List.rev $2) }
   | lexpr { $1 }
 
@@ -109,7 +109,7 @@ lexpr:
     LITERAL          { Literal($1)            }
   | FLIT	         { Fliteral($1)           }
   | BLIT             { BoolLit($1)            }
-  | ID               { Id($1) }       
+  | ID               { Id($1) }
   | LBRACK tcontents RBRACK        { TLit(List.rev $2) }
 
 tidx:
@@ -127,7 +127,7 @@ tcontents:
        /* admit literal values in tensor literals. Should we be so inclined, */
        /* admitting arbitrary expressions in tensor */
        /* literals can be accomplished by replacing lexpr in */
-       /* the following two lines with expr */ 
+       /* the following two lines with expr */
        lexpr { [$1] }
    | tcontents lexpr { $2 :: $1 }
 
@@ -141,21 +141,21 @@ shape:
 sexpr: saexpr { $1 }
 
 saexpr:
-      saexpr PLUS saexpr   { Aop($1, Add, $3) : aexpr }
-  | saexpr MINUS saexpr    { Aop($1, Sub, $3) }
-  | saexpr TIMES saexpr    { Aop($1, Mult, $3) }
-  | saexpr DIVIDE saexpr   { Aop($1, Div, $3) }
-  | saexpr MOD    saexpr   { Aop($1, Mod, $3) }
-  | saexpr EXPT saexpr     { Aop($1, Expt, $3) }
-  | MINUS saexpr %prec NEG { Unop(Neg, $2) }
+      saexpr PLUS saexpr   { AAop($1, Add, $3) }
+  | saexpr MINUS saexpr    { AAop($1, Sub, $3) }
+  | saexpr TIMES saexpr    { AAop($1, Mult, $3) }
+  | saexpr DIVIDE saexpr   { AAop($1, Div, $3) }
+  | saexpr MOD    saexpr   { AAop($1, Mod, $3) }
+  | saexpr EXPT saexpr     { AAop($1, Expt, $3) }
+  | MINUS saexpr %prec NEG { AUnop(Neg, $2) }
   | sfexpr                 { $1 }
 
 sfexpr:
-      sfexpr slexpr { App($1, $2) }
+      sfexpr slexpr { AApp($1, $2) }
   | slexpr { $1 }
 
 
 slexpr:
-    LITERAL          { Literal($1) }
-  | ID               { Id($1)      }
+    LITERAL          { ALiteral($1) }
+  | ID               { AId($1)      }
 

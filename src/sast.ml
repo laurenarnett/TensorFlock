@@ -1,12 +1,12 @@
 open Ast
 
 type sexpr = typ * sexpr_detail
-and sexpr_detail = 
+and sexpr_detail =
     SLiteral of int
   | SFliteral of string
   | SBoolLit of bool
   (* These are strings because SFLiterals are strings *)
-  | STLit of shape * string list 
+  | STLit of string list * int list
   | SId of string
   | SUnop of uop * sexpr
   (* | SBinop of sexpr * binop * sexpr *)
@@ -35,16 +35,16 @@ let rec string_of_sexpr_detail e = match e with
     | SId(s) -> s
     | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
     | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr
-    | SAop(sexpr1, op, sexpr2) -> 
+    | SAop(sexpr1, op, sexpr2) ->
       string_of_sexpr sexpr1 ^ " " ^ string_of_aop op ^ " " ^
       string_of_sexpr sexpr2
-    | SBoolop(sexpr1, op, sexpr2) -> 
+    | SBoolop(sexpr1, op, sexpr2) ->
       string_of_sexpr sexpr1 ^ " " ^ string_of_bop op ^ " " ^
       string_of_sexpr sexpr2
-    | SRop(sexpr1, op, sexpr2) -> 
+    | SRop(sexpr1, op, sexpr2) ->
       string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
       string_of_sexpr sexpr2
-    | SApp(sexpr1, sexprs) -> 
+    | SApp(sexpr1, sexprs) ->
       string_of_sexpr sexpr1 ^ " " ^ String.concat " " @@ List.map string_of_sexpr sexprs
     | SCondExpr(sexpr1, sexpr2, sexpr3) ->
       "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
@@ -53,13 +53,13 @@ let rec string_of_sexpr_detail e = match e with
 and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_typ t
 
-let rec string_of_sfunc sfunc = 
+let rec string_of_sfunc sfunc =
   "(" ^ sfunc.sfname ^ (String.concat " " sfunc.sfparams)
   ^ " : " ^ string_of_typ sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
-  ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope) 
+  ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
   ^ "\n}"
 
-let string_of_sprogram (main_expr, sfuncs) = 
-  "main = " ^ string_of_sexpr main_expr ^ "\n" 
+let string_of_sprogram (main_expr, sfuncs) =
+  "main = " ^ string_of_sexpr main_expr ^ "\n"
   ^ String.concat "\n" @@ List.map string_of_sfunc sfuncs

@@ -67,6 +67,25 @@ let rec lookup_symb symb { cur_scope = m; parent = p} =
                 | Some table -> lookup_symb symb table)
     | Some typ_list -> typ_list
 
+let rec flatten expr = match expr with (TLit(l)) -> (match l with
+  | Fliteral(_) :: _ -> l
+  | _ -> List.flatten (List.map flatten l))
+  | _ -> raise (Failure "can't flatten a non_tlit expr")
+
+let rec build_shape expr = match expr with (TLit(l)) -> (match l with
+  | Fliteral(_) :: _ -> [List.length l]
+  | TLit(l') :: _ -> List.length l :: (build_shape (List.hd l'))
+  | _ -> raise (Failure "WTF"))
+  | _ -> raise (Failure "can't build a shape on non_tlit exprs")
+
+let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
+  | Fliteral(_) -> true
+  | TLit(x) -> List.for_all (fun c -> (match c with
+        | TLit(component) -> List.length component = List.length x
+        | _ -> raise (Failure "Invalid entity in tensor literal"))) l
+        && List.for_all (fun x -> x) (List.map verify l)
+  | _ -> raise (Failure "Invalid entity in tensor literal"))
+  | _ -> raise (Failure "internal error: can't verify non_tensor_literal")
 
 (* Check functions: return sfunc list or error *)
 let rec check_expr expression table =
@@ -75,7 +94,17 @@ let rec check_expr expression table =
     | Literal(i) -> (Unit(Nat), SLiteral(i))
     | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
     | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
-    | TLit(_) -> raise (Failure "not yet implemented")
+    | TLit(_) -> let t = verify expression in if t then
+                 let shape = build_shape expression in
+                 let components = flatten expression in
+                 let unwrap_components = List.map (fun c -> match c with
+                  | Fliteral(f) -> f
+                  | _ -> raise (Failure "Internal error: non-float encounted in
+                 tensor literal")
+                 ) in
+                 (Unit(Tensor(List.map (fun s -> ALiteral(s)) shape)),
+                 STLit(unwrap_components components, shape))
+                 else raise (Failure "Invalid tensor literal")
     | Id(s) -> (lookup_symb s table, SId(s))
     | Unop(Neg, _expr) -> raise (Failure
           "You can't negate Nats and tensors haven't been implemented yet")
