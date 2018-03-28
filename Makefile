@@ -36,7 +36,7 @@ demo: | llvm $(PROJECT_TOP)
 	lli output.ll
 
 zip: clean
-	zip -r tensorflock.zip ../`pwd | sed -E 's/(.*\/)(.*)/\2/'` -x "*.git*" "*.gitignore*" "*.drone.yml*" "*.merlin*" "*_state*" "*proposal*" "*.DS_Store*"
+	zip -r tensorflock.zip ../`pwd | sed -E 's/(.*\/)(.*)/\2/'` -x "*.git*" "*.gitignore*" "*.drone.yml*" "*.merlin*" "*_state*" "*proposal*" "*.DS_Store*" "*local.mk*"
 
 clean: 
 ifneq ($(wildcard *.native),)

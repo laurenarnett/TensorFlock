@@ -1,4 +1,8 @@
 # TensorFlock
+Joseph Morag - Language Guru (jm4157@columbia.edu) 
+Lauren Arnett - System Architect (lba2138@columbia.edu) 
+Elena Ariza - Manager (esa2150@columbia.edu) 
+Nick Buonincontri - Tester (nb2413@columbia.edu)
 
 ## Compilation of TensorFlock
 ### External Dependencies
@@ -13,7 +17,7 @@ TensorFlock requires the following to be installed on your local system:
 ### Build
 First, you need to declare where LLVM's binaries are located on your system. If LLVM's bin is already in your path then you can skip this step.
 
-To declare LLVM's location cp the file named `local.example` to local.mk` In `local.mk` add this assignment: `LLVM_PATH = /path/to/llvm/bin`. Note that the trailing slash is left off.
+To declare LLVM's location cp the file named `local.example` to local.mk` In `local.mk` add this assignment: `LLVM_PATH = /path/to/llvm/bin`.
 
 The `Makefile` contains a target to first verify `lli` can be found on the system path, then if the LLVM_PATH variable has been set - always in that order, the path takes precedence over the LLVM_PATH variable. If neither condition is met it will error with a message when attempting to run make targets that require LLVM.
 
