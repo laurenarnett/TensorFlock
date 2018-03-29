@@ -45,10 +45,21 @@ function run_compile_test {
 function run_test {
     # Param $1: file name
     # Param $2: compiler flag
-    # Param $3: passing exit code
+    # Param $3: pass/fail; 0 if pass, 1 if fail
     output=$(./toplevel.native -$2 $1 2>&1)
     ret_code=$?
-    if [ $ret_code -eq $3 ]
+
+    if [ $ret_code -eq 0 ] && [ $3 -eq 0 ]
+    then
+        pass_mode="pass"
+    elif [ $ret_code -gt 0 ] && [ $3 -eq 1 ]
+    then
+        pass_mode="pass"
+    else
+        pass_mode="fail"
+    fi
+
+    if [ $pass_mode == "pass" ]
     then
         printf "."
     else
@@ -75,7 +86,7 @@ for f in ./tests/syntax_tests/pass*.tf; do
 done
 
 for f in ./tests/syntax_tests/fail*.tf; do
-    run_test $f a 2
+    run_test $f a 1
 done
 
 for f in ./tests/semant_tests/pass/*.tf; do
