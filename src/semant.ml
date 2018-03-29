@@ -67,16 +67,16 @@ let rec lookup_symb symb { cur_scope = m; parent = p} =
                 | Some table -> lookup_symb symb table)
     | Some typ_list -> typ_list
 
+(* Tensor literal checking functions *)
 let rec flatten expr = match expr with (TLit(l)) -> (match l with
   | Fliteral(_) :: _ -> l
   | _ -> List.flatten (List.map flatten l))
   | _ -> raise (Failure "can't flatten a non_tlit expr")
 
-let rec build_shape expr = match expr with (TLit(l)) -> (match l with
-  | Fliteral(_) :: _ -> [List.length l]
-  | TLit(l') :: _ -> List.length l :: (build_shape (List.hd l'))
-  | _ -> raise (Failure "WTF"))
-  | _ -> raise (Failure "can't build a shape on non_tlit exprs")
+let rec build_shape expr = match expr with
+  | Fliteral(_) -> []
+  | TLit(l) -> List.length l :: (build_shape (List.hd l))
+  | _ -> raise (Failure "Internal error: cannot call build_shape on non-tensor-literal expression")
 
 let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
   | Fliteral(_) -> true

@@ -31,7 +31,7 @@ type sprogram = sexpr * sfunc list
 let rec string_of_sexpr_detail e = match e with
     | SLiteral(i) -> string_of_int i
     | SFliteral(s) -> s
-    | STLit(_shape, _strlist) -> "Not yet implemented"
+    | STLit(contents, shape) -> "[" ^ String.concat " " contents ^ "]" 
     | SId(s) -> s
     | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
     | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr
