@@ -46,7 +46,7 @@ in { cur_scope = build_arg_map types params; parent = parent }
 
 
 (* Pretty printing *)
-let string_of_table { cur_scope = m; parent = p} =
+let string_of_table { cur_scope = m; parent = p } =
   let string_of_table' map =
   (String.concat "\n" @@
   List.map (fun (name, types) -> name ^ " : " ^ (string_of_typ types)
