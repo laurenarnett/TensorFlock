@@ -10,10 +10,6 @@ type rop = Eq | Neq | LT | Leq | GT | Geq
 (* boolean operators of type bop : Bool -> Bool -> Bool *)
 type bop = And | Or
 
-(* type binop = Add | Sub | Mult | Div | Mod | Expt | *)
-(*              Eq  | Neq | LT | Leq | GT | Geq | *)
-(*              And | Or *)
-
 (* unary operators *)
 type uop = Neg
 
@@ -37,7 +33,6 @@ type expr =
   | TLit of expr list
   | Id of string
   | Unop of uop * expr
-  (* | Binop of expr * binop * expr *)
   | Aop of expr * aop * expr
   | Boolop of expr * bop * expr
   | Rop of expr * rop * expr
@@ -81,22 +76,6 @@ let (string_of_bop : bop -> string) = function
     And -> "&&"
   | Or  -> "||"
 
-(* let string_of_binop = function *)
-(*     Add  -> "+" *)
-(*   | Sub  -> "-" *)
-(*   | Mult -> "*" *)
-(*   | Div  -> "/" *)
-(*   | Mod  -> "%" *)
-(*   | Expt -> "^" *)
-(*   | Eq  -> "==" *)
-(*   | Neq -> "!=" *)
-(*   | LT  -> "<" *)
-(*   | GT  -> ">" *)
-(*   | Leq -> "<=" *)
-(*   | Geq -> ">=" *)
-(*   | And -> "&&" *)
-(*   | Or  -> "||" *)
-
 let string_of_uop = function
     Neg  -> "-"
 
@@ -117,7 +96,7 @@ let rec (string_of_expr : expr -> string) = function
   | Fliteral(l) -> "(" ^ l ^ ")"
   | BoolLit(true) -> "True"
   | BoolLit(false) -> "False"
-  | TLit(es) -> "TLit: [" ^ String.concat ", " (List.map string_of_expr es) ^ "]"
+  | TLit(es) -> "[" ^ String.concat ", " (List.map string_of_expr es) ^ "]"
   | Id(s) -> s
   | Unop(o, e) ->
         "(" ^ string_of_uop o ^ string_of_expr e ^ ")"
@@ -130,9 +109,6 @@ let rec (string_of_expr : expr -> string) = function
   | Rop(e1, o, e2) ->
         "(" ^ string_of_expr e1 ^ " " ^ string_of_rop o ^ " " ^ string_of_expr
           e2 ^ ")"
-  (* | Binop(e1, o, e2) -> *)
-  (*       "(" ^ string_of_expr e1 ^ " " ^ string_of_binop o ^ " " *)
-  (*           ^ string_of_expr e2 ^ ")" *)
   | App(e1, e2) ->
         "(" ^ string_of_expr e1 ^ " applied to " ^ string_of_expr e2 ^ ")"
   | CondExpr(e1, e2, e3) ->
