@@ -18,7 +18,26 @@ then
 fi
 
 
+# failures is used as a buffer to hold failure messages
+# until the tests are finished running
 failures=""
+
+function write_failure_message {
+    # Param $1: expected output
+    # Param $2: generated output
+    failures+="$(bold "========================================")"
+    failures+=$'\nTest '
+    failures+="$f"
+    failures+=$' failed.\n'
+    failures+="$(underline "Expected:")"
+    failures+=$'\n'
+    failures+="$(green $1)"
+    failures+=$'\n\n'
+    failures+="$(underline "Received:")"
+    failures+=$'\n'
+    failures+="$(red $2)"
+    failures+=$'\n\n'
+}
 
 function run_compile_test {
     # Param $1: file name
@@ -27,18 +46,7 @@ function run_compile_test {
     generated_output=$(./toplevel.native -l $1 | lli)
     if [ $generated_output != $passing_output ]
     then
-        failures+="$(bold "========================================")"
-        failures+=$'\nTest '
-        failures+="$f"
-        failures+=$' failed.\n'
-        failures+="$(underline "Expected:")"
-        failures+=$'\n'
-        failures+="$(green $passing_output)"
-        failures+=$'\n\n'
-        failures+="$(underline "Received:")"
-        failures+=$'\n'
-        failures+="$(red $generated_output)"
-        failures+=$'\n\n'
+        write_failure_message $passing_output $generated_output
     fi
 }
 
@@ -81,11 +89,11 @@ function run_test {
 }
 
 # Register new tests below
-for f in ./tests/syntax_tests/pass*.tf; do
+for f in ./tests/syntax_tests/pass/*.tf; do
     run_test $f a pass
 done
 
-for f in ./tests/syntax_tests/fail*.tf; do
+for f in ./tests/syntax_tests/fail/*.tf; do
     run_test $f a fail 
 done
 
