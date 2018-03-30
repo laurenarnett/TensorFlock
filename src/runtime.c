@@ -111,6 +111,18 @@ int print_tensor(T *tensor) {
         }
         bracket_locations[i] = prod;
     }
-    // WIP
+    // First print opening brackets
+    for (i = 0; i < rank; ++i) {
+        printf("[");
+    }
+
+    // WIP print the tensor contents
+    
+
+    // Finally print the closing brackets
+    for (i = 0; i < rank; ++i) {
+        printf("]");
+    }
+
     return 0;
 }
