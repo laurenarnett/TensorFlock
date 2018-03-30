@@ -23,5 +23,9 @@ local.mk
 # LLVM IR
 *.ll
 
+# Binaries
+a.out
+output
+
 # Ignore vim session files
 *.vim

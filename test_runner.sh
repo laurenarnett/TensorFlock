@@ -39,24 +39,22 @@ function write_failure_message {
     failures+=$'\n\n'
 }
 
-function run_compile_test {
-    # Param $1: file name
-    passing_output_file=$(echo $1 | sed -E 's/(.*\/)(.*\.)(tf)/\1\2pass/')
-    passing_output=$(cat $passing_output_file)
-    generated_output=$(./toplevel.native -l $1 | lli)
-    if [ $generated_output != $passing_output ]
-    then
-        write_failure_message $passing_output $generated_output
-    fi
-}
-
 function run_test {
     # Param $1: file name
     # Param $2: compiler flag
     # Param $3: pass or fail - describes if the test should pass or fail 
-    output=$(./toplevel.native -$2 $1 2>&1)
+    generated_output=$(./toplevel.native -$2 $1 2>&1)
     ret_code=$?
 
+    if [ $2 == "c" ]
+    then
+        clang -Wno-override-module output.ll -o output
+        generated_output=$(./output)
+    fi
+
+    # Set a 'pass mode', this variable describes if a test does what
+    # we expect, i.e. if we expect a test to fail, and it passes, then
+    # the pass mode is fail.
     if [ $ret_code -eq 0 ] && [ $3 == "pass" ]
     then
         pass_mode="pass"
@@ -76,15 +74,19 @@ function run_test {
         failures+=$'\nTest '
         failures+="$f"
         failures+=$' failed.\n'
-        failures+="$output"
+        failures+="$generated_output"
         failures+=$'\n'
         return
     fi
-    
-    # If the flag is set to compile and this test is intended to pass
-    if [ "$2" == "c" ] && [ $3 == "pass" ]
-    then
-        run_compile_test $1
+
+    # If an expected output file exists, compare the generated and expected output
+    passing_output_file=$(echo $1 | sed -E 's/(.*\/)(.*\.)(tf)/\1\2expected/')
+    if [ -f $passing_output_file ]; then
+        passing_output=$(cat $passing_output_file)
+        if [ "$generated_output" != "$passing_output" ]
+        then
+            write_failure_message $passing_output $generated_output
+        fi
     fi
 }
 

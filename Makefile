@@ -57,13 +57,13 @@ docker-build-image:
 	docker build -t nbuonin/ocaml4.06-llvm3.8 docker
 
 docker-shell:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash nbuonin/ocaml4.06-llvm3.6
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash nbuonin/ocaml4.06-llvm3.8:latest
 
 docker-make:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.6 make
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.8:latest make
 
 docker-test:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.6 make test
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.8:latest make test
 
 # if lli isn't on the path, try to set it from a var, else warn user end exit
 llvm:
