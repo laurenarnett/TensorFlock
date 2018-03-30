@@ -103,6 +103,10 @@ for f in ./tests/semant_tests/pass/*.tf; do
     run_test $f s pass 
 done
 
+for f in ./tests/semant_tests/fail/*.tf; do
+    run_test $f s fail 
+done
+
 for f in ./tests/codegen/pass/*.tf; do
     run_test $f c pass
 done
