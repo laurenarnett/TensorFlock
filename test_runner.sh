@@ -45,14 +45,14 @@ function run_compile_test {
 function run_test {
     # Param $1: file name
     # Param $2: compiler flag
-    # Param $3: pass/fail; 0 if pass, 1 if fail
+    # Param $3: pass or fail - describes if the test should pass or fail 
     output=$(./toplevel.native -$2 $1 2>&1)
     ret_code=$?
 
-    if [ $ret_code -eq 0 ] && [ $3 -eq 0 ]
+    if [ $ret_code -eq 0 ] && [ $3 == "pass" ]
     then
         pass_mode="pass"
-    elif [ $ret_code -gt 0 ] && [ $3 -eq 1 ]
+    elif [ $ret_code -gt 0 ] && [ $3 == "fail" ]
     then
         pass_mode="pass"
     else
@@ -74,7 +74,7 @@ function run_test {
     fi
     
     # If the flag is set to compile and this test is intended to pass
-    if [ "$2" == "c" ] && [ $3 -eq 0 ]
+    if [ "$2" == "c" ] && [ $3 == "pass" ]
     then
         run_compile_test $1
     fi
@@ -82,19 +82,19 @@ function run_test {
 
 # Register new tests below
 for f in ./tests/syntax_tests/pass*.tf; do
-    run_test $f a 0
+    run_test $f a pass
 done
 
 for f in ./tests/syntax_tests/fail*.tf; do
-    run_test $f a 1
+    run_test $f a fail 
 done
 
 for f in ./tests/semant_tests/pass/*.tf; do
-    run_test $f s 0
+    run_test $f s pass 
 done
 
 for f in ./tests/codegen/pass/*.tf; do
-    run_test $f c 0
+    run_test $f c pass
 done
 
 echo
