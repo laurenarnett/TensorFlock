@@ -87,6 +87,10 @@ let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
   | _ -> raise (Failure "Invalid entity in tensor literal"))
   | _ -> raise (Failure "internal error: can't verify non_tensor_literal")
 
+let rec last_type types =
+  (match types with | Arrow(_, ts) -> last_type ts
+                    | Unit(t) -> Unit(t)) 
+
 (* Check functions: return sfunc list or error *)
 let rec check_expr expression table =
   let type_of expr = fst (check_expr expr table) in
@@ -149,9 +153,6 @@ let rec check_expr expression table =
           begin
             match type_of expr1' with
             | Arrow(first_param_type, remaining_types) ->
-              let rec last_type types =
-                  (match types with | Arrow(_, ts) -> last_type ts
-                                    | Unit(t) -> Unit(t)) in
               if type_of expr2' = first_param_type
                  then (last_type remaining_types, SApp(check_expr expr1' table,
                                                  check_expr expr2' table ::
@@ -183,21 +184,24 @@ let rec check_expr expression table =
     | TensorIdx(_,_) -> raise (Failure "Not yet implemented")
 
 
-let rec check_funcs funcs =
-  let global_table = build_global_table funcs in
+let rec check_funcs funcs global_table =
   match funcs with
     | [] -> []
     | (ftyp, fdef) :: fns ->
     let local_table = build_arg_table (ftyp, fdef) (Some global_table) in
     let this_sexpr = check_expr fdef.main_expr local_table in
-    let this_func = { sfname = ftyp.ftyp_name; stype = ftyp.types;
+    let this_func = if last_type ftyp.types = fst this_sexpr then
+      { sfname = ftyp.ftyp_name; stype = ftyp.types;
                       sfparams = fdef.fparams; sfexpr = this_sexpr; sscope = [] }
-  in this_func :: check_funcs fns
+      else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
+                             ^ " but received type " ^ string_of_typ @@ fst
+                               this_sexpr))
+  in this_func :: check_funcs fns global_table
 
 (* Check entire program *)
 let check (main_expr, funcs) =
   let global_table = build_global_table funcs in
   let check_main = check_expr main_expr global_table in
   match check_main with
-    | (Unit(_), _) -> (check_main, check_funcs funcs)
+    | (Unit(_), _) -> (check_main, check_funcs funcs global_table)
     | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")
