@@ -22,23 +22,6 @@ fi
 # until the tests are finished running
 failures=""
 
-function write_failure_message {
-    # Param $1: expected output
-    # Param $2: generated output
-    failures+="$(bold "========================================")"
-    failures+=$'\nTest '
-    failures+="$f"
-    failures+=$' failed.\n'
-    failures+="$(underline "Expected:")"
-    failures+=$'\n'
-    failures+="$(green $1)"
-    failures+=$'\n\n'
-    failures+="$(underline "Received:")"
-    failures+=$'\n'
-    failures+="$(red $2)"
-    failures+=$'\n\n'
-}
-
 function run_test {
     # Param $1: file name
     # Param $2: compiler flag
@@ -85,7 +68,18 @@ function run_test {
         passing_output=$(cat $passing_output_file)
         if [ "$generated_output" != "$passing_output" ]
         then
-            write_failure_message $passing_output $generated_output
+            failures+="$(bold "========================================")"
+            failures+=$'\nTest '
+            failures+="$f"
+            failures+=$' failed.\n'
+            failures+="$(underline "Expected:")"
+            failures+=$'\n'
+            failures+="$(green $passing_output)"
+            failures+=$'\n\n'
+            failures+="$(underline "Received:")"
+            failures+=$'\n'
+            failures+="$(red $generated_output)"
+            failures+=$'\n\n'
         fi
     fi
 }
