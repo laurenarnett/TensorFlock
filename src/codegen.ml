@@ -132,6 +132,18 @@ let rec codegen_sexpr (typ, detail) builder =
             (* L.build_call pow_func [| lhs; rhs |] "pow" builder *)
         end
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | SRop(sexpr1, rop, sexpr2) ->
+        let lhs = codegen_sexpr sexpr1 builder in
+        let rhs = codegen_sexpr sexpr2 builder in
+        begin
+          match rop with
+          | A.Eq  -> L.build_fcmp L.Fcmp.Oeq  lhs rhs "feqtemp"  builder
+          | A.Neq -> L.build_fcmp L.Fcmp.One  lhs rhs "fneqtemp" builder
+          | A.LT  -> L.build_fcmp L.Fcmp.Olt lhs rhs "flttemp"  builder
+          | A.Leq -> L.build_fcmp L.Fcmp.Ole lhs rhs "fleqtemp" builder
+          | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
+          | A.Geq -> L.build_fcmp L.Fcmp.Oge lhs rhs "fgeqtemp" builder
+        end
       | _ -> raise (Failure "Internal error: semant failed")
     end
   | _ -> raise (Failure "Not yet implemented")
