@@ -16,7 +16,7 @@ struct Tensor {
 
 typedef struct Tensor T;
 
-T *talloc(nat rank, nat *shape) {
+T *talloc(nat rank, nat *shape, double *components) {
     nat i;
     // calculate number of doubles that the tensor will hold
     nat size = 1;
@@ -46,6 +46,11 @@ T *talloc(nat rank, nat *shape) {
     if (tensor->n_refs == NULL) {
         fprintf(stderr, "Error allocating tensor struct array\n");
         exit(1);
+    }
+
+    int j;
+    for (j = 0; j < size; j++) {
+        *(tensor->array + j) = components[j];
     }
 
     // Write the contents of the tensor to the struct
@@ -170,13 +175,8 @@ int print_tensor(T *tensor) {
 int main(int argc, char *argv[]) {
     printf("TensorFlock runtime test\n");
     nat s[] = {2, 2, 2};
-    T *someTensor = talloc(3, s);
-
     double vals[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
-    int i;
-    for (i = 0; i < someTensor->size; i++) {
-        *(someTensor->array + i) = vals[i];
-    }
+    T *someTensor = talloc(3, s, vals);
 
     printf("Now print the tensor\n");
     print_tensor(someTensor);
