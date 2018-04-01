@@ -5,14 +5,33 @@ open Sast
 module StringMap = Map.Make(String)
 let context = L.global_context ()
 let the_module = L.create_module context "TensorFlock"
+
+(* Declare the LLVM versions of all built in types *)
 let nat_t = L.i32_type context
 let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
-let ltype_of_typ = function
-    A.Unit(A.Nat) -> nat_t
-  | A.Unit(A.Bool) -> bool_t
-  | t -> raise (Failure ("Type " ^ A.string_of_typ t ^ " not implemented."))
+
+let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
+let printf_func = L.declare_function "printf" printf_t the_module
+
+let tensor_t = L.struct_type context [|
+    nat_t; (* size: number of doubles the tensor holds *)
+    nat_t; (* rank *)
+    L.pointer_type nat_t; (* shape *)
+    L.pointer_type nat_t; (* number of references *)
+    L.pointer_type float_t; (* contents *)
+  |]
+
+let talloc_t = L.function_type (L.pointer_type tensor_t) 
+    [| nat_t; (* size *)
+       L.pointer_type nat_t; (* shape *)
+       L.pointer_type float_t (* contents *)
+    |]
+let talloc_func = L.declare_function "talloc" talloc_t the_module
+
+let print_tensor_t = L.function_type i8_t [| L.pointer_type tensor_t |]
+let print_tensor_func = L.declare_function "print_tensor" i8_t the_module
 
 let rec codegen_sexpr (typ, detail) builder = 
   let cond_expr pred cons alt = 
@@ -144,17 +163,38 @@ let rec codegen_sexpr (typ, detail) builder =
           | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
           | A.Geq -> L.build_fcmp L.Fcmp.Oge lhs rhs "fgeqtemp" builder
         end
+      | SApp(_,_) -> raise (Failure "Functions not yet implemented")
       | _ -> raise (Failure "Internal error: semant failed")
+    end
+  | A.Unit(A.Tensor(_shape)) ->
+    begin
+      match detail with
+      | STLit(contents, literal_shape) -> 
+        let tsize = List.fold_left (fun acc elt -> acc * elt) 1 literal_shape in
+        let trank = List.length literal_shape in
+        let tshape = 
+          List.map (L.const_int nat_t) literal_shape |>
+          Array.of_list |>
+          L.const_array (L.array_type nat_t trank) in
+        let trefs = 
+          L.const_array (L.array_type nat_t 1) [| L.const_int nat_t 1 |] in
+        let tcontents = 
+          List.map (L.const_float_of_string float_t) contents |>
+          Array.of_list |>
+          L.const_array (L.array_type float_t tsize) in
+        let tensor = 
+          L.const_named_struct tensor_t 
+            [| L.const_int nat_t tsize; 
+               L.const_int nat_t trank; 
+               tshape; 
+               trefs; 
+               tcontents |] in
+        tensor
+      | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
 
 let translate sprogram =
-
-  let printf_t : L.lltype =
-    L.var_arg_function_type nat_t [| L.pointer_type i8_t |] in
-
-  let printf_func : L.llvalue =
-    L.declare_function "printf" printf_t the_module in
 
   let to_imp str = raise (Failure ("Not yet implemented: " ^ str)) in
 
@@ -174,8 +214,11 @@ let translate sprogram =
     | A.Unit(A.Bool) -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
-    | A.Unit(A.Tensor([])) -> L.build_call printf_func [| float_format_str ; the_expression |]
+    | A.Unit(A.Tensor([])) -> L.build_call printf_func 
+                                [| float_format_str ; the_expression |]
                  "printf" builder
+    | A.Unit(A.Tensor(_)) -> L.build_call print_tensor_func [| the_expression |]
+                 "print_tensor" builder
     | _ -> to_imp "No tensors yet"
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
