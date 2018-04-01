@@ -14,7 +14,50 @@ let ltype_of_typ = function
   | A.Unit(A.Bool) -> bool_t
   | t -> raise (Failure ("Type " ^ A.string_of_typ t ^ " not implemented."))
 
-let rec codegen_sexpr (typ, detail) builder = match typ with
+let rec codegen_sexpr (typ, detail) builder = 
+  let cond_expr pred cons alt = 
+      (* Wholesale copying of the Kaleidescope tutorial's conditional
+       * expression codegen *)
+      let cond = codegen_sexpr pred builder in
+      (* Grab the first block so that we might later add the conditional branch
+       * to it at the end of the function. *)
+      let start_bb = L.insertion_block builder in
+      let the_function = L.block_parent start_bb in
+
+      let then_bb = L.append_block context "then" the_function in
+      L.position_at_end then_bb builder;
+      let then_val = codegen_sexpr cons builder in
+
+      (* Creating a new then bb allows if_then_else 
+       * expressions to be nested recursively *)
+      let new_then_bb = L.insertion_block builder in
+
+      let else_bb = L.append_block context "else" the_function in
+      L.position_at_end else_bb builder;
+      let else_val = codegen_sexpr alt builder in
+
+      (* Creating a new else bb allows if_then_else 
+       * expressions to be nested recursively *)
+      let new_else_bb = L.insertion_block builder in
+
+      (* Create merge basic block to wire everything up *)
+      let merge_bb = L.append_block context "ifcont" the_function in
+      L.position_at_end merge_bb builder;
+
+      let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
+      let phi = L.build_phi incoming "iftmp" builder in
+
+      L.position_at_end start_bb builder;
+      ignore (L.build_cond_br cond then_bb else_bb builder);
+
+      L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
+      L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
+
+      (* Finally, set the builder to the end of the merge block. *)
+      L.position_at_end merge_bb builder;
+
+      phi in
+  match typ with
   | A.Unit(A.Nat) ->
     begin
       match detail with
@@ -33,50 +76,7 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
         end
       | SId(_) -> raise (Failure "WIP")
       | SApp(_,_) -> raise (Failure "Not yet implemented")
-      | SCondExpr(pred, cons, alt) -> 
-        begin
-          (* Wholesale copying of the Kaleidescope tutorial's conditional
-           * expression codegen *)
-          let cond = codegen_sexpr pred builder in
-          (* Grab the first block so that we might later add the conditional branch
-           * to it at the end of the function. *)
-          let start_bb = L.insertion_block builder in
-          let the_function = L.block_parent start_bb in
-
-          let then_bb = L.append_block context "then" the_function in
-          L.position_at_end then_bb builder;
-          let then_val = codegen_sexpr cons builder in
-
-          (* Creating a new then bb allows if_then_else 
-           * expressions to be nested recursively *)
-          let new_then_bb = L.insertion_block builder in
-
-          let else_bb = L.append_block context "else" the_function in
-          L.position_at_end else_bb builder;
-          let else_val = codegen_sexpr alt builder in
-
-          (* Creating a new else bb allows if_then_else 
-           * expressions to be nested recursively *)
-          let new_else_bb = L.insertion_block builder in
-
-          (* Create merge basic block to wire everything up *)
-          let merge_bb = L.append_block context "ifcont" the_function in
-          L.position_at_end merge_bb builder;
-
-          let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
-          let phi = L.build_phi incoming "iftmp" builder in
-
-          L.position_at_end start_bb builder;
-          ignore (L.build_cond_br cond then_bb else_bb builder);
-
-          L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
-          L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
-
-          (* Finally, set the builder to the end of the merge block. *)
-          L.position_at_end merge_bb builder;
-
-          phi
-        end
+      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
   | A.Unit(A.Bool) ->
@@ -105,62 +105,35 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
           | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
       | SApp(_,_) -> raise (Failure "WIP")
-      | SCondExpr(pred, cons, alt) -> 
-        begin
-          (* Wholesale copying of the Kaleidescope tutorial's conditional
-           * expression codegen *)
-          let cond = codegen_sexpr pred builder in
-          (* Grab the first block so that we might later add the conditional branch
-           * to it at the end of the function. *)
-          let start_bb = L.insertion_block builder in
-          let the_function = L.block_parent start_bb in
-
-          let then_bb = L.append_block context "then" the_function in
-          L.position_at_end then_bb builder;
-          let then_val = codegen_sexpr cons builder in
-
-          (* Creating a new then bb allows if_then_else 
-           * expressions to be nested recursively *)
-          let new_then_bb = L.insertion_block builder in
-
-          let else_bb = L.append_block context "else" the_function in
-          L.position_at_end else_bb builder;
-          let else_val = codegen_sexpr alt builder in
-
-          (* Creating a new else bb allows if_then_else 
-           * expressions to be nested recursively *)
-          let new_else_bb = L.insertion_block builder in
-
-          (* Create merge basic block to wire everything up *)
-          let merge_bb = L.append_block context "ifcont" the_function in
-          L.position_at_end merge_bb builder;
-
-          let incoming = [(then_val, new_then_bb); (else_val, new_else_bb)] in
-          let phi = L.build_phi incoming "iftmp" builder in
-
-          L.position_at_end start_bb builder;
-          ignore (L.build_cond_br cond then_bb else_bb builder);
-
-          L.position_at_end new_then_bb builder; ignore (L.build_br merge_bb builder);
-          L.position_at_end new_else_bb builder; ignore (L.build_br merge_bb builder);
-
-          (* Finally, set the builder to the end of the merge block. *)
-          L.position_at_end merge_bb builder;
-
-          phi
-        end
+      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
-  | A.Unit(A.Tensor(_)) -> 
-      begin
-        match detail with
-        | STLit(contents, shape) ->
-          begin
-            match shape with
-            | [] -> L.const_float float_t (fst contents)
-          end
-        | _ -> raise (Failure "Not yet implemented")
-      end
+  (* Tensor of empty shape corresponds to single floating point number *)
+  | A.Unit(A.Tensor([])) -> 
+    begin
+      match detail with  
+      | SFliteral(s) -> L.const_float_of_string float_t s
+      | SUnop(A.Neg, sexpr) -> 
+        L.build_fneg (codegen_sexpr sexpr builder) "negfloattmp" builder
+      | SId(_s) -> raise (Failure "Not implemented")
+      | SAop(sexpr1, aop, sexpr2) ->
+        let lhs = codegen_sexpr sexpr1 builder in
+        let rhs = codegen_sexpr sexpr2 builder in
+        begin
+          match aop with
+          | A.Add -> L.build_fadd lhs rhs "addfloattmp" builder
+          | A.Sub -> L.build_fsub lhs rhs "subfloattmp" builder
+          | A.Mult -> L.build_fmul lhs rhs "mulfloattmp" builder
+          | A.Div -> L.build_fdiv lhs rhs "divfloattmp" builder
+          | A.Mod -> L.build_frem lhs rhs "modfloattmp" builder
+          | A.Expt -> raise (Failure "Exponentiation WIP")
+            (* let pow_t = L.function_type float_t [| float_t; float_t |] in *)
+            (* let pow_func = L.declare_function "pow" pow_t the_module in *)
+            (* L.build_call pow_func [| lhs; rhs |] "pow" builder *)
+        end
+      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | _ -> raise (Failure "Internal error: semant failed")
+    end
   | _ -> raise (Failure "Not yet implemented")
 
 let translate sprogram =
@@ -178,17 +151,18 @@ let translate sprogram =
   let builder = L.builder_at_end context (L.entry_block main) in
   let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
   let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
+  let float_format_str = L.build_global_stringptr "%g\n" "fmt" builder in
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
   let the_expression = codegen_sexpr (fst sprogram) builder
-  (* in let the_main_global = L.define_global "main" the_expression the_module
-   * *)
   in ignore @@ (match fst (fst sprogram) with 
     | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
     | A.Unit(A.Bool) -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
+                 "printf" builder
+    | A.Unit(A.Tensor([])) -> L.build_call printf_func [| float_format_str ; the_expression |]
                  "printf" builder
     | _ -> to_imp "No tensors yet"
     );

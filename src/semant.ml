@@ -120,6 +120,8 @@ let rec check_expr expression table =
                 | Unit(Nat) -> (Unit(Nat),
                         SAop((check_expr expr1 table), op, (check_expr expr2 table)))
                 | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
+                | Unit(Tensor([])) -> (Unit(Tensor([])),
+                        SAop((check_expr expr1 table), op, (check_expr expr2 table)))
                 | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
                 | Arrow(_,_) -> raise
                         (Failure "Arithmetic operation on partially applied function")
