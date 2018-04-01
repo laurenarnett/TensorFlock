@@ -31,7 +31,7 @@ let talloc_t = L.function_type (L.pointer_type tensor_t)
 let talloc_func = L.declare_function "talloc" talloc_t the_module
 
 let print_tensor_t = L.function_type i8_t [| L.pointer_type tensor_t |]
-let print_tensor_func = L.declare_function "print_tensor" i8_t the_module
+let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 let rec codegen_sexpr (typ, detail) builder = 
   let cond_expr pred cons alt = 
@@ -189,14 +189,13 @@ let rec codegen_sexpr (typ, detail) builder =
                tshape; 
                trefs; 
                tcontents |] in
-        tensor
+        (* This does not match the type we declared for print_tensor *)
+        L.build_store tensor (L.build_alloca tensor_t "tensor_ptr" builder) builder
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
 
 let translate sprogram =
-
-  let to_imp str = raise (Failure ("Not yet implemented: " ^ str)) in
 
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
@@ -219,7 +218,7 @@ let translate sprogram =
                  "printf" builder
     | A.Unit(A.Tensor(_)) -> L.build_call print_tensor_func [| the_expression |]
                  "print_tensor" builder
-    | _ -> to_imp "No tensors yet"
+    | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
