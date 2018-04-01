@@ -8,6 +8,7 @@ let the_module = L.create_module context "TensorFlock"
 let nat_t = L.i32_type context
 let bool_t = L.i1_type context
 let i8_t = L.i8_type context
+let float_t = L.double_type context
 let ltype_of_typ = function
     A.Unit(A.Nat) -> nat_t
   | A.Unit(A.Bool) -> bool_t
@@ -150,6 +151,16 @@ let rec codegen_sexpr (typ, detail) builder = match typ with
         end
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
+  | A.Unit(A.Tensor(_)) -> 
+      begin
+        match detail with
+        | STLit(contents, shape) ->
+          begin
+            match shape with
+            | [] -> L.const_float float_t (fst contents)
+          end
+        | _ -> raise (Failure "Not yet implemented")
+      end
   | _ -> raise (Failure "Not yet implemented")
 
 let translate sprogram =
