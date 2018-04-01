@@ -9,6 +9,11 @@ OPAM_FILE ?= opam
 COMPILER_FLAGS = -cflag -warn-error=+A-4-42-27
 COMPILER_PACKAGES = -use-ocamlfind -package llvm,llvm.analysis,llvm.bitwriter 
 
+# Docker: after updating the Dockerfile, build a new image and tag with an
+# incremented version number. Also update the version in .drone.yml
+DOCKER_IMAGE = nbuonin/ocaml4.06-llvm3.8
+DOCKER_TAG = v1
+
 SHELL=/bin/sh
 
 $(OCAML_SENTINAL): $(OPAM_FILE)
@@ -54,16 +59,16 @@ ifneq ($(wildcard *.zip),)
 endif
 
 docker-build-image:
-	docker build -t nbuonin/ocaml4.06-llvm3.8 docker
+	docker build -t $(DOCKER_IMAGE) docker
 
 docker-shell:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash nbuonin/ocaml4.06-llvm3.8:latest
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash $(DOCKER_IMAGE):$(DOCKER_TAG)
 
 docker-make:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.8:latest make
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make
 
 docker-test:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" nbuonin/ocaml4.06-llvm3.8:latest make test
+	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make test
 
 # if lli isn't on the path, try to set it from a var, else warn user end exit
 llvm:
