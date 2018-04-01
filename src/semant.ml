@@ -97,7 +97,7 @@ let rec check_expr expression table =
   let type_of expr = fst (check_expr expr table) in
   match (expression : expr) with
     | Literal(i) -> (Unit(Nat), SLiteral(i))
-    | Fliteral(s) -> (Unit(Tensor([])), STLit([s], []))
+    | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
     | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
     | TLit(_) -> let t = verify expression in if t then
                  let shape = build_shape expression in
