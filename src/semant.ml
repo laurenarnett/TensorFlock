@@ -76,7 +76,8 @@ let rec flatten expr = match expr with (TLit(l)) -> (match l with
 let rec build_shape expr = match expr with
   | Fliteral(_) -> []
   | TLit(l) -> List.length l :: (build_shape (List.hd l))
-  | _ -> raise (Failure "Internal error: cannot call build_shape on non-tensor-literal expression")
+  | _ -> raise (Failure "Internal error: 
+                cannot call build_shape on non-tensor-literal expression")
 
 let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
   | Fliteral(_) -> true
@@ -96,7 +97,7 @@ let rec check_expr expression table =
   let type_of expr = fst (check_expr expr table) in
   match (expression : expr) with
     | Literal(i) -> (Unit(Nat), SLiteral(i))
-    | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
+    | Fliteral(s) -> (Unit(Tensor([])), STLit([s], []))
     | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
     | TLit(_) -> let t = verify expression in if t then
                  let shape = build_shape expression in
