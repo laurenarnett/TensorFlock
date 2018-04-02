@@ -156,8 +156,8 @@ let rec codegen_sexpr (typ, detail) builder =
         let rhs = codegen_sexpr sexpr2 builder in
         begin
           match rop with
-          | A.Eq  -> L.build_fcmp L.Fcmp.Oeq  lhs rhs "feqtemp"  builder
-          | A.Neq -> L.build_fcmp L.Fcmp.One  lhs rhs "fneqtemp" builder
+          | A.Eq  -> L.build_fcmp L.Fcmp.Oeq rhs rhs "feqtemp"  builder
+          | A.Neq -> L.build_fcmp L.Fcmp.One lhs rhs "fneqtemp" builder
           | A.LT  -> L.build_fcmp L.Fcmp.Olt lhs rhs "flttemp"  builder
           | A.Leq -> L.build_fcmp L.Fcmp.Ole lhs rhs "fleqtemp" builder
           | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
@@ -189,8 +189,8 @@ let rec codegen_sexpr (typ, detail) builder =
                tshape; 
                trefs; 
                tcontents |] in
-        (* This does not match the type we declared for print_tensor *)
-        L.build_store tensor (L.build_alloca tensor_t "tensor_ptr" builder) builder
+        let the_ptr = L.build_malloc (tensor_t) "tensor_ptr" builder in
+        ignore @@ L.build_store tensor the_ptr builder; the_ptr
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
