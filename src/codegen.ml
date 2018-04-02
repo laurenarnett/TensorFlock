@@ -30,6 +30,9 @@ let talloc_t = L.function_type (L.pointer_type tensor_t)
     |]
 let talloc_func = L.declare_function "talloc" talloc_t the_module
 
+let tdelete_t = L.function_type nat_t [| L.pointer_type tensor_t |]
+let tdelete_func = L.declare_function "delete_tensor" tdelete_t the_module
+
 let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
@@ -174,7 +177,7 @@ let rec codegen_sexpr (typ, detail) builder =
 
         let trank = List.length literal_shape in
 
-        let tshape_ptr = L.build_malloc (L.array_type nat_t trank) 
+        let tshape_ptr = L.build_alloca (L.array_type nat_t trank) 
             "tshape_ptr" builder in
         let tshape_contents = 
           List.map (L.const_int nat_t) literal_shape |>
@@ -182,7 +185,7 @@ let rec codegen_sexpr (typ, detail) builder =
           L.const_array (L.array_type nat_t trank) in
         let _ = L.build_store tshape_contents tshape_ptr builder in
 
-        let tcontents_ptr = L.build_malloc (L.array_type float_t tsize) 
+        let tcontents_ptr = L.build_alloca (L.array_type float_t tsize) 
             "tcontents_ptr" builder in
         let tcontents = 
           List.map (L.const_float_of_string float_t) contents |>

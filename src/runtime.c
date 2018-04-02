@@ -68,13 +68,14 @@ T *talloc(nat rank, nat *shape, double *components) {
 }
 
 
-void tdelete(T *tensor) {
+nat tdelete(T *tensor) {
     if (--*tensor->n_refs == 0) {
         free(tensor->shape);
         free(tensor->n_refs);
         free(tensor->array);
         free(tensor);
     }
+    return 0;
 }
 
 T *tnew_ref(T *tensor) {
