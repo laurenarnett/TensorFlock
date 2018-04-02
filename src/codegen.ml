@@ -30,7 +30,7 @@ let talloc_t = L.function_type (L.pointer_type tensor_t)
     |]
 let talloc_func = L.declare_function "talloc" talloc_t the_module
 
-let print_tensor_t = L.function_type i8_t [| L.pointer_type tensor_t |]
+let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 let rec codegen_sexpr (typ, detail) builder = 
@@ -172,25 +172,43 @@ let rec codegen_sexpr (typ, detail) builder =
       | STLit(contents, literal_shape) -> 
         let tsize = List.fold_left (fun acc elt -> acc * elt) 1 literal_shape in
         let trank = List.length literal_shape in
-        let tshape = 
+        (* let tshape_ptr = L.build_array_malloc nat_t *) 
+        (*     (L.const_int nat_t trank) "tshape_ptr" builder in *)
+        let tshape_ptr = L.build_malloc (L.array_type nat_t trank) 
+            "tshape_ptr" builder in
+        let tshape_contents = 
           List.map (L.const_int nat_t) literal_shape |>
           Array.of_list |>
           L.const_array (L.array_type nat_t trank) in
-        let trefs = 
-          L.const_array (L.array_type nat_t 1) [| L.const_int nat_t 1 |] in
+        let _ = L.build_store tshape_contents tshape_ptr builder in
+
+        (* let tcontents_ptr = L.build_array_malloc float_t *) 
+        (*     (L.const_int nat_t tsize) "tcontents_ptr" builder in *)
+        let tcontents_ptr = L.build_malloc (L.array_type float_t tsize) 
+            "tcontents_ptr" builder in
         let tcontents = 
           List.map (L.const_float_of_string float_t) contents |>
           Array.of_list |>
           L.const_array (L.array_type float_t tsize) in
-        let tensor = 
-          L.const_named_struct tensor_t 
-            [| L.const_int nat_t tsize; 
-               L.const_int nat_t trank; 
-               tshape; 
-               trefs; 
-               tcontents |] in
-        let the_ptr = L.build_alloca (tensor_t) "tensor_ptr" builder in
-        ignore @@ L.build_store tensor the_ptr builder; the_ptr
+        let _ = L.build_store tcontents tcontents_ptr builder in
+        (* let tensor = *) 
+        (*   L.const_named_struct tensor_t *) 
+        (*     [| L.const_int nat_t tsize; *) 
+        (*        L.const_int nat_t trank; *) 
+        (*        tshape; *) 
+        (*        trefs; *) 
+        (*        tcontents |] in *)
+        (* let tshape_ptr' = L.const_bitcast tshape_ptr (L.pointer_type nat_t) in *)
+        (* let tcontents_ptr' = *) 
+        (*   L.const_bitcast tcontents_ptr (L.pointer_type float_t) in *)
+
+        let the_ptr = 
+          L.build_call talloc_func 
+            [| L.const_int nat_t trank; 
+               tshape_ptr;
+               tcontents_ptr|]
+            "talloc" builder in the_ptr
+        (* let _ = L.build_store tensor the_ptr builder in the_ptr *)
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
