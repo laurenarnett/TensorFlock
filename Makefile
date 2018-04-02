@@ -66,6 +66,12 @@ endif
 ifneq ($(wildcard *.o),)
 	rm -f *.o 
 endif
+ifneq ($(wildcard *.out),)
+	rm -f *.out 
+endif
+ifneq ($(wildcard *.s),)
+	rm -f *.s 
+endif
 
 docker-build-image:
 	docker build -t $(DOCKER_IMAGE) docker

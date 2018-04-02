@@ -171,9 +171,9 @@ let rec codegen_sexpr (typ, detail) builder =
       match detail with
       | STLit(contents, literal_shape) -> 
         let tsize = List.fold_left (fun acc elt -> acc * elt) 1 literal_shape in
+
         let trank = List.length literal_shape in
-        (* let tshape_ptr = L.build_array_malloc nat_t *) 
-        (*     (L.const_int nat_t trank) "tshape_ptr" builder in *)
+
         let tshape_ptr = L.build_malloc (L.array_type nat_t trank) 
             "tshape_ptr" builder in
         let tshape_contents = 
@@ -182,8 +182,6 @@ let rec codegen_sexpr (typ, detail) builder =
           L.const_array (L.array_type nat_t trank) in
         let _ = L.build_store tshape_contents tshape_ptr builder in
 
-        (* let tcontents_ptr = L.build_array_malloc float_t *) 
-        (*     (L.const_int nat_t tsize) "tcontents_ptr" builder in *)
         let tcontents_ptr = L.build_malloc (L.array_type float_t tsize) 
             "tcontents_ptr" builder in
         let tcontents = 
@@ -191,24 +189,19 @@ let rec codegen_sexpr (typ, detail) builder =
           Array.of_list |>
           L.const_array (L.array_type float_t tsize) in
         let _ = L.build_store tcontents tcontents_ptr builder in
-        (* let tensor = *) 
-        (*   L.const_named_struct tensor_t *) 
-        (*     [| L.const_int nat_t tsize; *) 
-        (*        L.const_int nat_t trank; *) 
-        (*        tshape; *) 
-        (*        trefs; *) 
-        (*        tcontents |] in *)
-        (* let tshape_ptr' = L.const_bitcast tshape_ptr (L.pointer_type nat_t) in *)
-        (* let tcontents_ptr' = *) 
-        (*   L.const_bitcast tcontents_ptr (L.pointer_type float_t) in *)
+
+        let tshape_ptr' = L.build_bitcast tshape_ptr (L.pointer_type nat_t)
+            "bitcast_shape" builder in
+        let tcontents_ptr' = L.build_bitcast tcontents_ptr (L.pointer_type float_t) 
+            "bitcast_contents" builder in
 
         let the_ptr = 
           L.build_call talloc_func 
             [| L.const_int nat_t trank; 
-               tshape_ptr;
-               tcontents_ptr|]
+               tshape_ptr';
+               tcontents_ptr'|]
             "talloc" builder in the_ptr
-        (* let _ = L.build_store tensor the_ptr builder in the_ptr *)
+
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
