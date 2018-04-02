@@ -31,7 +31,7 @@ let talloc_t = L.function_type (L.pointer_type tensor_t)
 let talloc_func = L.declare_function "talloc" talloc_t the_module
 
 let tdelete_t = L.function_type nat_t [| L.pointer_type tensor_t |]
-let tdelete_func = L.declare_function "delete_tensor" tdelete_t the_module
+let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
 
 let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
@@ -230,8 +230,10 @@ let translate sprogram =
     | A.Unit(A.Tensor([])) -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | A.Unit(A.Tensor(_)) -> L.build_call print_tensor_func [| the_expression |]
-                 "print_tensor" builder
+    | A.Unit(A.Tensor(_)) -> 
+        let _ = L.build_call print_tensor_func [| the_expression |] 
+            "print_tensor" builder in
+        L.build_call tdelete_func [| the_expression |] "free_tensor" builder
     | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
