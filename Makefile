@@ -16,6 +16,12 @@ DOCKER_TAG = v1
 
 SHELL=/bin/sh
 
+.PHONY: all
+all: toplevel.native runtime.o
+
+runtime.o: src/runtime.c
+	clang -I/usr/local/include -c -o runtime.o src/runtime.c  
+
 $(OCAML_SENTINAL): $(OPAM_FILE)
 	opam pin add --no-action $(PROJECT) . -y
 	opam install --deps-only $(PROJECT)
@@ -56,6 +62,15 @@ ifneq ($(wildcard _state),)
 endif
 ifneq ($(wildcard *.zip),)
 	rm -f *.zip 
+endif
+ifneq ($(wildcard *.o),)
+	rm -f *.o 
+endif
+ifneq ($(wildcard *.out),)
+	rm -f *.out 
+endif
+ifneq ($(wildcard *.s),)
+	rm -f *.s 
 endif
 
 docker-build-image:

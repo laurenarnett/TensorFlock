@@ -76,7 +76,8 @@ let rec flatten expr = match expr with (TLit(l)) -> (match l with
 let rec build_shape expr = match expr with
   | Fliteral(_) -> []
   | TLit(l) -> List.length l :: (build_shape (List.hd l))
-  | _ -> raise (Failure "Internal error: cannot call build_shape on non-tensor-literal expression")
+  | _ -> raise (Failure "Internal error: 
+                cannot call build_shape on non-tensor-literal expression")
 
 let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
   | Fliteral(_) -> true
@@ -119,6 +120,8 @@ let rec check_expr expression table =
                 | Unit(Nat) -> (Unit(Nat),
                         SAop((check_expr expr1 table), op, (check_expr expr2 table)))
                 | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
+                | Unit(Tensor([])) -> (Unit(Tensor([])),
+                        SAop((check_expr expr1 table), op, (check_expr expr2 table)))
                 | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
                 | Arrow(_,_) -> raise
                         (Failure "Arithmetic operation on partially applied function")

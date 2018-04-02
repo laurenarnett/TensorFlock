@@ -3,13 +3,12 @@ open Ast
 type sexpr = typ * sexpr_detail
 and sexpr_detail =
     SLiteral of int
-  | SFliteral of string
   | SBoolLit of bool
+  | SFliteral of string
   (* These are strings because SFLiterals are strings *)
   | STLit of string list * int list
   | SId of string
   | SUnop of uop * sexpr
-  (* | SBinop of sexpr * binop * sexpr *)
   | SAop of sexpr * aop * sexpr
   | SBoolop of sexpr * bop * sexpr
   | SRop of sexpr * rop * sexpr
@@ -31,7 +30,7 @@ type sprogram = sexpr * sfunc list
 let rec string_of_sexpr_detail e = match e with
     | SLiteral(i) -> string_of_int i
     | SFliteral(s) -> s
-    | STLit(contents, shape) -> "[" ^ String.concat " " contents ^ "]" 
+    | STLit(contents, _shape) -> "[" ^ String.concat " " contents ^ "]" 
     | SId(s) -> s
     | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
     | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr

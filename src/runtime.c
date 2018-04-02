@@ -68,13 +68,14 @@ T *talloc(nat rank, nat *shape, double *components) {
 }
 
 
-void tdelete(T *tensor) {
+nat tdelete(T *tensor) {
     if (--*tensor->n_refs == 0) {
         free(tensor->shape);
         free(tensor->n_refs);
         free(tensor->array);
         free(tensor);
     }
+    return 0;
 }
 
 T *tnew_ref(T *tensor) {
@@ -173,33 +174,33 @@ int print_tensor(T *tensor) {
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    printf("TensorFlock runtime test\n");
-    nat s[] = {2, 3, 4};
-    double vals[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
-                    11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0,
-                    21.0, 22.0, 23.0};
-    T *someTensor = talloc(3, s, vals);
+/* int main(int argc, char *argv[]) { */
+/*     printf("TensorFlock runtime test\n"); */
+/*     nat s[] = {2, 3, 4}; */
+/*     double vals[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, */ 
+/*                     11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, */
+/*                     21.0, 22.0, 23.0}; */
+/*     T *someTensor = talloc(3, s, vals); */
 
-    printf("Now print the tensor\n");
-    print_tensor(someTensor);
+/*     printf("Now print the tensor\n"); */
+/*     print_tensor(someTensor); */
 
-    T *theSameTensor = tnew_ref(someTensor);
-    printf("Now print the same tensor from a different ref\n");
-    print_tensor(theSameTensor);
+/*     T *theSameTensor = tnew_ref(someTensor); */
+/*     printf("Now print the same tensor from a different ref\n"); */
+/*     print_tensor(theSameTensor); */
 
-    printf("Now change some values in the tensor\n");
-    double *tptr = taccess(someTensor, 1, 2, 3);
-    *tptr = 42.0;
-    print_tensor(theSameTensor);
+/*     printf("Now change some values in the tensor\n"); */
+/*     double *tptr = taccess(someTensor, 1, 2, 3); */
+/*     *tptr = 42.0; */
+/*     print_tensor(theSameTensor); */
 
-    T *somePtr = someTensor;
-    tdelete(someTensor);
-    if (theSameTensor == somePtr) {
-        printf("Good, smart pointer is being smart\n");
-    }
+/*     T *somePtr = someTensor; */
+/*     tdelete(someTensor); */
+/*     if (theSameTensor == somePtr) { */
+/*         printf("Good, smart pointer is being smart\n"); */
+/*     } */
 
-    tdelete(theSameTensor);
+/*     tdelete(theSameTensor); */
 
-    printf("Tensor testing done\n");
-}
+/*     printf("Tensor testing done\n"); */
+/* } */
