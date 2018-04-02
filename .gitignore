@@ -26,6 +26,8 @@ local.mk
 # Binaries
 a.out
 output
+output.s
+runtime.o
 
 # Ignore vim session files
 *.vim
