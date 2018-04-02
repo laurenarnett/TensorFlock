@@ -189,7 +189,7 @@ let rec codegen_sexpr (typ, detail) builder =
                tshape; 
                trefs; 
                tcontents |] in
-        let the_ptr = L.build_malloc (tensor_t) "tensor_ptr" builder in
+        let the_ptr = L.build_alloca (tensor_t) "tensor_ptr" builder in
         ignore @@ L.build_store tensor the_ptr builder; the_ptr
       | _ -> raise (Failure "WIP")
     end
