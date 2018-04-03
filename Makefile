@@ -16,12 +16,6 @@ DOCKER_TAG = v1
 
 SHELL=/bin/sh
 
-.PHONY: all
-all: toplevel.native runtime.o
-
-runtime.o: src/runtime.c
-	clang -I/usr/local/include -c -o runtime.o src/runtime.c  
-
 $(OCAML_SENTINAL): $(OPAM_FILE)
 	opam pin add --no-action $(PROJECT) . -y
 	opam install --deps-only $(PROJECT)
@@ -29,6 +23,7 @@ $(OCAML_SENTINAL): $(OPAM_FILE)
 
 $(PROJECT_TOP): $(OCAML_SENTINAL) clean $(SRC_DIR)*
 	ocamlbuild $(COMPILER_FLAGS) $(COMPILER_PACKAGES) $(PROJECT_EXTENSION)
+	clang -c $(SRC_DIR)runtime.c -o runtime.o
 
 state: $(OCAML_SENTINAL) clean
 	ocamlyacc -v $(SRC_DIR)$(PROJECT_PARSER).mly

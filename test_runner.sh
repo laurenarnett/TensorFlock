@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 
 # Format functions lifed from here:
 #bold://askubuntu.com/questions/528928/how-to-do-underline-bold-italic-strikethrough-color-background-and-size-i 
@@ -31,7 +31,8 @@ function run_test {
 
     if [ $2 == "c" ]
     then
-        clang -Wno-override-module output.ll -o output
+        llc output.ll
+        clang -Wno-override-module output.s runtime.o -o output
         generated_output=$(./output)
     fi
 
