@@ -181,26 +181,22 @@ int print_tensor(T *tensor) {
 /*                     11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, */
 /*                     21.0, 22.0, 23.0}; */
 /*     T *someTensor = talloc(3, s, vals); */
-
 /*     printf("Now print the tensor\n"); */
 /*     print_tensor(someTensor); */
-
 /*     T *theSameTensor = tnew_ref(someTensor); */
 /*     printf("Now print the same tensor from a different ref\n"); */
 /*     print_tensor(theSameTensor); */
-
 /*     printf("Now change some values in the tensor\n"); */
 /*     double *tptr = taccess(someTensor, 1, 2, 3); */
 /*     *tptr = 42.0; */
 /*     print_tensor(theSameTensor); */
-
 /*     T *somePtr = someTensor; */
 /*     tdelete(someTensor); */
 /*     if (theSameTensor == somePtr) { */
 /*         printf("Good, smart pointer is being smart\n"); */
 /*     } */
-
 /*     tdelete(theSameTensor); */
-
 /*     printf("Tensor testing done\n"); */
+/*     double a = pow(1., 2.); */
+/*     printf("%g\n", a); */
 /* } */

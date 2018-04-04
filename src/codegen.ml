@@ -148,10 +148,10 @@ let rec codegen_sexpr (typ, detail) builder =
           | A.Mult -> L.build_fmul lhs rhs "mulfloattmp" builder
           | A.Div -> L.build_fdiv lhs rhs "divfloattmp" builder
           | A.Mod -> L.build_frem lhs rhs "modfloattmp" builder
-          | A.Expt -> raise (Failure "Exponentiation WIP")
-            (* let pow_t = L.function_type float_t [| float_t; float_t |] in *)
-            (* let pow_func = L.declare_function "pow" pow_t the_module in *)
-            (* L.build_call pow_func [| lhs; rhs |] "pow" builder *)
+          | A.Expt -> 
+            let pow_t = L.function_type float_t [| float_t; float_t |] in
+            let pow_func = L.declare_function "pow" pow_t the_module in
+            L.build_call pow_func [| lhs; rhs |] "pow" builder
         end
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | SRop(sexpr1, rop, sexpr2) ->
