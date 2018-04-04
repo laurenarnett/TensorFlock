@@ -174,6 +174,17 @@ int print_tensor(T *tensor) {
     return 0;
 }
 
+nat ipow(nat base, nat expt)
+{
+    int i;
+    nat result = 1;
+    for (i = expt; i > 0; --i) {
+       result *= base; 
+    }
+
+    return result;
+}
+
 /* int main(int argc, char *argv[]) { */
 /*     printf("TensorFlock runtime test\n"); */
 /*     nat s[] = {2, 3, 4}; */

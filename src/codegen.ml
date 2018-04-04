@@ -94,7 +94,10 @@ let rec codegen_sexpr (typ, detail) builder =
           | A.Mult -> L.build_mul lhs rhs "mulnattmp" builder
           | A.Div -> L.build_udiv lhs rhs "divnattmp" builder
           | A.Mod -> L.build_urem lhs rhs "modnattmp" builder
-          | A.Expt -> raise (Failure "WIP")
+          | A.Expt -> 
+            let ipow_t = L.function_type nat_t [| nat_t; nat_t |] in
+            let ipow_func = L.declare_function "ipow" ipow_t the_module in
+            L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
       | SId(_) -> raise (Failure "WIP")
       | SApp(_,_) -> raise (Failure "Not yet implemented")
