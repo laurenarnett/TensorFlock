@@ -12,6 +12,11 @@ let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
 
+let ltype_of_typ = function 
+    A.Unit(A.Nat) -> nat_t
+  | A.Unit(A.Bool) -> bool_t
+  | _ -> raise (Failure "Not yet implemented")
+
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
@@ -80,8 +85,8 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
 
       phi in
 
-  let lookup name = StringMap.find name global_vars
-                 (*with Not_found -> raise (Failure "WIP")*)
+  let lookup name = try StringMap.find name global_vars
+                        with Not_found -> raise (Failure "WIP")
   in
 
   match typ with
@@ -225,11 +230,25 @@ let translate sprogram =
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
+  let handle_const typ = match typ with
+      A.Nat -> L.const_int nat_t 0
+    | A.Bool -> L.const_int bool_t 0
+    | _ -> raise (Failure "Not yet implemented")
+  in
+
+  (* Declare global variables; save each value in a map*)
   let global_vars = 
     let global_var map (typ, name) = 
-      let init = L.undef typ 
+      let init = handle_const typ
     in StringMap.add name (L.define_global name init the_module) map
-  in List.fold_left global_var StringMap.empty (snd sprogram) in
+  in List.fold_left 
+        begin
+          fun map fn ->
+            match fn.stype with
+            | A.Unit(t) -> global_var map (t, fn.sfname)
+            | A.Arrow(_, _) -> raise (Failure "Global vars must be of Unit type")
+        end
+        StringMap.empty (snd sprogram) in
 
   let the_expression = codegen_sexpr (fst sprogram) global_vars builder
   in ignore @@ (match fst (fst sprogram) with 
