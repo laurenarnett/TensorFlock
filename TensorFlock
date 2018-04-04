@@ -1,0 +1,5 @@
+#!/bin/sh
+
+./toplevel.native -c $1
+llc output.ll
+clang -lm runtime.o output.s
