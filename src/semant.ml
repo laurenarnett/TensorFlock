@@ -207,14 +207,15 @@ let rec check_func enclosing (ftyp, fdef) =
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
   let this_sexpr = check_expr fdef.main_expr table in
-  let this_func = if last_type ftyp.types = fst this_sexpr then
+  if last_type ftyp.types = fst this_sexpr then
+
     { sfname = ftyp.ftyp_name; stype = ftyp.types;
       sfparams = fdef.fparams; sfexpr = this_sexpr; 
       sscope = List.map (fun f -> check_func table f) fdef.scope }
 
     else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
            ^ " but received type " ^ string_of_typ @@ fst this_sexpr)) 
-  in this_func 
+
 
 (* Check entire program *)
 let check (main_expr, funcs) =
