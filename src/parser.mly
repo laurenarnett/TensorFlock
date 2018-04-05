@@ -147,7 +147,6 @@ saexpr:
   | saexpr DIVIDE saexpr   { AAop($1, Div, $3) }
   | saexpr MOD    saexpr   { AAop($1, Mod, $3) }
   | saexpr EXPT saexpr     { AAop($1, Expt, $3) }
-  | MINUS saexpr %prec NEG { AUnop(Neg, $2) }
   | sfexpr                 { $1 }
 
 sfexpr:

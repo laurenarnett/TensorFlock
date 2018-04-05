@@ -4,67 +4,82 @@ open Sast
 open Ast
 module StringMap = Map.Make (String)
 
-type symbol_table = {
-  (* symbols map to lists of types because this is how we represent the types
-   * of functions *)
-  cur_scope : typ StringMap.t;
-  parent : symbol_table option;
-}
+(* symbols map to lists of types because 
+ * this is how we represent the types * of functions *)
+type symbol_table = typ StringMap.t
 
-let empty_table = { cur_scope = StringMap.empty; parent = None }
-let new_child_table tbl = { cur_scope = StringMap.empty; parent = Some tbl}
+(* Create a table from a list of functions *)
+let build_fns_table enclosing fns = 
+  let local_map' = List.fold_left 
+    (fun table (ftyp, fdef) ->
+    if StringMap.mem fdef.fdef_name table then raise
+          (Failure ("attempting to redefine already defined symbol: " 
+                    ^ fdef.fdef_name))
+    else StringMap.add fdef.fdef_name ftyp.types table) StringMap.empty fns in
 
-(* Create a table from a list of functions
- * Currently only implementing Nats and Bools *)
-let build_global_table =
-    let rec build_table tbl  = function
-      | ((ftyp, fdef) :: fns) ->
-      let symbol = fdef.fdef_name in
-      let types = ftyp.types in
-      if StringMap.mem symbol tbl.cur_scope then raise
-          (Failure ("attempting to redefine already defined symbol" ^ symbol))
-      else
-        build_table { cur_scope = StringMap.add symbol types tbl.cur_scope;
-                      parent = tbl.parent;
-                    } fns
-      | [] -> tbl
-in build_table empty_table
+  (* Now add tensor shapes to the local_map *)
+  let rec ids_of_aexpr = function
+    | ALiteral(_) -> []
+    | AId(s) -> [s]
+    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2
+    | AApp(e1, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
+  let ids_of_shape shape = 
+    List.flatten @@ 
+    List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
+  let rec ids_of_type = function
+      Unit(Bool) | Unit(Nat) -> []
+    | Unit(Tensor(shape)) -> ids_of_shape shape
+    | Arrow(t1, t2) -> 
+      ids_of_type t1 @ ids_of_type t2 in
+  let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
+    List.map (fun (ftyp, _) -> ids_of_type @@ ftyp.types) fns in
 
-let build_arg_table (ftyp, fdef) parent =
+  let local_map = List.fold_left
+    (fun table shape_var -> 
+      if StringMap.mem shape_var table then raise
+          (Failure ("attempting to redefine already defined symbol: " 
+                    ^ shape_var))
+      else StringMap.add shape_var (Unit(Nat)) table) local_map' unique_shape_vars
+  in
+  (* Combine local map with enclosing map, 
+   * throwing away the redundant variables in enclosing scope *)
+  StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
+
+
+(* Create a local table for a single function's arguments *)
+let build_local_table enclosing (ftyp, fdef) = 
+  (* define local utilities *)
   let rec list_of_type typ = match typ with
     | Unit(t) -> [t] | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2 in
   let but_last lst = List.rev @@ List.tl @@ List.rev lst in
-  let types =
-    but_last @@
+  let types = but_last @@
     list_of_type ftyp.types and params = fdef.fparams in
   let build_arg_map types params =
     List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure
      ("Non-linear pattern match encountered in definition of symbol " ^ param))
-    else StringMap.add param (Unit(typ)) map) StringMap.empty types params
-in { cur_scope = build_arg_map types params; parent = parent }
+    else StringMap.add param (Unit(typ)) map) StringMap.empty types params in
 
+  let local_map = build_arg_map types params in
+  (* Combine local map with enclosing map, 
+   * throwing away the redundant variables in enclosing scope *)
+  StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
 (* Pretty printing *)
-let string_of_table { cur_scope = m; parent = p } =
-  let string_of_table' map =
+let string_of_table map =
   (String.concat "\n" @@
   List.map (fun (name, types) -> name ^ " : " ^ (string_of_typ types)
            ) (StringMap.bindings map)) ^ "\n"
-  in match p with
-    | None -> string_of_table' m
-    | Some parent -> string_of_table' parent.cur_scope
-                     ^ "{\n" ^ string_of_table' m ^ "\n}\n"
 
-let find' key map =
-    try Some (StringMap.find key map)
-    with Not_found -> None
 
-let rec lookup_symb symb { cur_scope = m; parent = p} =
-  match find' symb m with
-    | None -> (match p with
-                | None -> raise (Failure "Undefined symbol")
-                | Some table -> lookup_symb symb table)
+let rec lookup_symb symb table =
+    (* Find utility exists in ocaml 4.06 but Edwards doesn't have that version so
+     * we write it again here *)
+    let find' key map =
+        try Some (StringMap.find key map)
+        with Not_found -> None in
+  match find' symb table with
+    | None -> raise (Failure ("Encountered undefined symbol: " ^ symb))
     | Some typ_list -> typ_list
 
 (* Tensor literal checking functions *)
@@ -88,11 +103,11 @@ let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
   | _ -> raise (Failure "Invalid entity in tensor literal"))
   | _ -> raise (Failure "internal error: can't verify non_tensor_literal")
 
-let rec last_type types =
-  (match types with | Arrow(_, ts) -> last_type ts
-                    | Unit(t) -> Unit(t)) 
+let rec last_type = function
+  | Arrow(_, ts) -> last_type ts
+  | Unit(t) -> Unit(t) 
 
-(* Check functions: return sfunc list or error *)
+(* Check expr: return sexpr or error *)
 let rec check_expr expression table =
   let type_of expr = fst (check_expr expr table) in
   match (expression : expr) with
@@ -187,24 +202,26 @@ let rec check_expr expression table =
     | TensorIdx(_,_) -> raise (Failure "Not yet implemented")
 
 
-let rec check_funcs funcs global_table =
-  match funcs with
-    | [] -> []
-    | (ftyp, fdef) :: fns ->
-    let local_table = build_arg_table (ftyp, fdef) (Some global_table) in
-    let this_sexpr = check_expr fdef.main_expr local_table in
-    let this_func = if last_type ftyp.types = fst this_sexpr then
-      { sfname = ftyp.ftyp_name; stype = ftyp.types;
-                      sfparams = fdef.fparams; sfexpr = this_sexpr; sscope = [] }
-      else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
-                             ^ " but received type " ^ string_of_typ @@ fst
-                               this_sexpr))
-  in this_func :: check_funcs fns global_table
+(* Check a single function - return sfunc or error *)
+let rec check_func enclosing (ftyp, fdef) = 
+  let table' = build_local_table enclosing (ftyp, fdef) in
+  let table  = build_fns_table table' fdef.scope in
+  let this_sexpr = check_expr fdef.main_expr table in
+  if last_type ftyp.types = fst this_sexpr then
+
+    { sfname = ftyp.ftyp_name; stype = ftyp.types;
+      sfparams = fdef.fparams; sfexpr = this_sexpr; 
+      sscope = List.map (fun f -> check_func table f) fdef.scope }
+
+    else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
+           ^ " but received type " ^ string_of_typ @@ fst this_sexpr)) 
+
 
 (* Check entire program *)
 let check (main_expr, funcs) =
-  let global_table = build_global_table funcs in
+  (* First build table of functions in global scope *)
+  let global_table = build_fns_table StringMap.empty funcs in
   let check_main = check_expr main_expr global_table in
   match check_main with
-    | (Unit(_), _) -> (check_main, check_funcs funcs global_table)
+    | (Unit(_), _) -> (check_main, List.map (fun f -> check_func global_table f) funcs)
     | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")

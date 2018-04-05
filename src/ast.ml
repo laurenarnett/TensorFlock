@@ -18,7 +18,6 @@ type aexpr =
     ALiteral of int
   | AId of string
   | AAop of aexpr * aop * aexpr
-  | AUnop of uop * aexpr
   | AApp of aexpr * aexpr
 
 
@@ -85,8 +84,6 @@ let rec (string_of_aexpr : aexpr -> string) = function
   | AAop(e1, o, e2) ->
         "(" ^ string_of_aexpr e1 ^ " " ^ string_of_aop o ^ " "
             ^ string_of_aexpr e2 ^ ")"
-  | AUnop(o, e) ->
-        "(" ^ string_of_uop o ^ string_of_aexpr e ^ ")"
   | AApp(e1, e2) ->
         "(" ^ string_of_aexpr e1 ^ " applied to " ^ string_of_aexpr e2 ^ ")"
 
