@@ -23,15 +23,14 @@ let build_fns_table enclosing fns =
     | AId(s) -> [s]
     | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2
     | AApp(e1, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
-  (* consider using sort_uniq fewer times *)
   let ids_of_shape shape = 
-    List.sort_uniq compare @@ List.flatten @@ 
-    List.map (fun aexpr -> ids_of_aexpr aexpr |> List.sort_uniq compare) shape in
+    List.flatten @@ 
+    List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
   let rec ids_of_type = function
       Unit(Bool) | Unit(Nat) -> []
     | Unit(Tensor(shape)) -> ids_of_shape shape
     | Arrow(t1, t2) -> 
-      List.sort_uniq compare @@ ids_of_type t1 @ ids_of_type t2 in
+      ids_of_type t1 @ ids_of_type t2 in
   let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
     List.map (fun (ftyp, _) -> ids_of_type @@ ftyp.types) fns in
 
