@@ -36,4 +36,7 @@ RUN ln -s /usr/bin/lli-3.8 /usr/bin/lli
 RUN ln -s /usr/bin/llc-3.8 /usr/bin/llc
 RUN ln -s /usr/bin/clang-3.8 /usr/bin/clang
 
+# Installing handy packages
+RUN apt-get install -y man-db valgrind
+
 ENTRYPOINT ["/bin/bash"]
