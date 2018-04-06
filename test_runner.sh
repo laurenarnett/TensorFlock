@@ -32,7 +32,7 @@ function run_test {
     if [ $2 == "c" ]
     then
         llc output.ll
-        clang -Wno-override-module -lm  output.s runtime.o -o output
+        clang -Wno-override-module -lm  output.s _build/src/runtime.o -o output
         generated_output=$(./output)
     fi
 

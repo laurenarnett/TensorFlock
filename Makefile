@@ -21,9 +21,9 @@ $(OCAML_SENTINAL): $(OPAM_FILE)
 	opam install --deps-only $(PROJECT)
 	touch $@
 
-$(PROJECT_TOP): $(OCAML_SENTINAL) clean $(SRC_DIR)*
+$(PROJECT_TOP): $(OCAML_SENTINAL) $(SRC_DIR)*
 	ocamlbuild $(COMPILER_FLAGS) $(COMPILER_PACKAGES) $(PROJECT_EXTENSION)
-	clang -c $(SRC_DIR)runtime.c -o runtime.o
+	clang -c $(SRC_DIR)runtime.c -o _build/src/runtime.o
 
 state: $(OCAML_SENTINAL) clean
 	ocamlyacc -v $(SRC_DIR)$(PROJECT_PARSER).mly
