@@ -9,13 +9,6 @@ aDouble = myTensor[2];
 anotherDouble : T<>;
 anotherDouble = myTensor[1000, 2000, 3000];
 
-// Reference IDs
-aDouble : T<>;
-aDouble = myTensor[lizard, robot, moon_unit];
-
-// Other expressions
-aDouble : T<>;
-aDouble = myTensor[brahms != wagner, boulez >= stockhausen, bruch == soporific];
 
 // Parens
 parens : Nat;

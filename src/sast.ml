@@ -14,7 +14,10 @@ and sexpr_detail =
   | SRop of sexpr * rop * sexpr
   | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
-  | STensorIdx of shape * string * sexpr list
+  (* The presence of string here means that we can't index arbitrary
+   * expressions... which is probably fine
+   * However, we could possibly do with changing string to sexpr later *)
+  | STensorIdx of shape * string * aexpr list
 
 type sfunc = {
     sfname : string;
@@ -48,7 +51,8 @@ let rec string_of_sexpr_detail e = match e with
     | SCondExpr(sexpr1, sexpr2, sexpr3) ->
       "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
       ^ " else " ^ string_of_sexpr sexpr3
-    | STensorIdx(_,_,_) -> "Not yet implemented"
+    | STensorIdx(shape, tensor_name, indices) -> tensor_name ^ "[" 
+      ^ (String.concat "," @@ List.map string_of_aexpr indices) ^ "]"
 and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_typ t
 

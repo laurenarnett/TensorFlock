@@ -114,8 +114,8 @@ lexpr:
 
 tidx:
   /* Don't match on an empty tensor index */
-  | expr            { [$1] }
-  | tidx COMMA expr { $3 :: $1 }
+  | sexpr            { [$1] }
+  | tidx COMMA sexpr { $3 :: $1 }
 
 scope:
            { [] }
