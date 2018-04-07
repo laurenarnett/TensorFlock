@@ -236,7 +236,8 @@ let translate sprogram =
   let handle_const typ = match typ with
       A.Nat -> L.const_int nat_t 0
     | A.Bool -> L.const_int bool_t 0
-    | A.Tensor(_) -> L.const_pointer_null tensor_t
+    | A.Tensor([]) -> L.const_float float_t 0.
+    | A.Tensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
   in
 
   (* Declare global variables; save each value in a map*)
