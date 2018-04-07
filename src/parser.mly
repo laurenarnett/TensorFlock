@@ -66,9 +66,15 @@ fdef:
    * transpose : T<n, m> -> T<m, n>;
    * transpose mat = mat'; 
    *     { mat' T<m,n>; mat'[j,i] = mat[i,j;] }
+   *
+   * Unfortunately, right now this is very hacky. To pass the information up
+   * to the semantic checker that i and j are to be bound to there respective
+   * shapes, we stick a pair of brackets on the end of the fname and pass the 
+   * indices as fparams. A better way of doing this would probably require a
+   * fairly significant overhaul of the Ast. 
    */     
   | TIDX tidx RBRACK DEFINE expr SEMI scope
-     { { fdef_name = $1; fparams = [];
+    { { fdef_name = $1 ^ "[]"; fparams = List.rev $2;
          main_expr = $5; scope   = List.rev $7; } }
 
 
