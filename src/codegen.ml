@@ -41,11 +41,14 @@ let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
 let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
-let rec codegen_sexpr (typ, detail) global_vars builder = 
+let lookup name global_vars = try StringMap.find name global_vars
+                    with Not_found -> raise (Failure "WIP")
+
+let rec codegen_sexpr (typ, detail) globals builder = 
   let cond_expr pred cons alt = 
       (* Wholesale copying of the Kaleidescope tutorial's conditional
        * expression codegen *)
-      let cond = codegen_sexpr pred global_vars builder in
+      let cond = codegen_sexpr pred globals builder in
       (* Grab the first block so that we might later add the conditional branch
        * to it at the end of the function. *)
       let start_bb = L.insertion_block builder in
@@ -53,7 +56,7 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
 
       let then_bb = L.append_block context "then" the_function in
       L.position_at_end then_bb builder;
-      let then_val = codegen_sexpr cons global_vars builder in
+      let then_val = codegen_sexpr cons globals builder in
 
       (* Creating a new then bb allows if_then_else 
        * expressions to be nested recursively *)
@@ -61,7 +64,7 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
 
       let else_bb = L.append_block context "else" the_function in
       L.position_at_end else_bb builder;
-      let else_val = codegen_sexpr alt global_vars builder in
+      let else_val = codegen_sexpr alt globals builder in
 
       (* Creating a new else bb allows if_then_else 
        * expressions to be nested recursively *)
@@ -85,9 +88,6 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
 
       phi in
 
-  let lookup name = try StringMap.find name global_vars
-                        with Not_found -> raise (Failure "WIP")
-  in
 
   match typ with
   | A.Unit(A.Nat) ->
@@ -95,8 +95,8 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
       match detail with
       | SLiteral(i) -> L.const_int nat_t i
       | SAop(sexpr1, aop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 global_vars builder in
-        let rhs = codegen_sexpr sexpr2 global_vars builder in
+        let lhs = codegen_sexpr sexpr1 globals builder in
+        let rhs = codegen_sexpr sexpr2 globals builder in
         begin
           match aop with
           | A.Add -> L.build_add lhs rhs "addnattmp" builder
@@ -106,7 +106,7 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
           | A.Mod -> L.build_urem lhs rhs "modnattmp" builder
           | A.Expt -> raise (Failure "WIP")
         end
-      | SId(s) -> lookup s
+      | SId(s) -> L.build_load (lookup s globals) s builder
       | SApp(_,_) -> raise (Failure "Not yet implemented")
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
@@ -117,16 +117,16 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
       | SId(_) -> raise (Failure "WIP")
       | SBoolop(sexpr1, bop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 global_vars builder in
-        let rhs = codegen_sexpr sexpr2 global_vars builder in
+        let lhs = codegen_sexpr sexpr1 globals builder in
+        let rhs = codegen_sexpr sexpr2 globals builder in
         begin
           match bop with
           | A.And -> L.build_and lhs rhs "andtmp" builder
           | A.Or  -> L.build_or  lhs rhs "ortmp"  builder
         end
       | SRop(sexpr1, rop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 global_vars builder in
-        let rhs = codegen_sexpr sexpr2 global_vars builder in
+        let lhs = codegen_sexpr sexpr1 globals builder in
+        let rhs = codegen_sexpr sexpr2 globals builder in
         begin
           match rop with
           | A.Eq  -> L.build_icmp L.Icmp.Eq  lhs rhs "eqtemp"  builder
@@ -146,11 +146,11 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
       match detail with  
       | SFliteral(s) -> L.const_float_of_string float_t s
       | SUnop(A.Neg, sexpr) -> 
-        L.build_fneg (codegen_sexpr sexpr global_vars builder) "negfloattmp" builder
+        L.build_fneg (codegen_sexpr sexpr globals builder) "negfloattmp" builder
       | SId(_s) -> raise (Failure "Not implemented")
       | SAop(sexpr1, aop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 global_vars builder in
-        let rhs = codegen_sexpr sexpr2 global_vars builder in
+        let lhs = codegen_sexpr sexpr1 globals builder in
+        let rhs = codegen_sexpr sexpr2 globals builder in
         begin
           match aop with
           | A.Add -> L.build_fadd lhs rhs "addfloattmp" builder
@@ -165,8 +165,8 @@ let rec codegen_sexpr (typ, detail) global_vars builder =
         end
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | SRop(sexpr1, rop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 global_vars builder in
-        let rhs = codegen_sexpr sexpr2 global_vars builder in
+        let lhs = codegen_sexpr sexpr1 globals builder in
+        let rhs = codegen_sexpr sexpr2 globals builder in
         begin
           match rop with
           | A.Eq  -> L.build_fcmp L.Fcmp.Oeq rhs rhs "feqtemp"  builder
@@ -237,7 +237,7 @@ let translate sprogram =
   in
 
   (* Declare global variables; save each value in a map*)
-  let global_vars = 
+  let the_global_vars = 
     let global_var map (typ, name) = 
       let init = handle_const typ
     in StringMap.add name (L.define_global name init the_module) map
@@ -246,11 +246,16 @@ let translate sprogram =
           fun map fn ->
             match fn.stype with
             | A.Unit(t) -> global_var map (t, fn.sfname)
-            | A.Arrow(_, _) -> raise (Failure "Global vars must be of Unit type")
+            | A.Arrow(_, _) -> map (* do nothing for now *)
         end
         StringMap.empty (snd sprogram) in
 
-  let the_expression = codegen_sexpr (fst sprogram) global_vars builder
+  let _codegen_globals = 
+    List.iter (fun sfunc -> L.set_initializer 
+                  (codegen_sexpr (sfunc.sfexpr) the_global_vars builder)
+                  (lookup sfunc.sfname the_global_vars)) 
+  (snd sprogram) in
+  let the_expression = codegen_sexpr (fst sprogram) the_global_vars builder
   in ignore @@ (match fst (fst sprogram) with 
     | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
