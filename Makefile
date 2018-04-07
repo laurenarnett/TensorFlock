@@ -68,6 +68,9 @@ ifneq ($(wildcard *.s),)
 	rm -f *.s 
 endif
 
+watch:
+	./watch.sh $(SRC_DIR)
+
 docker-build-image:
 	docker build -t $(DOCKER_IMAGE) docker
 
@@ -79,6 +82,10 @@ docker-make:
 
 docker-test:
 	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make test
+
+docker-attach:
+	@echo "Use ctrl-c to detach from running container"
+	docker exec -it --detach-keys="ctrl-c" -w=/root/TensorFlock `docker ps --latest --filter ancestor=$(DOCKER_IMAGE):$(DOCKER_TAG) --filter status=running --format "{{.ID}}"` bash
 
 # if lli isn't on the path, try to set it from a var, else warn user end exit
 llvm:
