@@ -118,7 +118,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
-      | SId(_) -> raise (Failure "WIP")
+      | SId(s) -> L.build_load (lookup s globals) s builder
       | SBoolop(sexpr1, bop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 globals builder in
         let rhs = codegen_sexpr sexpr2 globals builder in
@@ -150,7 +150,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
       | SFliteral(s) -> L.const_float_of_string float_t s
       | SUnop(A.Neg, sexpr) -> 
         L.build_fneg (codegen_sexpr sexpr globals builder) "negfloattmp" builder
-      | SId(_s) -> raise (Failure "Not implemented")
+      | SId(s) -> L.build_load (lookup s globals) s builder
       | SAop(sexpr1, aop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 globals builder in
         let rhs = codegen_sexpr sexpr2 globals builder in
@@ -217,7 +217,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
                tshape_ptr';
                tcontents_ptr'|]
             "talloc" builder in the_ptr
-
+      | SId(s) -> L.build_load (lookup s globals) s builder
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
@@ -236,7 +236,7 @@ let translate sprogram =
   let handle_const typ = match typ with
       A.Nat -> L.const_int nat_t 0
     | A.Bool -> L.const_int bool_t 0
-    | _ -> raise (Failure "Not yet implemented")
+    | A.Tensor(_) -> L.const_pointer_null tensor_t
   in
 
   (* Declare global variables; save each value in a map*)
