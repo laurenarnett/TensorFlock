@@ -49,8 +49,7 @@ funct:
       else ($1, $2) }
 
 ftyp:
-   ID COLON types SEMI
-     { { ftyp_name = $1; types = $3; } }
+   ID COLON types SEMI { { ftyp_name = $1; types = $3; } }
 
 formals:
     { [] }
@@ -60,6 +59,17 @@ fdef:
    ID formals DEFINE expr SEMI scope
      { { fdef_name = $1; fparams = List.rev $2;
          main_expr = $4; scope   = List.rev $6; } }
+  /* This allows us to parse things of the form *
+   * zero_to_n : T<n>; 
+   * zero_to_n[i] = cast i;
+   * or * 
+   * transpose : T<n, m> -> T<m, n>;
+   * transpose mat = mat'; 
+   *     { mat' T<m,n>; mat'[j,i] = mat[i,j;] }
+   */     
+  | TIDX tidx RBRACK DEFINE expr SEMI scope
+     { { fdef_name = $1; fparams = [];
+         main_expr = $5; scope   = List.rev $7; } }
 
 
 types:
@@ -101,8 +111,7 @@ fexpr:
   | brackexpr { $1 }
 
 brackexpr:
-    TIDX tidx RBRACK
-      { TensorIdx($1, List.rev $2) }
+    TIDX tidx RBRACK { TensorIdx($1, List.rev $2) }
   | lexpr { $1 }
 
 lexpr:
@@ -114,8 +123,8 @@ lexpr:
 
 tidx:
   /* Don't match on an empty tensor index */
-  | sexpr            { [$1] }
-  | tidx COMMA sexpr { $3 :: $1 }
+  | ID               { [$1] }
+  | tidx COMMA ID    { $3 :: $1 }
 
 scope:
            { [] }
@@ -141,13 +150,13 @@ shape:
 sexpr: saexpr { $1 }
 
 saexpr:
-      saexpr PLUS saexpr   { AAop($1, Add, $3) }
-  | saexpr MINUS saexpr    { AAop($1, Sub, $3) }
-  | saexpr TIMES saexpr    { AAop($1, Mult, $3) }
-  | saexpr DIVIDE saexpr   { AAop($1, Div, $3) }
-  | saexpr MOD    saexpr   { AAop($1, Mod, $3) }
-  | saexpr EXPT saexpr     { AAop($1, Expt, $3) }
-  | sfexpr                 { $1 }
+    saexpr PLUS   saexpr    { AAop($1, Add, $3) }
+  | saexpr MINUS  saexpr    { AAop($1, Sub, $3) }
+  | saexpr TIMES  saexpr    { AAop($1, Mult, $3) }
+  | saexpr DIVIDE saexpr    { AAop($1, Div, $3) }
+  | saexpr MOD    saexpr    { AAop($1, Mod, $3) }
+  | saexpr EXPT   saexpr    { AAop($1, Expt, $3) }
+  | sfexpr                  { $1 }
 
 sfexpr:
       sfexpr slexpr { AApp($1, $2) }

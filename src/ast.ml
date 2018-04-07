@@ -37,7 +37,7 @@ type expr =
   | Rop of expr * rop * expr
   | App of expr * expr
   | CondExpr of expr * expr * expr
-  | TensorIdx of string * aexpr list
+  | TensorIdx of string * string list
 
 type func_type = {
   ftyp_name : string;
@@ -63,7 +63,7 @@ let (string_of_aop : aop -> string) = function
   | Mod  -> "%"
   | Expt -> "^"
 
-let (string_of_rop : rop -> string)= function
+let (string_of_rop : rop -> string) = function
     Eq  -> "=="
   | Neq -> "!="
   | LT  -> "<"
@@ -113,7 +113,7 @@ let rec (string_of_expr : expr -> string) = function
             ^ " else " ^ string_of_expr e3 ^ ")"
   | TensorIdx(id, idxs) ->
         "(" ^ id ^ "[" ^ String.concat ", "
-            (List.map string_of_aexpr idxs) ^ "]" ^ ")"
+            idxs ^ "]" ^ ")"
 
 
 let string_of_unit_type = function

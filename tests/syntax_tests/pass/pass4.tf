@@ -3,16 +3,19 @@
 main = 2. * aDouble;
 
 aDouble : T<>;
-aDouble = myTensor[2];
+aDouble = myTensor[i];
 
 // Multiple index
 anotherDouble : T<>;
-anotherDouble = myTensor[1000, 2000, 3000];
-
+anotherDouble = myTensor[i, j, k];
 
 // Parens
 parens : Nat;
 parens = (a + b) * 3 / (2 - 3);
+
+// Reference IDs
+aDouble : T<>;
+aDouble = myTensor[lizard, robot, moon_unit];
 
 parens1 : Bool;
 parens1 = (d != a) < (b == c);
