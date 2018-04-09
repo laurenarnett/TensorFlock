@@ -46,14 +46,15 @@ let build_fns_table enclosing fns =
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
 
+let rec list_of_type typ = match typ with
+  | Unit(t) -> [t] 
+  | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2
 (* Create a local table for a single function's arguments *)
 let build_local_table enclosing (ftyp, fdef) = 
   (* define local utilities *)
-  let rec list_of_type typ = match typ with
-    | Unit(t) -> [t] | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2 in
-  let but_last lst = List.rev @@ List.tl @@ List.rev lst in
-  let types = but_last @@
-    list_of_type ftyp.types and params = fdef.fparams in
+    let but_last lst = List.rev @@ List.tl @@ List.rev lst in
+    let types = but_last @@
+        list_of_type ftyp.types and params = fdef.fparams in
   let build_arg_map types params =
     List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure
