@@ -12,10 +12,7 @@ let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
 
-let ltype_of_typ = function 
-    A.Unit(A.Nat) -> nat_t
-  | A.Unit(A.Bool) -> bool_t
-  | _ -> raise (Failure "Not yet implemented")
+
 
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
@@ -27,6 +24,16 @@ let tensor_t = L.struct_type context [|
     L.pointer_type nat_t; (* number of references *)
     L.pointer_type float_t; (* contents *)
   |]
+
+let ltype_of_unit = function 
+    A.Nat -> nat_t
+  | A.Bool -> bool_t
+  | A.Tensor([]) -> float_t
+  | A.Tensor(_) -> tensor_t
+
+let rec ltype_of_arrow = function
+    A.Arrow(fn1, _) -> ltype_of_arrow fn1
+  | A.Unit(u) -> ltype_of_unit u
 
 let talloc_t = L.function_type (L.pointer_type tensor_t) 
     [| nat_t; (* size *)
@@ -250,7 +257,26 @@ let translate sprogram =
           fun map fn ->
             match fn.stype with
             | A.Unit(t) -> global_var map (t, fn.sfname)
-            | A.Arrow(_, _) -> map (* do nothing for now *)
+            | A.Arrow(_, _) -> map
+        end
+        StringMap.empty (snd sprogram) in
+
+  let the_function_decls = 
+    let function_decl map fdecl = 
+      let name = fdecl.sfname
+      and type_signature = 
+        Array.of_list (List.map ltype_of_unit (Semant.list_of_type fdecl.stype)) in
+      let return_type = type_signature.(Array.length type_signature - 1) in
+      let formal_types = Array.sub type_signature 0 (Array.length
+          type_signature - 1) in
+      let ftype = L.function_type return_type formal_types in
+      StringMap.add name (L.define_function name ftype the_module) map
+   in List.fold_left
+       begin
+         fun map fn ->
+           match fn.stype with 
+           | A.Unit(_) -> map
+           | A.Arrow(_, _) -> function_decl map fn
         end
         StringMap.empty (snd sprogram) in
 
