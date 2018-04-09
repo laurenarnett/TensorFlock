@@ -216,7 +216,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
             [| L.const_int nat_t trank; 
                tshape_ptr';
                tcontents_ptr'|]
-            "talloc" builder in the_ptr
+            "tensor_ptr" builder in the_ptr
       | SId(s) -> L.build_load (lookup s globals) s builder
       | _ -> raise (Failure "WIP")
     end
@@ -255,9 +255,9 @@ let translate sprogram =
         StringMap.empty (snd sprogram) in
 
   let _codegen_globals = 
-    List.iter (fun sfunc -> L.set_initializer 
-                  (codegen_sexpr (sfunc.sfexpr) the_global_vars builder)
-                  (lookup sfunc.sfname the_global_vars)) 
+    List.map (fun sfunc -> L.build_store 
+                  (codegen_sexpr sfunc.sfexpr the_global_vars builder)
+                  (lookup sfunc.sfname the_global_vars) builder) 
   (snd sprogram) in
   let the_expression = codegen_sexpr (fst sprogram) the_global_vars builder
   in ignore @@ (match fst (fst sprogram) with 
