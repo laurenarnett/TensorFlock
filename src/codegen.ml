@@ -274,6 +274,8 @@ let translate sprogram =
             "print_tensor" builder in
         L.build_call tdelete_func [| the_expression |] "free_tensor" builder
     | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
+    | A.Dimension(_) -> 
+            raise (Failure "Can't have a dimension as the main expression")
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 

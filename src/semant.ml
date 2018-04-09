@@ -4,18 +4,14 @@ open Sast
 open Ast
 module StringMap = Map.Make (String)
 
-(* symbols map to lists of types because 
- * this is how we represent the types * of functions *)
-type symbol_table = typ StringMap.t
-
 (* Create a table from a list of functions *)
 let build_fns_table enclosing fns = 
   let local_map' = List.fold_left 
     (fun table (ftyp, fdef) ->
-    if StringMap.mem fdef.fdef_name table then raise
+    if StringMap.mem ftyp.ftyp_name table then raise
           (Failure ("attempting to redefine already defined symbol: " 
                     ^ fdef.fdef_name))
-    else StringMap.add fdef.fdef_name ftyp.types table) StringMap.empty fns in
+    else StringMap.add ftyp.ftyp_name ftyp.types table) StringMap.empty fns in
 
   (* Now add tensor shapes to the local_map *)
   let rec ids_of_aexpr = function
@@ -30,7 +26,9 @@ let build_fns_table enclosing fns =
       Unit(Bool) | Unit(Nat) -> []
     | Unit(Tensor(shape)) -> ids_of_shape shape
     | Arrow(t1, t2) -> 
-      ids_of_type t1 @ ids_of_type t2 in
+      ids_of_type t1 @ ids_of_type t2
+    | Dimension(_) -> 
+            raise (Failure "internal error: called ids_of_type on Dimension") in
   let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
     List.map (fun (ftyp, _) -> ids_of_type @@ ftyp.types) fns in
 
@@ -50,7 +48,10 @@ let build_fns_table enclosing fns =
 let build_local_table enclosing (ftyp, fdef) = 
   (* define local utilities *)
   let rec list_of_type typ = match typ with
-    | Unit(t) -> [t] | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2 in
+    | Unit(t) -> [t] 
+    | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2
+    | Dimension(_) -> 
+            raise (Failure "internal error: called list_of_typ on Dimension") in
   let but_last lst = List.rev @@ List.tl @@ List.rev lst in
   let types = but_last @@
     list_of_type ftyp.types and params = fdef.fparams in
@@ -60,6 +61,7 @@ let build_local_table enclosing (ftyp, fdef) =
      ("Non-linear pattern match encountered in definition of symbol " ^ param))
     else StringMap.add param (Unit(typ)) map) StringMap.empty types params in
 
+  
   let local_map = build_arg_map types params in
   (* Combine local map with enclosing map, 
    * throwing away the redundant variables in enclosing scope *)
@@ -106,6 +108,8 @@ let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
 let rec last_type = function
   | Arrow(_, ts) -> last_type ts
   | Unit(t) -> Unit(t) 
+  | Dimension(_) -> 
+          raise (Failure "internal error: called last_type on single dimension")
 
 (* Check expr: return sexpr or error *)
 let rec check_expr expression table =
@@ -132,14 +136,16 @@ let rec check_expr expression table =
         (Failure "Detected arithmetic operation on incompatible types") else
         begin
             match type_of expr1 with
-                | Unit(Nat) -> (Unit(Nat),
-                        SAop((check_expr expr1 table), op, (check_expr expr2 table)))
-                | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
-                | Unit(Tensor([])) -> (Unit(Tensor([])),
-                        SAop((check_expr expr1 table), op, (check_expr expr2 table)))
-                | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
-                | Arrow(_,_) -> raise
-                        (Failure "Arithmetic operation on partially applied function")
+            | Unit(Nat) -> (Unit(Nat),
+                    SAop((check_expr expr1 table), op, (check_expr expr2 table)))
+            | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
+            | Unit(Tensor([])) -> (Unit(Tensor([])),
+                    SAop((check_expr expr1 table), op, (check_expr expr2 table)))
+            | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+            | Arrow(_,_) -> raise
+                    (Failure "Arithmetic operation on partially applied function")
+            | Dimension(_) -> 
+                    raise (Failure "Not yet implemented")
         end
     | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
         (Failure "Detected boolean operation on incompatible types") else
@@ -152,6 +158,8 @@ let rec check_expr expression table =
                     (Failure "Detected boolean operation on incompatible types")
             | Arrow(_,_) -> raise
                     (Failure "Boolean operation on partially applied function")
+            | Dimension(_) -> 
+                    raise (Failure "Boolean operation on indices")
         end
     | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
         (Failure "Detected relational operation on incompatible types") else
@@ -163,6 +171,8 @@ let rec check_expr expression table =
             | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
             | Arrow(_,_) -> raise
                         (Failure "Relational operation on partially applied function")
+            | Dimension(_) -> 
+                    raise (Failure "Not yet implemented")
         end
     | App(expr1, expr2) ->
       begin
@@ -204,6 +214,11 @@ let rec check_expr expression table =
 
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) = 
+  (* First check if the function is in the form 
+   * tensor[ix1,...,ix_n] = * ix1...ixn *)
+  let (_ftyp', _fdef') = if ftyp.ftyp_name ^ "[]" = fdef.fdef_name then
+      raise (Failure "WIP")
+  else (ftyp, fdef) in
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
   let this_sexpr = check_expr fdef.main_expr table in

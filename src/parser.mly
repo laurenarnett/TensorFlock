@@ -43,9 +43,10 @@ decls:
 
 funct:
   ftyp fdef
-    { if $1.ftyp_name <> $2.fdef_name then raise
-      (Failure ("\nName of function in type: " ^ $1.ftyp_name ^
-                "\nand in definition: " ^ $2.fdef_name ^ "\ndo not match\n"))
+    { if $1.ftyp_name <> $2.fdef_name && 
+         $1.ftyp_name ^ "[]" <> $2.fdef_name then raise
+      (Failure ("Name of function in type: " ^ $1.ftyp_name ^
+                " and in definition: " ^ $2.fdef_name ^ " do not match"))
       else ($1, $2) }
 
 ftyp:
