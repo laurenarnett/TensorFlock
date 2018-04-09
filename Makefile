@@ -75,13 +75,13 @@ docker-build-image:
 	docker build -t $(DOCKER_IMAGE) docker
 
 docker-shell:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash $(DOCKER_IMAGE):$(DOCKER_TAG)
+	docker run --rm -it -v "`pwd`":/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash $(DOCKER_IMAGE):$(DOCKER_TAG)
 
 docker-make:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make
+	docker run --rm -it -v "`pwd`":/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make
 
 docker-test:
-	docker run --rm -it -v `pwd`:/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make test
+	docker run --rm -it -v "`pwd`":/root/TensorFlock -w=/root/TensorFlock --entrypoint="" $(DOCKER_IMAGE):$(DOCKER_TAG) make test
 
 docker-attach:
 	@echo "Use ctrl-c to detach from running container"
