@@ -261,7 +261,8 @@ let translate sprogram =
         end
         StringMap.empty (snd sprogram) in
 
-  let the_function_decls = 
+  (* Add function decls to StringMap *)
+  let _the_function_decls = 
     let function_decl map fdecl = 
       let name = fdecl.sfname
       and type_signature = 
@@ -278,7 +279,13 @@ let translate sprogram =
            | A.Unit(_) -> map
            | A.Arrow(_, _) -> function_decl map fn
         end
-        StringMap.empty (snd sprogram) in
+        the_global_vars (snd sprogram) in
+  
+  let _build_function_body fdecl = 
+    let the_function = StringMap.find fdecl.sfname _the_function_decls in
+    let the_function_bb = L.append_block context "function" the_function in
+    let builder = L.builder_at_end context the_function_bb in
+
 
   let _codegen_globals = 
     List.map (fun sfunc -> L.build_store 
