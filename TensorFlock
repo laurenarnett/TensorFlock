@@ -2,4 +2,4 @@
 
 ./toplevel.native -c $1
 llc output.ll
-clang -lm runtime.o output.s
+clang -lm _build/src/runtime.o output.s
