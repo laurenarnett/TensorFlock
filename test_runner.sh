@@ -31,9 +31,24 @@ function run_test {
 
     if [ $2 == "c" ]
     then
-        llc output.ll
-        clang -Wno-override-module -lm  output.s _build/src/runtime.o -o output
-        generated_output=$(./output)
+        # Try running llc, if it errors, write to output and move on
+        llc_output=$(llc output.ll 2>&1)
+        ret_code=$?
+        if [ $ret_code -ne 0 ]
+        then
+            generated_output+="$llc_output"
+        else
+            # Try running clang, if it errors, write to output and move on
+            clang_output=$(clang -Wno-override-module -lm  output.s _build/src/runtime.o -o output 2>&1)
+            ret_code=$?
+            if [ $ret_code -ne 0 ]
+            then
+                generated_output+="$clang_output"
+            else
+                # Else, capture to output of the compiled program
+                generated_output=$(./output)
+            fi
+        fi
     fi
 
     # Set a 'pass mode', this variable describes if a test does what
