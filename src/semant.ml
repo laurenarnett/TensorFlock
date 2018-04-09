@@ -4,9 +4,19 @@ open Sast
 open Ast
 module StringMap = Map.Make (String)
 
-(* symbols map to lists of types because 
- * this is how we represent the types * of functions *)
-type symbol_table = typ StringMap.t
+(* Utilities for getting ids out of shapes and types *)
+let ids_of_shape shape = 
+  let rec ids_of_aexpr = function
+    | ALiteral(_) -> []
+    | AId(s) -> [s]
+    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2
+    | AApp(e1, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
+  List.flatten @@ List.map (fun aexpr -> ids_of_aexpr aexpr) shape
+
+let rec ids_of_type = function
+  | Unit(Bool) | Unit(Nat) -> []
+  | Unit(Tensor(shape)) -> ids_of_shape shape
+  | Arrow(t1, t2) -> ids_of_type t1 @ ids_of_type t2
 
 (* Create a table from a list of functions *)
 let build_fns_table enclosing fns = 
@@ -18,19 +28,6 @@ let build_fns_table enclosing fns =
     else StringMap.add fdef.fdef_name ftyp.types table) StringMap.empty fns in
 
   (* Now add tensor shapes to the local_map *)
-  let rec ids_of_aexpr = function
-    | ALiteral(_) -> []
-    | AId(s) -> [s]
-    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2
-    | AApp(e1, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
-  let ids_of_shape shape = 
-    List.flatten @@ 
-    List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
-  let rec ids_of_type = function
-      Unit(Bool) | Unit(Nat) -> []
-    | Unit(Tensor(shape)) -> ids_of_shape shape
-    | Arrow(t1, t2) -> 
-      ids_of_type t1 @ ids_of_type t2 in
   let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
     List.map (fun (ftyp, _) -> ids_of_type @@ ftyp.types) fns in
 
