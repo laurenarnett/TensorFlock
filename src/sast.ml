@@ -12,7 +12,7 @@ and sexpr_detail =
   | SAop of sexpr * aop * sexpr
   | SBoolop of sexpr * bop * sexpr
   | SRop of sexpr * rop * sexpr
-  | SApp of string * sexpr list
+  | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
   | STensorIdx of shape * string * sexpr list
 
@@ -43,8 +43,8 @@ let rec string_of_sexpr_detail e = match e with
     | SRop(sexpr1, op, sexpr2) ->
       string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
       string_of_sexpr sexpr2
-    | SApp(fname, sexprs) ->
-      fname ^ " " ^ String.concat " " @@ List.map string_of_sexpr sexprs
+    | SApp(sexpr1, sexprs) ->
+      string_of_sexpr sexpr1 ^ " " ^ String.concat " " @@ List.map string_of_sexpr sexprs
     | SCondExpr(sexpr1, sexpr2, sexpr3) ->
       "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
       ^ " else " ^ string_of_sexpr sexpr3

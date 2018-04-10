@@ -117,7 +117,17 @@ let rec codegen_sexpr (typ, detail) globals builder =
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
       | SId(s) -> L.build_load (lookup s globals) s builder
-      | SApp(_,_) -> raise (Failure "Not yet implemented")
+      | SApp(fn, formals) -> 
+        begin
+          match fn with
+          
+          | (_, SId(s)) -> 
+            let ll_func = lookup s globals in
+            let the_exprs = List.map (fun expr -> 
+                                codegen_sexpr expr globals builder) formals in
+              L.build_call ll_func (Array.of_list the_exprs) "calltmp" builder
+          | _ -> raise (Failure "Semant should have caught this")
+        end
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
@@ -262,7 +272,7 @@ let translate sprogram =
         StringMap.empty (snd sprogram) in
 
   (* Add function decls to StringMap *)
-  let _the_function_decls = 
+  let the_function_decls = 
     let function_decl map fdecl = 
       let name = fdecl.sfname
       and type_signature = 
@@ -280,34 +290,39 @@ let translate sprogram =
            | A.Arrow(_, _) -> function_decl map fn
         end
         the_global_vars (snd sprogram) in
-  
-  let _build_function_body fdecl = 
-    let the_function = StringMap.find fdecl.sfname _the_function_decls in
-    let the_function_bb = L.append_block context "function" the_function in
-    let builder = L.builder_at_end context the_function_bb in
 
+  (* Build the function body *)  
+  let build_function_body sfunc = 
+    let the_function = StringMap.find sfunc.sfname the_function_decls in
+    let the_function_bb = L.append_block context sfunc.sfname the_function in
+    let fn_builder = L.builder_at_end context the_function_bb in 
+    let the_expr = codegen_sexpr sfunc.sfexpr the_global_vars fn_builder in
+    let _fn_ret = L.build_ret the_expr fn_builder in
+    let _ = L.position_at_end the_function_bb builder in
 
   let _codegen_globals = 
     List.map (fun sfunc -> L.build_store 
                   (codegen_sexpr sfunc.sfexpr the_global_vars builder)
                   (lookup sfunc.sfname the_global_vars) builder) 
   (snd sprogram) in
-  let the_expression = codegen_sexpr (fst sprogram) the_global_vars builder
+  let main_expression = codegen_sexpr (fst sprogram) the_global_vars builder
   in ignore @@ (match fst (fst sprogram) with 
-    | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
+    | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str
+                                                 ; main_expression |]
                  "printf" builder
     | A.Unit(A.Bool) -> L.build_call printf_func [| bool_format_str ; 
-            if the_expression = L.const_int bool_t 0 then false_str else true_str |]
+            if main_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
     | A.Unit(A.Tensor([])) -> L.build_call printf_func 
-                                [| float_format_str ; the_expression |]
+                                [| float_format_str ; main_expression |]
                  "printf" builder
     | A.Unit(A.Tensor(_)) -> 
-        let _ = L.build_call print_tensor_func [| the_expression |] 
+        let _ = L.build_call print_tensor_func [| main_expression |] 
             "print_tensor" builder in
-        L.build_call tdelete_func [| the_expression |] "free_tensor" builder
+        L.build_call tdelete_func [| main_expression |] "free_tensor" builder
     | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
     );
-    ignore @@ L.build_ret (L.const_int nat_t 0) builder;
+  ignore @@ L.build_ret (L.const_int nat_t 0) builder in
 
+  List.iter build_function_body (snd sprogram);
   the_module
