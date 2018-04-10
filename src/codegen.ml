@@ -88,7 +88,6 @@ let rec codegen_sexpr (typ, detail) globals builder =
 
       phi in
 
-
   match typ with
   | A.Unit(A.Nat) ->
     begin
@@ -251,6 +250,7 @@ let translate sprogram =
             match fn.stype with
             | A.Unit(t) -> global_var map (t, fn.sfname)
             | A.Arrow(_, _) -> map (* do nothing for now *)
+            | A.Dimension(_) -> raise (Failure "")
         end
         StringMap.empty (snd sprogram) in
 
