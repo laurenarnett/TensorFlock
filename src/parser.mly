@@ -43,8 +43,7 @@ decls:
 
 funct:
   ftyp fdef
-    { if $1.ftyp_name <> $2.fdef_name && 
-         $1.ftyp_name ^ "[]" <> $2.fdef_name then raise
+    { if $1.ftyp_name <> $2.fdef_name then raise
       (Failure ("Name of function in type: " ^ $1.ftyp_name ^
                 " and in definition: " ^ $2.fdef_name ^ " do not match"))
       else ($1, $2) }
@@ -58,7 +57,7 @@ formals:
 
 fdef:
    ID formals DEFINE expr SEMI scope
-     { { fdef_name = $1; fparams = List.rev $2;
+     { { fdef_name = $1; fparams = List.rev $2; indices = [];
          main_expr = $4; scope   = List.rev $6; } }
   /* This allows us to parse things of the form *
    * zero_to_n : T<n>; 
@@ -66,16 +65,10 @@ fdef:
    * or * 
    * transpose : T<n, m> -> T<m, n>;
    * transpose mat = mat'; 
-   *     { mat' T<m,n>; mat'[j,i] = mat[i,j;] }
-   *
-   * Unfortunately, right now this is very hacky. To pass the information up
-   * to the semantic checker that i and j are to be bound to there respective
-   * shapes, we stick a pair of brackets on the end of the fname and pass the 
-   * indices as fparams. A better way of doing this would probably require a
-   * fairly significant overhaul of the Ast. 
+   *     { mat' T<m,n>; mat'[j,i] = mat[i,j]; }
    */     
   | TIDX tidx RBRACK DEFINE expr SEMI scope
-    { { fdef_name = $1 ^ "[]"; fparams = List.rev $2;
+    { { fdef_name  = $1; fparams = []; indices = $2;
          main_expr = $5; scope   = List.rev $7; } }
 
 

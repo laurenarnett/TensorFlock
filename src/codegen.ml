@@ -250,7 +250,8 @@ let translate sprogram =
             match fn.stype with
             | A.Unit(t) -> global_var map (t, fn.sfname)
             | A.Arrow(_, _) -> map (* do nothing for now *)
-            | A.Dimension(_) -> raise (Failure "")
+            | A.Dimension(_) -> 
+                raise (Failure "internal error: global var can't have type dimenison ")
         end
         StringMap.empty (snd sprogram) in
 

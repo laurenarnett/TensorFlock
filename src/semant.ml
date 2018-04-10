@@ -4,7 +4,19 @@ open Sast
 open Ast
 module StringMap = Map.Make (String)
 
-(* Create a table from a list of functions *)
+(* Semant will also return a giant symbol table of every ID in the program to
+ * codegen. It will also rename symbols so that codegen doesn't need to deal
+ * with shadowing. *)
+
+(* This is the type of a definition site: 
+ * Every ID that is not a tensor index needs to be bound to the location at
+ * which it was defined. All IDs are defined in an sfunc. The int tells us
+ * which parameter the ID corresponds to. 0 corresponds to the function name.
+ * 1 is the first argument of the function, etc. *)
+type def_site = sfunc * int
+type symbol_table = (typ * def_site) StringMap.t
+
+
 let build_fns_table enclosing fns = 
   let local_map' = List.fold_left 
     (fun table (ftyp, fdef) ->
@@ -25,8 +37,7 @@ let build_fns_table enclosing fns =
   let rec ids_of_type = function
       Unit(Bool) | Unit(Nat) -> []
     | Unit(Tensor(shape)) -> ids_of_shape shape
-    | Arrow(t1, t2) -> 
-      ids_of_type t1 @ ids_of_type t2
+    | Arrow(t1, t2) -> ids_of_type t1 @ ids_of_type t2
     | Dimension(_) -> 
             raise (Failure "internal error: called ids_of_type on Dimension") in
   let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
@@ -123,8 +134,8 @@ let rec check_expr expression table =
                  let components = flatten expression in
                  let unwrap_components = List.map (fun c -> match c with
                   | Fliteral(f) -> f
-                  | _ -> raise (Failure "Internal error: non-float encounted in
-                 tensor literal")
+                  | _ -> raise 
+                  (Failure "Internal error: non-float encounted in tensor literal")
                  ) in
                  (Unit(Tensor(List.map (fun s -> ALiteral(s)) shape)),
                  STLit(unwrap_components components, shape))
@@ -138,7 +149,8 @@ let rec check_expr expression table =
             match type_of expr1 with
             | Unit(Nat) -> (Unit(Nat),
                     SAop((check_expr expr1 table), op, (check_expr expr2 table)))
-            | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
+            | Unit(Bool) -> 
+                    raise (Failure "Detected arithmetic operation on boolean")
             | Unit(Tensor([])) -> (Unit(Tensor([])),
                     SAop((check_expr expr1 table), op, (check_expr expr2 table)))
             | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
@@ -153,13 +165,13 @@ let rec check_expr expression table =
             match type_of expr1 with
             | Unit(Nat) -> raise (Failure "Detected boolean operation on Nats")
             | Unit(Bool) -> (Unit(Bool),
-                    SBoolop((check_expr expr1 table), op, (check_expr expr2 table)))
+                SBoolop((check_expr expr1 table), op, (check_expr expr2 table)))
             | Unit(Tensor(_)) -> raise
-                    (Failure "Detected boolean operation on incompatible types")
+                (Failure "Detected boolean operation on incompatible types")
             | Arrow(_,_) -> raise
-                    (Failure "Boolean operation on partially applied function")
+                (Failure "Boolean operation on partially applied function")
             | Dimension(_) -> 
-                    raise (Failure "Boolean operation on indices")
+                raise (Failure "Boolean operation on indices")
         end
     | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
         (Failure "Detected relational operation on incompatible types") else
@@ -167,10 +179,11 @@ let rec check_expr expression table =
             match type_of expr1 with
             | Unit(Nat) -> (Unit(Bool),
                     SRop((check_expr expr1 table), op, (check_expr expr2 table)))
-            | Unit(Bool) -> raise (Failure "Detected relational operation on boolean")
+            | Unit(Bool) -> raise 
+                    (Failure "Detected relational operation on boolean")
             | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
             | Arrow(_,_) -> raise
-                        (Failure "Relational operation on partially applied function")
+                    (Failure "Relational operation on partially applied function")
             | Dimension(_) -> 
                     raise (Failure "Not yet implemented")
         end
@@ -183,8 +196,7 @@ let rec check_expr expression table =
             | Arrow(first_param_type, remaining_types) ->
               if type_of expr2' = first_param_type
                  then (last_type remaining_types, SApp(check_expr expr1' table,
-                                                 check_expr expr2' table ::
-                                                 [check_expr expr2 table]))
+                            check_expr expr2' table :: [check_expr expr2 table]))
               else
                  raise (Failure ("Expected type " ^ string_of_typ first_param_type
                        ^ " but instead received " ^ string_of_typ (type_of expr2)))
@@ -225,7 +237,7 @@ let rec check_func enclosing (ftyp, fdef) =
   if last_type ftyp.types = fst this_sexpr then
 
     { sfname = ftyp.ftyp_name; stype = ftyp.types;
-      sfparams = fdef.fparams; sfexpr = this_sexpr; 
+      sfparams = fdef.fparams; sindices = []; sfexpr = this_sexpr; 
       sscope = List.map (fun f -> check_func table f) fdef.scope }
 
     else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
@@ -238,5 +250,6 @@ let check (main_expr, funcs) =
   let global_table = build_fns_table StringMap.empty funcs in
   let check_main = check_expr main_expr global_table in
   match check_main with
-    | (Unit(_), _) -> (check_main, List.map (fun f -> check_func global_table f) funcs)
+    | (Unit(_), _) -> 
+            (check_main, List.map (fun f -> check_func global_table f) funcs)
     | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")

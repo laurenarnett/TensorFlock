@@ -14,17 +14,22 @@ and sexpr_detail =
   | SRop of sexpr * rop * sexpr
   | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
-  (* The presence of string here means that we can't index arbitrary
-   * expressions... which is probably fine
-   * However, we could possibly do with changing string to sexpr later *)
-  | STensorIdx of shape * string * index_var list
+  | SIndexedTensor of sexpr * index_var list 
+  | SIxVar of index_var
 and index_var = string * aexpr
-    
+(* This is the type of a definition site: 
+ * Every ID that is not a tensor index needs to be bound to the location at
+ * which it was defined. All IDs are defined in an sfunc. The int tells us
+ * which parameter the ID corresponds to. 0 corresponds to the function name.
+ * 1 is the first argument of the function, etc. *)
+and def_site = sfunc * int
 
-type sfunc = {
+and sfunc = {
     sfname : string;
     stype : typ;
     sfparams : string list;
+    (* every index is a string which gets bound to a Dimension (aexpr) *)
+    sindices : index_var list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -54,9 +59,11 @@ let rec string_of_sexpr_detail e = match e with
     | SCondExpr(sexpr1, sexpr2, sexpr3) ->
       "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
       ^ " else " ^ string_of_sexpr sexpr3
-    | STensorIdx(_shape, tensor_name, indices) -> tensor_name ^ "[" 
+    | SIndexedTensor(tensor_name, indices) -> 
+      string_of_sexpr tensor_name ^ "[" 
       ^ (String.concat "," @@ 
       List.map (fun ix -> string_of_aexpr (snd ix)) indices) ^ "]"
+    | SIxVar(s, aexpr) -> "(" ^ s ^ " : " ^ string_of_aexpr aexpr ^ " )"
 and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_typ t
 

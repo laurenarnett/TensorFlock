@@ -28,6 +28,10 @@ a.out
 output
 output.s
 runtime.o
+*.o
+*.cmx
+*.cmi
+*.cmo
 
 # Ignore vim session files
 *.vim
