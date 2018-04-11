@@ -49,7 +49,7 @@ let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 let lookup name global_vars = try StringMap.find name global_vars
-                    with Not_found -> raise (Failure "WIP")
+                    with Not_found -> raise (Failure "WIP - try to find global var name")
 
 let rec codegen_sexpr (typ, detail) globals builder = 
   let cond_expr pred cons alt = 
@@ -116,7 +116,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
             let ipow_func = L.declare_function "ipow" ipow_t the_module in
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
-      | SId(s) -> L.build_load (lookup s globals) s builder
+      | SId(s) -> print_endline "Got here"; L.build_load (lookup s globals) s builder
       | SApp(fn, formals) -> 
         begin
           match fn with
@@ -156,7 +156,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
           | A.GT  -> L.build_icmp L.Icmp.Ugt lhs rhs "gttemp"  builder
           | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
-      | SApp(_,_) -> raise (Failure "WIP")
+      | SApp(_,_) -> raise (Failure "WIP - SApp bool")
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
@@ -235,27 +235,19 @@ let rec codegen_sexpr (typ, detail) globals builder =
                tcontents_ptr'|]
             "tensor_ptr" builder in the_ptr
       | SId(s) -> L.build_load (lookup s globals) s builder
-      | _ -> raise (Failure "WIP")
+      | _ -> raise (Failure "WIP - shapely tensors")
     end
   | _ -> raise (Failure "Not yet implemented")
 
-let translate sprogram =
 
-  let main_ty = L.function_type (nat_t) [||] in
-  let main = L.define_function "main" main_ty the_module in
-  let builder = L.builder_at_end context (L.entry_block main) in
-  let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
-  let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
-  let float_format_str = L.build_global_stringptr "%g\n" "fmt" builder in
-  let true_str = L.build_global_stringptr "True" "true_str" builder in
-  let false_str = L.build_global_stringptr "False" "false_str" builder in
-
-  let handle_const typ = match typ with
+let handle_const typ = match typ with
       A.Nat -> L.const_int nat_t 0
     | A.Bool -> L.const_int bool_t 0
     | A.Tensor([]) -> L.const_float float_t 0.
     | A.Tensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
-  in
+
+
+let translate sprogram =
 
   (* Declare global variables; save each value in a map*)
   let the_global_vars = 
@@ -274,8 +266,8 @@ let translate sprogram =
   (* Add function decls to StringMap *)
   let the_function_decls = 
     let function_decl map fdecl = 
-      let name = fdecl.sfname
-      and type_signature = 
+      let name = fdecl.sfname in
+      let type_signature = 
         Array.of_list (List.map ltype_of_unit (Semant.list_of_type fdecl.stype)) in
       let return_type = type_signature.(Array.length type_signature - 1) in
       let formal_types = Array.sub type_signature 0 (Array.length
@@ -294,17 +286,43 @@ let translate sprogram =
   (* Build the function body *)  
   let build_function_body sfunc = 
     let the_function = StringMap.find sfunc.sfname the_function_decls in
-    let the_function_bb = L.append_block context sfunc.sfname the_function in
-    let fn_builder = L.builder_at_end context the_function_bb in 
-    let the_expr = codegen_sexpr sfunc.sfexpr the_global_vars fn_builder in
-    let _fn_ret = L.build_ret the_expr fn_builder in
-    let _ = L.position_at_end the_function_bb builder in
+    let builder = L.builder_at_end context (L.entry_block the_function) in
+    (* Add all of the parameter types to the map *)
+    let param_llvalues = Array.to_list (L.params the_function) in
 
-  let _codegen_globals = 
+    let _alloc_params = List.iter2
+        (fun name llval -> 
+            L.set_value_name name llval;
+            let ptr = L.build_alloca (L.type_of llval) name builder in
+            ignore @@ L.build_store llval ptr builder) 
+        sfunc.sfparams param_llvalues in
+
+    let available_vars = List.fold_left2 
+        (fun map name llval -> StringMap.add name llval map) the_global_vars
+        sfunc.sfparams param_llvalues in
+
+    let the_expr = codegen_sexpr sfunc.sfexpr available_vars builder in
+    L.build_ret the_expr builder in
+
+  let codegen_globals builder = 
     List.map (fun sfunc -> L.build_store 
                   (codegen_sexpr sfunc.sfexpr the_global_vars builder)
                   (lookup sfunc.sfname the_global_vars) builder) 
   (snd sprogram) in
+
+  ignore @@ List.map build_function_body (snd sprogram);
+
+  (* Set up the main function *)
+  let main_ty = L.function_type (nat_t) [||] in
+  let main = L.define_function "main" main_ty the_module in
+  let builder = L.builder_at_end context (L.entry_block main) in
+  let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
+  let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
+  let float_format_str = L.build_global_stringptr "%g\n" "fmt" builder in
+  let true_str = L.build_global_stringptr "True" "true_str" builder in
+  let false_str = L.build_global_stringptr "False" "false_str" builder in
+
+  ignore (codegen_globals builder);
   let main_expression = codegen_sexpr (fst sprogram) the_global_vars builder
   in ignore @@ (match fst (fst sprogram) with 
     | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str
@@ -322,7 +340,6 @@ let translate sprogram =
         L.build_call tdelete_func [| main_expression |] "free_tensor" builder
     | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
     );
-  ignore @@ L.build_ret (L.const_int nat_t 0) builder in
+  ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
-  List.iter build_function_body (snd sprogram);
   the_module
