@@ -10,7 +10,7 @@
 # Build artifacts
 .opam
 _opam
-_build
+_build/*
 *.native
 .ocaml-sentinal
 *.output
