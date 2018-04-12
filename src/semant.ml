@@ -38,7 +38,7 @@ let build_fns_table enclosing fns =
       Unit(Bool) | Unit(Nat) -> []
     | Unit(Tensor(shape)) -> ids_of_shape shape
     | Arrow(t1, t2) -> ids_of_type t1 @ ids_of_type t2
-    | Dimension(_) -> 
+    | Dim(_) -> 
             raise (Failure "internal error: called ids_of_type on Dimension") in
   let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
     List.map (fun (ftyp, _) -> ids_of_type @@ ftyp.types) fns in
@@ -61,7 +61,7 @@ let build_local_table enclosing (ftyp, fdef) =
   let rec list_of_type typ = match typ with
     | Unit(t) -> [t] 
     | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2
-    | Dimension(_) -> 
+    | Dim(_) -> 
             raise (Failure "internal error: called list_of_typ on Dimension") in
   let but_last lst = List.rev @@ List.tl @@ List.rev lst in
   let types = but_last @@
@@ -119,7 +119,7 @@ let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
 let rec last_type = function
   | Arrow(_, ts) -> last_type ts
   | Unit(t) -> Unit(t) 
-  | Dimension(_) -> 
+  | Dim(_) -> 
           raise (Failure "internal error: called last_type on single dimension")
 
 (* Check expr: return sexpr or error *)
@@ -156,7 +156,7 @@ let rec check_expr expression table =
             | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
             | Arrow(_,_) -> raise
                     (Failure "Arithmetic operation on partially applied function")
-            | Dimension(_) -> 
+            | Dim(_) -> 
                     raise (Failure "Not yet implemented")
         end
     | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
@@ -170,7 +170,7 @@ let rec check_expr expression table =
                 (Failure "Detected boolean operation on incompatible types")
             | Arrow(_,_) -> raise
                 (Failure "Boolean operation on partially applied function")
-            | Dimension(_) -> 
+            | Dim(_) -> 
                 raise (Failure "Boolean operation on indices")
         end
     | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
@@ -184,7 +184,7 @@ let rec check_expr expression table =
             | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
             | Arrow(_,_) -> raise
                     (Failure "Relational operation on partially applied function")
-            | Dimension(_) -> 
+            | Dim(_) -> 
                     raise (Failure "Not yet implemented")
         end
     | App(expr1, expr2) ->
