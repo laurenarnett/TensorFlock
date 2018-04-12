@@ -18,7 +18,6 @@ type aexpr =
     ALiteral of int
   | AId of string
   | AAop of aexpr * aop * aexpr
-  | AApp of aexpr * aexpr
 
 
 type shape = aexpr list
@@ -84,9 +83,6 @@ let rec (string_of_aexpr : aexpr -> string) = function
   | AAop(e1, o, e2) ->
         "(" ^ string_of_aexpr e1 ^ " " ^ string_of_aop o ^ " "
             ^ string_of_aexpr e2 ^ ")"
-  | AApp(e1, e2) ->
-        "(" ^ string_of_aexpr e1 ^ " applied to " ^ string_of_aexpr e2 ^ ")"
-
 
 let rec (string_of_expr : expr -> string) = function
     Literal(l) -> "(" ^ string_of_int l ^ ")"

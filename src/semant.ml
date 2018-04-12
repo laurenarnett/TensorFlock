@@ -29,8 +29,7 @@ let build_fns_table enclosing fns =
   let rec ids_of_aexpr = function
     | ALiteral(_) -> []
     | AId(s) -> [s]
-    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2
-    | AApp(e1, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
+    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
   let ids_of_shape shape = 
     List.flatten @@ 
     List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
@@ -54,6 +53,18 @@ let build_fns_table enclosing fns =
    * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
+(* Translate ast params (string list) into Sast typed params *)
+let sparams fparams types = 
+  if List.length fparams = 1 && String.contains (List.hd fparams) ','
+  then 
+    let indices = String.split_on_char ',' (List.hd fparams) in
+    let dims = match types with Unit(Tensor(shape)) -> shape | _ -> raise
+    (Failure "internal error - impossible type of single tensor
+    definition") in
+    Indices(List.fold_right2 (fun name dim acc -> (name, dim) :: acc) 
+        indices dims [])
+  else ArgList(fparams)
+
 
 (* Create a local table for a single function's arguments *)
 let build_local_table enclosing (ftyp, fdef) = 
@@ -64,14 +75,19 @@ let build_local_table enclosing (ftyp, fdef) =
     | Dim(_) -> 
             raise (Failure "internal error: called list_of_typ on Dimension") in
   let but_last lst = List.rev @@ List.tl @@ List.rev lst in
-  let types = but_last @@
-    list_of_type ftyp.types and params = fdef.fparams in
-  let build_arg_map types params =
+  let types = but_last @@ list_of_type ftyp.types in
+  let params = sparams fdef.fparams ftyp.types in
+
+  let build_arg_map types params = (match params with 
+    | ArgList(strs) -> 
     List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure
      ("Non-linear pattern match encountered in definition of symbol " ^ param))
-    else StringMap.add param (Unit(typ)) map) StringMap.empty types params in
-
+    else StringMap.add param (Unit(typ)) map) StringMap.empty types strs 
+    | Indices(idxs) -> 
+    List.fold_left (fun map (ix, dim) -> StringMap.add ix (Dim(dim)) map)
+    StringMap.empty idxs)
+  in
   
   let local_map = build_arg_map types params in
   (* Combine local map with enclosing map, 
@@ -86,12 +102,7 @@ let string_of_table map =
 
 
 let rec lookup_symb symb table =
-    (* Find utility exists in ocaml 4.06 but Edwards doesn't have that version so
-     * we write it again here *)
-    let find' key map =
-        try Some (StringMap.find key map)
-        with Not_found -> None in
-  match find' symb table with
+  match StringMap.find_opt symb table with
     | None -> raise (Failure ("Encountered undefined symbol: " ^ symb))
     | Some typ_list -> typ_list
 
@@ -228,16 +239,7 @@ let rec check_expr expression table =
 let rec check_func enclosing (ftyp, fdef) = 
   (* First check if the function is in the form 
    * tensor[ix1,...,ix_n] = * ix1...ixn *)
-  let params = 
-      if List.length fdef.fparams = 1 && String.contains (List.hd fdef.fparams) '['
-      then 
-          let indices = String.split_on_char ',' (List.hd fdef.fparams) in
-          let dims = match ftyp.types with Unit(Tensor(shape)) -> shape | _ -> raise
-          (Failure "internal error - impossible type of single tensor
-          definition") in
-          Indices(List.fold_right2 (fun name dim acc -> (name, dim) :: acc) indices dims [])
-      else ArgList(fdef.fparams)
-      in
+  let params = sparams fdef.fparams ftyp.types in
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
   let this_sexpr = check_expr fdef.main_expr table in

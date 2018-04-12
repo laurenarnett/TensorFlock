@@ -69,7 +69,7 @@ fdef:
    */     
   | TIDX tidx RBRACK DEFINE expr SEMI scope
     { { fdef_name  = $1; 
-        fparams = [ "[" ^ (String.concat "," (List.rev $2)) ^ "]" ];
+        fparams = [ (String.concat "," (List.rev $2))  ];
         main_expr = $5; 
         scope   = List.rev $7; } }
 
@@ -158,12 +158,7 @@ saexpr:
   | saexpr DIVIDE saexpr    { AAop($1, Div, $3) }
   | saexpr MOD    saexpr    { AAop($1, Mod, $3) }
   | saexpr EXPT   saexpr    { AAop($1, Expt, $3) }
-  | sfexpr                  { $1 }
-
-sfexpr:
-      sfexpr slexpr { AApp($1, $2) }
-  | slexpr { $1 }
-
+  | slexpr                  { $1 }
 
 slexpr:
     LITERAL          { ALiteral($1) }
