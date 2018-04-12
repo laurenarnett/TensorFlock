@@ -113,7 +113,7 @@ fexpr:
   | brackexpr { $1 }
 
 brackexpr:
-    TIDX tidx RBRACK { TensorIdx($1, List.rev $2) }
+    TIDX tidx RBRACK { TensorIdx(Id($1), List.rev $2) }
   | lexpr { $1 }
 
 lexpr:

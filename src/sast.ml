@@ -24,12 +24,12 @@ and index_var = string * aexpr
  * 1 is the first argument of the function, etc. *)
 and def_site = sfunc * int
 
-and param = Indices of index_var list | Arg of string
+and param = Indices of index_var list | ArgList of string list
 
 and sfunc = {
     sfname : string;
     stype : typ;
-    sfparams : param list;
+    sfparams : param;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -71,10 +71,10 @@ let rec string_of_sfunc sfunc =
     let string_of_param = function 
         | Indices(ivar_list) -> let strs = List.map fst ivar_list in
             "[" ^ String.concat "," strs ^ "]"
-        | Arg(s) -> s in
+        | ArgList(s) -> String.concat " " s in
 
   "(" ^ sfunc.sfname ^ 
-  (String.concat " " (List.map string_of_param sfunc.sfparams))
+  (string_of_param sfunc.sfparams)
   ^ " : " ^ string_of_typ sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)

@@ -228,16 +228,23 @@ let rec check_expr expression table =
 let rec check_func enclosing (ftyp, fdef) = 
   (* First check if the function is in the form 
    * tensor[ix1,...,ix_n] = * ix1...ixn *)
-  let (_ftyp', _fdef') = if ftyp.ftyp_name ^ "[]" = fdef.fdef_name then
-      raise (Failure "WIP")
-  else (ftyp, fdef) in
+  let params = 
+      if List.length fdef.fparams = 1 && String.contains (List.hd fdef.fparams) '['
+      then 
+          let indices = String.split_on_char ',' (List.hd fdef.fparams) in
+          let dims = match ftyp.types with Unit(Tensor(shape)) -> shape | _ -> raise
+          (Failure "internal error - impossible type of single tensor
+          definition") in
+          Indices(List.fold_right2 (fun name dim acc -> (name, dim) :: acc) indices dims [])
+      else ArgList(fdef.fparams)
+      in
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
   let this_sexpr = check_expr fdef.main_expr table in
   if last_type ftyp.types = fst this_sexpr then
 
     { sfname = ftyp.ftyp_name; stype = ftyp.types;
-      sfparams = fdef.fparams; sindices = []; sfexpr = this_sexpr; 
+      sfparams = params; sfexpr = this_sexpr; 
       sscope = List.map (fun f -> check_func table f) fdef.scope }
 
     else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
