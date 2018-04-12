@@ -47,7 +47,6 @@ type func_type = {
 type func_def = {
   fdef_name : string;
   fparams : string list;
-  indices : string list;
   main_expr : expr;
   scope : (func_type * func_def) list;
 }

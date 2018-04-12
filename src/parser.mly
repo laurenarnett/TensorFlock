@@ -57,7 +57,7 @@ formals:
 
 fdef:
    ID formals DEFINE expr SEMI scope
-     { { fdef_name = $1; fparams = List.rev $2; indices = [];
+     { { fdef_name = $1; fparams = List.rev $2;
          main_expr = $4; scope   = List.rev $6; } }
   /* This allows us to parse things of the form *
    * zero_to_n : T<n>; 
@@ -68,8 +68,10 @@ fdef:
    *     { mat' T<m,n>; mat'[j,i] = mat[i,j]; }
    */     
   | TIDX tidx RBRACK DEFINE expr SEMI scope
-    { { fdef_name  = $1; fparams = []; indices = $2;
-         main_expr = $5; scope   = List.rev $7; } }
+    { { fdef_name  = $1; 
+        fparams = [ "[" ^ (String.concat "," (List.rev $2)) ^ "]" ];
+        main_expr = $5; 
+        scope   = List.rev $7; } }
 
 
 types:
