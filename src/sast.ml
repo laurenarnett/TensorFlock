@@ -24,12 +24,12 @@ and index_var = string * aexpr
  * 1 is the first argument of the function, etc. *)
 and def_site = sfunc * int
 
+and param = Indices of index_var list | Arg of string
+
 and sfunc = {
     sfname : string;
     stype : typ;
-    sfparams : string list;
-    (* every index is a string which gets bound to a Dimension (aexpr) *)
-    sindices : index_var list;
+    sfparams : param list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -68,7 +68,13 @@ and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_typ t
 
 let rec string_of_sfunc sfunc =
-  "(" ^ sfunc.sfname ^ (String.concat " " sfunc.sfparams)
+    let string_of_param = function 
+        | Indices(ivar_list) -> let strs = List.map fst ivar_list in
+            "[" ^ String.concat "," strs ^ "]"
+        | Arg(s) -> s in
+
+  "(" ^ sfunc.sfname ^ 
+  (String.concat " " (List.map string_of_param sfunc.sfparams))
   ^ " : " ^ string_of_typ sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
