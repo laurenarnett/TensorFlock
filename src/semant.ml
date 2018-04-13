@@ -55,9 +55,11 @@ let build_fns_table enclosing fns =
 
 (* Translate ast params (string list) into Sast typed params *)
 let sparams fparams types = 
-  if List.length fparams = 1 && String.contains (List.hd fparams) ','
+  if List.length fparams = 1 && String.contains (List.hd fparams) '['
   then 
-    let indices = String.split_on_char ',' (List.hd fparams) in
+    let indices = 
+      let str = String.sub (List.hd fparams) 1 (String.length (List.hd fparams) - 2)
+      in String.split_on_char ',' str in
     let dims = match types with Unit(Tensor(shape)) -> shape | _ -> raise
     (Failure "internal error - impossible type of single tensor
     definition") in

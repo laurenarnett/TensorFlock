@@ -69,7 +69,7 @@ fdef:
    */     
   | TIDX tidx RBRACK DEFINE expr SEMI scope
     { { fdef_name  = $1; 
-        fparams = [ (String.concat "," (List.rev $2))  ];
+        fparams = [ "[" ^ (String.concat "," (List.rev $2)) ^ "]" ];
         main_expr = $5; 
         scope   = List.rev $7; } }
 
