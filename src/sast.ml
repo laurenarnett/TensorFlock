@@ -1,6 +1,16 @@
 open Ast
 
-type sexpr = typ * sexpr_detail
+(* Internal representation of types *)
+type styp = 
+      SBool 
+    | SNat of aexpr option
+    | SReal
+    (* Instead of Tensor(shape), we'll desugar to 
+     * SArrow(SIndices, SReal) *)
+    | SIndices of shape
+    | SArrow of styp * styp
+
+type sexpr = styp * sexpr_detail
 and sexpr_detail =
     SLiteral of int
   | SBoolLit of bool
@@ -36,7 +46,18 @@ and sfunc = {
 
 type sprogram = sexpr * sfunc list
 
+
 (* Pretty printing *)
+let rec string_of_styp = function
+    | SBool -> "SBool"
+    | SNat(s) -> 
+      (match s with None -> "SNat" | Some s -> "SNat : " ^ string_of_aexpr s)
+    | SReal -> "SReal"
+    | SIndices(shape) -> 
+      "[" ^ String.concat "," (List.map string_of_aexpr shape) ^ "]"
+    | SArrow(t1, t2) -> 
+      "(" ^ string_of_styp t1 ^ " -> " ^ string_of_styp t2 ^ ")"
+
 let rec string_of_sexpr_detail e = match e with
     | SLiteral(i) -> string_of_int i
     | SFliteral(s) -> s
@@ -65,7 +86,7 @@ let rec string_of_sexpr_detail e = match e with
       List.map (fun ix -> string_of_aexpr (snd ix)) indices) ^ "]"
     | SIxVar(s, aexpr) -> "(" ^ s ^ " : " ^ string_of_aexpr aexpr ^ " )"
 and string_of_sexpr (t, det) =
-  string_of_sexpr_detail det ^ " : " ^ string_of_typ t
+  string_of_sexpr_detail det ^ " : " ^ string_of_styp t
 
 let rec string_of_sfunc sfunc =
     let string_of_param = function 

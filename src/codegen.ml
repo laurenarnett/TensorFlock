@@ -12,11 +12,6 @@ let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
 
-let ltype_of_typ = function 
-    A.Unit(A.Nat) -> nat_t
-  | A.Unit(A.Bool) -> bool_t
-  | _ -> raise (Failure "Not yet implemented")
-
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
@@ -27,6 +22,15 @@ let tensor_t = L.struct_type context [|
     L.pointer_type nat_t; (* number of references *)
     L.pointer_type float_t; (* contents *)
   |]
+
+
+let ltype_of_styp = function 
+    | SBool -> bool_t
+    | SNat(_) -> nat_t
+    | SArrow(SIndices([]), SReal) -> float_t
+    | SArrow(SIndices(_), SReal) -> tensor_t
+    | SArrow(_,_) -> raise (Failure "Internal error: called ltype_of_styp on function")
+    | _ -> raise (Failure "Internal error: called ltype_of_styp on real or indices")
 
 let talloc_t = L.function_type (L.pointer_type tensor_t) 
     [| nat_t; (* size *)
@@ -44,7 +48,7 @@ let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_mod
 let lookup name global_vars = try StringMap.find name global_vars
                     with Not_found -> raise (Failure "WIP")
 
-let rec codegen_sexpr (typ, detail) globals builder = 
+let rec codegen_sexpr (styp, detail) globals builder = 
   let cond_expr pred cons alt = 
       (* Wholesale copying of the Kaleidescope tutorial's conditional
        * expression codegen *)
@@ -88,8 +92,8 @@ let rec codegen_sexpr (typ, detail) globals builder =
 
       phi in
 
-  match typ with
-  | A.Unit(A.Nat) ->
+  match styp with
+  | SNat(None) ->
     begin
       match detail with
       | SLiteral(i) -> L.const_int nat_t i
@@ -113,7 +117,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
-  | A.Unit(A.Bool) ->
+  | SBool ->
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
@@ -143,7 +147,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   (* Tensor of empty shape corresponds to single floating point number *)
-  | A.Unit(A.Tensor([])) -> 
+  | SArrow(SIndices [], SReal) -> 
     begin
       match detail with  
       | SFliteral(s) -> L.const_float_of_string float_t s
@@ -181,7 +185,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
       | SApp(_,_) -> raise (Failure "Functions not yet implemented")
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | A.Unit(A.Tensor(_shape)) ->
+  | SArrow(SIndices _shape, SReal) ->
     begin
       match detail with
       | STLit(contents, literal_shape) -> 
@@ -262,21 +266,21 @@ let translate sprogram =
   (snd sprogram) in
   let the_expression = codegen_sexpr (fst sprogram) the_global_vars builder
   in ignore @@ (match fst (fst sprogram) with 
-    | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
+    | SNat(None) -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
-    | A.Unit(A.Bool) -> L.build_call printf_func [| bool_format_str ; 
+    | SBool -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
-    | A.Unit(A.Tensor([])) -> L.build_call printf_func 
+    | SArrow(SIndices [], SReal) -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | A.Unit(A.Tensor(_)) -> 
+    | SArrow(SIndices _shape, SReal) -> 
         let _ = L.build_call print_tensor_func [| the_expression |] 
             "print_tensor" builder in
         L.build_call tdelete_func [| the_expression |] "free_tensor" builder
-    | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
-    | A.Dim(_) -> 
-            raise (Failure "Can't have a dimension as the main expression")
+    | SArrow(_,_) -> raise (Failure "Internal error: semant failed")
+    | SNat(_) -> raise (Failure "Can't have a dimension as the main expression")
+    | _ -> raise (Failure "Internal error - semant failed - main can't be real or index")
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
