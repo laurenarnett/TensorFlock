@@ -49,7 +49,7 @@ let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 let lookup name global_vars = try StringMap.find name global_vars
-                    with Not_found -> raise (Failure "WIP")
+                    with Not_found -> raise (Failure "Lookup is WIP")
 
 let rec codegen_sexpr (typ, detail) globals builder = 
   let cond_expr pred cons alt = 
@@ -273,10 +273,10 @@ let translate sprogram =
 
   (* Add function decls to StringMap *)
   let the_function_decls = 
-    let function_decl map fdecl = 
-      let name = fdecl.sfname
+    let function_decl map sfunc = 
+      let name = sfunc.sfname
       and type_signature = 
-        Array.of_list (List.map ltype_of_unit (Semant.list_of_type fdecl.stype)) in
+        Array.of_list (List.map ltype_of_unit (Semant.list_of_type sfunc.stype)) in
       let return_type = type_signature.(Array.length type_signature - 1) in
       let formal_types = Array.sub type_signature 0 (Array.length
           type_signature - 1) in
@@ -293,10 +293,37 @@ let translate sprogram =
 
   (* Build the function body *)  
   let build_function_body sfunc = 
+    let() = ignore @@ Printf.printf "%s" sfunc.sfname in
     let the_function = StringMap.find sfunc.sfname the_function_decls in
     let the_function_bb = L.append_block context sfunc.sfname the_function in
     let fn_builder = L.builder_at_end context the_function_bb in 
-    let the_expr = codegen_sexpr sfunc.sfexpr the_global_vars fn_builder in
+
+  let the_local_vars = 
+    let add_formal map (typ, name) param = 
+      let _ = L.set_value_name name param in
+        let local = L.build_alloca (ltype_of_unit typ) name fn_builder
+          (*begin
+            match typ with
+              | A.Unit(t) -> L.build_alloca (ltype_of_unit t) name fn_builder
+              | A.Arrow(_,_) -> raise (Failure "Functions are not function params")
+          end*)
+        in
+          let _ = L.build_store param local fn_builder in
+          StringMap.add name local map in
+
+    let pair_typ_name typ name = (typ, name) in
+    let typs = Semant.list_of_type sfunc.stype in
+    let _typed_params = List.map2 pair_typ_name (Semant.but_last typs)
+        sfunc.sfparams in
+    let () = List.iter (print_endline) (List.map snd _typed_params) in
+    List.fold_left2 add_formal StringMap.empty _typed_params (Array.to_list
+                                                              (L.params
+                                                              the_function))
+    in
+
+    let the_expr = codegen_sexpr sfunc.sfexpr 
+        (StringMap.union (fun _key _v1 v2 -> Some v2) the_global_vars
+        the_local_vars) fn_builder in
     let _fn_ret = L.build_ret the_expr fn_builder in
     let _ = L.position_at_end the_function_bb builder in
 
