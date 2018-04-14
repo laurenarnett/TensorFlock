@@ -12,7 +12,7 @@ COMPILER_PACKAGES = -use-ocamlfind -package llvm,llvm.analysis,llvm.bitwriter
 # Docker: after updating the Dockerfile, build a new image and tag with an
 # incremented version number. Also update the version in .drone.yml
 DOCKER_IMAGE = nbuonin/ocaml4.06-llvm3.8
-DOCKER_TAG = v2
+DOCKER_TAG = v3
 
 SHELL=/bin/sh
 
@@ -72,7 +72,7 @@ watch:
 	./watch.sh $(SRC_DIR)
 
 docker-build-image:
-	docker build -t $(DOCKER_IMAGE) docker
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) docker
 
 docker-shell:
 	docker run --rm -it -v "`pwd`":/root/TensorFlock -w=/root/TensorFlock --entrypoint=/bin/bash $(DOCKER_IMAGE):$(DOCKER_TAG)
