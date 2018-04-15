@@ -12,11 +12,6 @@ let nat_t = L.i32_type context
 let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
-
-
-let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
-let printf_func = L.declare_function "printf" printf_t the_module
-
 let tensor_t = L.struct_type context [|
     nat_t; (* size: number of doubles the tensor holds *)
     nat_t; (* rank *)
@@ -24,6 +19,19 @@ let tensor_t = L.struct_type context [|
     L.pointer_type nat_t; (* number of references *)
     L.pointer_type float_t; (* contents *)
   |]
+
+let rec ltype_of_typ = function 
+    A.Nat -> nat_t
+  | A.Bool -> bool_t
+  | A.Tensor([]) -> float_t
+  | A.Tensor(_) -> tensor_t
+  (* All remaining types are arrow types *)
+  | ts -> L.function_type (List.rev (list_of_type ts) |> List.hd |> ltype_of_typ) 
+          (list_of_type ts |> but_last |> List.map ltype_of_typ |> Array.of_list)
+
+
+let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
+let printf_func = L.declare_function "printf" printf_t the_module
 
 let talloc_t = L.function_type (L.pointer_type tensor_t) 
     [| nat_t; (* size *)
@@ -38,18 +46,9 @@ let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
 let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
-let rec ltype_of_typ = function 
-    A.Nat -> nat_t
-  | A.Bool -> bool_t
-  | A.Tensor([]) -> float_t
-  | A.Tensor(_) -> tensor_t
-  (* All remaining types are arrow types *)
-  | ts -> L.function_type (List.rev (list_of_type ts) |> List.hd |> ltype_of_typ) 
-          (list_of_type ts |> but_last |> List.map ltype_of_typ |> Array.of_list)
-
-
-let lookup name global_vars = try StringMap.find name global_vars
-                    with Not_found -> raise (Failure "WIP")
+(* If this throws an error, then something is actually problematic and we have
+ * a real bug. *)
+let lookup name map = StringMap.find name map
 
 let rec codegen_sexpr (typ, detail) map builder = 
   let cond_expr pred cons alt = 
@@ -95,6 +94,19 @@ let rec codegen_sexpr (typ, detail) map builder =
 
       phi in
 
+  let fn_call fn params builder = 
+    let fname = match fn with (_, SId(s)) -> s 
+                | _ -> raise (Failure "Internal error - non-id in SApp")
+    in let callee = match L.lookup_function fname the_module with
+                | Some callee -> callee
+                | None -> raise (Failure "Internal error - undefined function")
+    in 
+    L.build_call callee 
+      (List.map (fun expr -> codegen_sexpr expr map builder) params 
+                |> Array.of_list) 
+      (fname ^ "_call") builder
+    in
+
 
   match typ with
   | A.Nat ->
@@ -117,7 +129,7 @@ let rec codegen_sexpr (typ, detail) map builder =
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
       | SId(s) -> L.build_load (lookup s map) s builder
-      | SApp(_,_) -> raise (Failure "Not yet implemented")
+      | SApp(fn, params) -> fn_call fn params builder
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
@@ -146,7 +158,7 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_icmp L.Icmp.Ugt lhs rhs "gttemp"  builder
           | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
-      | SApp(_,_) -> raise (Failure "WIP")
+      | SApp(fn, params) -> fn_call fn params builder
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
@@ -186,7 +198,7 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
           | A.Geq -> L.build_fcmp L.Fcmp.Oge lhs rhs "fgeqtemp" builder
         end
-      | SApp(_,_) -> raise (Failure "Functions not yet implemented")
+      | SApp(fn, params) -> fn_call fn params builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
   | A.Tensor(_shape) ->
@@ -229,7 +241,39 @@ let rec codegen_sexpr (typ, detail) map builder =
     end
   | _ -> raise (Failure "Not yet implemented")
 
+(* Given an sfunc, declare it in the_module, set the names of its parameters,
+ * and return a new map with the environment of names bound to llvalues 
+ * This function has the side effect of mutating the module *)
+let codegen_proto sfunc map = 
+  let the_function = 
+      L.define_function (sfunc.sfname) (ltype_of_typ sfunc.stype) the_module in
+  let the_map = 
+      List.fold_left2 (fun env param value ->
+          L.set_value_name param value;
+          StringMap.add param value env
+          ) 
+      map sfunc.sfparams (Array.to_list (L.params the_function))
+  in 
+  the_map
+
+let codegen_body map sfunc = 
+    let the_function = match L.lookup_function sfunc.sfname the_module with
+        | Some f -> f
+        | None -> raise (Failure "internal error - undefined function")
+        in
+    let bb = L.append_block context (sfunc.sfname ^ "_entry") the_function in
+    let fn_builder = L.builder_at_end context (L.entry_block the_function) in
+    L.position_at_end bb fn_builder;
+    let ret_val = codegen_sexpr sfunc.sfexpr map fn_builder in
+    Llvm_analysis.assert_valid_function the_function;
+    L.build_ret ret_val fn_builder
+
+
 let translate sprogram =
+  let env = List.fold_left (fun map sfunc -> 
+      codegen_proto sfunc map
+    ) StringMap.empty (snd sprogram) in
+  ignore @@ List.map (codegen_body env) (snd sprogram);
 
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
