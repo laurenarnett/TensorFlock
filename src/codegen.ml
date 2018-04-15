@@ -17,6 +17,7 @@ let ltype_of_typ = function
   | A.Unit(A.Bool) -> bool_t
   | _ -> raise (Failure "Not yet implemented")
 
+
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
@@ -40,6 +41,12 @@ let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
 
 let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
+
+let ltype_of_unit = function
+    A.Nat -> nat_t
+  | A.Bool -> bool_t
+  | A.Tensor([]) -> float_t
+  | A.Tensor(_) -> tensor_t
 
 let lookup name global_vars = try StringMap.find name global_vars
                     with Not_found -> raise (Failure "WIP")
@@ -222,6 +229,39 @@ let rec codegen_sexpr (typ, detail) globals builder =
     end
   | _ -> raise (Failure "Not yet implemented")
 
+  let handle_const typ = match typ with
+      A.Unit(A.Nat) -> L.const_int nat_t 0
+    | A.Unit(A.Bool) -> L.const_int bool_t 0
+    | A.Unit(A.Tensor([])) -> L.const_float float_t 0.
+    | A.Unit(A.Tensor(_)) -> L.const_pointer_null (L.pointer_type tensor_t)
+    | _ -> raise (Failure "declare globals on unit type only")
+
+let declare_global sfunc map the_module = 
+  StringMap.add sfunc.sfname 
+    (L.define_global sfunc.sfname (handle_const sfunc.stype) the_module) map
+
+let declare_fn_proto sfunc map the_module = 
+  let fn_proto_typs = Semant.list_of_type sfunc.stype in
+  let fn_param_typs = Array.of_list (List.map ltype_of_unit @@ Semant.but_last
+                             fn_proto_typs) in
+  let fn_return_typ = ltype_of_unit (List.hd @@ List.rev fn_proto_typs) in
+  let fn_type = L.function_type fn_return_typ fn_param_typs in
+  StringMap.add sfunc.sfname
+    (L.define_function sfunc.sfname fn_type the_module) map
+
+(*let build_fn_body fn map the_module = *)
+
+let codegen_global map builder sfunc = 
+  ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr map builder)
+              (lookup sfunc.sfname map) builder
+
+let build_toplevel sfuncs the_module = 
+  List.fold_left 
+    (fun map sfunc -> match sfunc.stype with
+       | A.Unit(_) -> declare_global sfunc map the_module
+       | A.Arrow(_) -> declare_fn_proto sfunc map the_module)
+    StringMap.empty sfuncs 
+
 let translate sprogram =
 
   let main_ty = L.function_type (nat_t) [||] in
@@ -233,33 +273,9 @@ let translate sprogram =
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
-  let handle_const typ = match typ with
-      A.Nat -> L.const_int nat_t 0
-    | A.Bool -> L.const_int bool_t 0
-    | A.Tensor([]) -> L.const_float float_t 0.
-    | A.Tensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
-  in
-
-  (* Declare global variables; save each value in a map*)
-  let the_global_vars = 
-    let global_var map (typ, name) = 
-      let init = handle_const typ
-    in StringMap.add name (L.define_global name init the_module) map
-  in List.fold_left 
-        begin
-          fun map fn ->
-            match fn.stype with
-            | A.Unit(t) -> global_var map (t, fn.sfname)
-            | A.Arrow(_, _) -> map (* do nothing for now *)
-        end
-        StringMap.empty (snd sprogram) in
-
-  let _codegen_globals = 
-    List.map (fun sfunc -> L.build_store 
-                  (codegen_sexpr sfunc.sfexpr the_global_vars builder)
-                  (lookup sfunc.sfname the_global_vars) builder) 
-  (snd sprogram) in
-  let the_expression = codegen_sexpr (fst sprogram) the_global_vars builder
+  let map = build_toplevel (snd sprogram) the_module in
+  let () = ignore @@ List.map (codegen_global map builder) (snd sprogram) in
+  let the_expression = codegen_sexpr (fst sprogram) map builder
   in ignore @@ (match fst (fst sprogram) with 
     | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
