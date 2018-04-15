@@ -44,11 +44,11 @@ let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_mod
 let lookup name global_vars = try StringMap.find name global_vars
                     with Not_found -> raise (Failure "WIP")
 
-let rec codegen_sexpr (typ, detail) globals builder = 
+let rec codegen_sexpr (typ, detail) map builder = 
   let cond_expr pred cons alt = 
       (* Wholesale copying of the Kaleidescope tutorial's conditional
        * expression codegen *)
-      let cond = codegen_sexpr pred globals builder in
+      let cond = codegen_sexpr pred map builder in
       (* Grab the first block so that we might later add the conditional branch
        * to it at the end of the function. *)
       let start_bb = L.insertion_block builder in
@@ -56,7 +56,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
 
       let then_bb = L.append_block context "then" the_function in
       L.position_at_end then_bb builder;
-      let then_val = codegen_sexpr cons globals builder in
+      let then_val = codegen_sexpr cons map builder in
 
       (* Creating a new then bb allows if_then_else 
        * expressions to be nested recursively *)
@@ -64,7 +64,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
 
       let else_bb = L.append_block context "else" the_function in
       L.position_at_end else_bb builder;
-      let else_val = codegen_sexpr alt globals builder in
+      let else_val = codegen_sexpr alt map builder in
 
       (* Creating a new else bb allows if_then_else 
        * expressions to be nested recursively *)
@@ -95,8 +95,8 @@ let rec codegen_sexpr (typ, detail) globals builder =
       match detail with
       | SLiteral(i) -> L.const_int nat_t i
       | SAop(sexpr1, aop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 globals builder in
-        let rhs = codegen_sexpr sexpr2 globals builder in
+        let lhs = codegen_sexpr sexpr1 map builder in
+        let rhs = codegen_sexpr sexpr2 map builder in
         begin
           match aop with
           | A.Add -> L.build_add lhs rhs "addnattmp" builder
@@ -109,7 +109,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
             let ipow_func = L.declare_function "ipow" ipow_t the_module in
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
-      | SId(s) -> L.build_load (lookup s globals) s builder
+      | SId(s) -> L.build_load (lookup s map) s builder
       | SApp(_,_) -> raise (Failure "Not yet implemented")
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
@@ -118,18 +118,18 @@ let rec codegen_sexpr (typ, detail) globals builder =
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
-      | SId(s) -> L.build_load (lookup s globals) s builder
+      | SId(s) -> L.build_load (lookup s map) s builder
       | SBoolop(sexpr1, bop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 globals builder in
-        let rhs = codegen_sexpr sexpr2 globals builder in
+        let lhs = codegen_sexpr sexpr1 map builder in
+        let rhs = codegen_sexpr sexpr2 map builder in
         begin
           match bop with
           | A.And -> L.build_and lhs rhs "andtmp" builder
           | A.Or  -> L.build_or  lhs rhs "ortmp"  builder
         end
       | SRop(sexpr1, rop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 globals builder in
-        let rhs = codegen_sexpr sexpr2 globals builder in
+        let lhs = codegen_sexpr sexpr1 map builder in
+        let rhs = codegen_sexpr sexpr2 map builder in
         begin
           match rop with
           | A.Eq  -> L.build_icmp L.Icmp.Eq  lhs rhs "eqtemp"  builder
@@ -149,11 +149,11 @@ let rec codegen_sexpr (typ, detail) globals builder =
       match detail with  
       | SFliteral(s) -> L.const_float_of_string float_t s
       | SUnop(A.Neg, sexpr) -> 
-        L.build_fneg (codegen_sexpr sexpr globals builder) "negfloattmp" builder
-      | SId(s) -> L.build_load (lookup s globals) s builder
+        L.build_fneg (codegen_sexpr sexpr map builder) "negfloattmp" builder
+      | SId(s) -> L.build_load (lookup s map) s builder
       | SAop(sexpr1, aop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 globals builder in
-        let rhs = codegen_sexpr sexpr2 globals builder in
+        let lhs = codegen_sexpr sexpr1 map builder in
+        let rhs = codegen_sexpr sexpr2 map builder in
         begin
           match aop with
           | A.Add -> L.build_fadd lhs rhs "addfloattmp" builder
@@ -168,8 +168,8 @@ let rec codegen_sexpr (typ, detail) globals builder =
         end
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | SRop(sexpr1, rop, sexpr2) ->
-        let lhs = codegen_sexpr sexpr1 globals builder in
-        let rhs = codegen_sexpr sexpr2 globals builder in
+        let lhs = codegen_sexpr sexpr1 map builder in
+        let rhs = codegen_sexpr sexpr2 map builder in
         begin
           match rop with
           | A.Eq  -> L.build_fcmp L.Fcmp.Oeq rhs rhs "feqtemp"  builder
@@ -217,7 +217,7 @@ let rec codegen_sexpr (typ, detail) globals builder =
                tshape_ptr';
                tcontents_ptr'|]
             "tensor_ptr" builder in the_ptr
-      | SId(s) -> L.build_load (lookup s globals) s builder
+      | SId(s) -> L.build_load (lookup s map) s builder
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
@@ -240,7 +240,7 @@ let translate sprogram =
     | A.Tensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
   in
 
-  (* Declare global variables; save each value in a map*)
+  (* Declare global variables; save each value in a map *)
   let the_global_vars = 
     let global_var map (typ, name) = 
       let init = handle_const typ
