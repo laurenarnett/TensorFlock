@@ -68,9 +68,9 @@ types:
   | typ { $1 }
 
 typ:
-    NAT     { Unit(Nat)   }
-  | BOOL    { Unit(Bool)  }
-  | TENSOR LANGLE shape RANGLE { Unit(Tensor($3)) }
+    NAT     { Nat   }
+  | BOOL    { Bool  }
+  | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 /* Expression starting point */
 expr: binexpr { $1 }

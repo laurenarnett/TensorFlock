@@ -27,8 +27,8 @@ let build_fns_table enclosing fns =
     List.flatten @@ 
     List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
   let rec ids_of_type = function
-      Unit(Bool) | Unit(Nat) -> []
-    | Unit(Tensor(shape)) -> ids_of_shape shape
+      Bool | Nat -> []
+    | Tensor(shape) -> ids_of_shape shape
     | Arrow(t1, t2) -> 
       ids_of_type t1 @ ids_of_type t2 in
   let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
@@ -39,26 +39,26 @@ let build_fns_table enclosing fns =
       if StringMap.mem shape_var table then raise
           (Failure ("attempting to redefine already defined symbol: " 
                     ^ shape_var))
-      else StringMap.add shape_var (Unit(Nat)) table) local_map' unique_shape_vars
+      else StringMap.add shape_var (Nat) table) local_map' unique_shape_vars
   in
   (* Combine local map with enclosing map, 
    * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
+let rec list_of_type typ = match typ with
+  | Bool -> [Bool] | Nat -> [Nat] | Tensor(s) -> [Tensor(s)]
+  | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2
+let but_last lst = List.rev @@ List.tl @@ List.rev lst
 
 (* Create a local table for a single function's arguments *)
 let build_local_table enclosing (ftyp, fdef) = 
-  (* define local utilities *)
-  let rec list_of_type typ = match typ with
-    | Unit(t) -> [t] | Arrow(t1, t2) -> list_of_type t1 @ list_of_type t2 in
-  let but_last lst = List.rev @@ List.tl @@ List.rev lst in
   let types = but_last @@
     list_of_type ftyp.types and params = fdef.fparams in
   let build_arg_map types params =
     List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure
      ("Non-linear pattern match encountered in definition of symbol " ^ param))
-    else StringMap.add param (Unit(typ)) map) StringMap.empty types params in
+    else StringMap.add param (typ) map) StringMap.empty types params in
 
   let local_map = build_arg_map types params in
   (* Combine local map with enclosing map, 
@@ -105,15 +105,15 @@ let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
 
 let rec last_type = function
   | Arrow(_, ts) -> last_type ts
-  | Unit(t) -> Unit(t) 
+  | t -> t 
 
 (* Check expr: return sexpr or error *)
 let rec check_expr expression table =
   let type_of expr = fst (check_expr expr table) in
   match (expression : expr) with
-    | Literal(i) -> (Unit(Nat), SLiteral(i))
-    | Fliteral(s) -> (Unit(Tensor([])), SFliteral(s))
-    | BoolLit(b) -> (Unit(Bool), SBoolLit(b))
+    | Literal(i) -> (Nat, SLiteral(i))
+    | Fliteral(s) -> (Tensor([]), SFliteral(s))
+    | BoolLit(b) -> (Bool, SBoolLit(b))
     | TLit(_) -> let t = verify expression in if t then
                  let shape = build_shape expression in
                  let components = flatten expression in
@@ -122,7 +122,7 @@ let rec check_expr expression table =
                   | _ -> raise (Failure "Internal error: non-float encounted in
                  tensor literal")
                  ) in
-                 (Unit(Tensor(List.map (fun s -> ALiteral(s)) shape)),
+                 (Tensor(List.map (fun s -> ALiteral(s)) shape),
                  STLit(unwrap_components components, shape))
                  else raise (Failure "Invalid tensor literal")
     | Id(s) -> (lookup_symb s table, SId(s))
@@ -132,12 +132,12 @@ let rec check_expr expression table =
         (Failure "Detected arithmetic operation on incompatible types") else
         begin
             match type_of expr1 with
-                | Unit(Nat) -> (Unit(Nat),
+                | Nat -> (Nat,
                         SAop((check_expr expr1 table), op, (check_expr expr2 table)))
-                | Unit(Bool) -> raise (Failure "Detected arithmetic operation on boolean")
-                | Unit(Tensor([])) -> (Unit(Tensor([])),
+                | Bool -> raise (Failure "Detected arithmetic operation on boolean")
+                | Tensor([]) -> (Tensor([]),
                         SAop((check_expr expr1 table), op, (check_expr expr2 table)))
-                | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+                | Tensor(_) -> raise (Failure "Not yet implemented")
                 | Arrow(_,_) -> raise
                         (Failure "Arithmetic operation on partially applied function")
         end
@@ -145,10 +145,10 @@ let rec check_expr expression table =
         (Failure "Detected boolean operation on incompatible types") else
         begin
             match type_of expr1 with
-            | Unit(Nat) -> raise (Failure "Detected boolean operation on Nats")
-            | Unit(Bool) -> (Unit(Bool),
+            | Nat -> raise (Failure "Detected boolean operation on Nats")
+            | Bool -> (Bool,
                     SBoolop((check_expr expr1 table), op, (check_expr expr2 table)))
-            | Unit(Tensor(_)) -> raise
+            | Tensor(_) -> raise
                     (Failure "Detected boolean operation on incompatible types")
             | Arrow(_,_) -> raise
                     (Failure "Boolean operation on partially applied function")
@@ -157,10 +157,10 @@ let rec check_expr expression table =
         (Failure "Detected relational operation on incompatible types") else
         begin
             match type_of expr1 with
-            | Unit(Nat) -> (Unit(Bool),
+            | Nat -> (Bool,
                     SRop((check_expr expr1 table), op, (check_expr expr2 table)))
-            | Unit(Bool) -> raise (Failure "Detected relational operation on boolean")
-            | Unit(Tensor(_)) -> raise (Failure "Not yet implemented")
+            | Bool -> raise (Failure "Detected relational operation on boolean")
+            | Tensor(_) -> raise (Failure "Not yet implemented")
             | Arrow(_,_) -> raise
                         (Failure "Relational operation on partially applied function")
         end
@@ -192,7 +192,7 @@ let rec check_expr expression table =
             | _ -> raise (Failure "Type error")
           end
       end
-    | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> Unit(Bool)
+    | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> Bool
         then raise (Failure "Non-boolean expression in if statement")
         else if type_of expr2 <> type_of expr3 then raise
         (Failure "Incompatible types in conditional expressions") else
@@ -223,5 +223,6 @@ let check (main_expr, funcs) =
   let global_table = build_fns_table StringMap.empty funcs in
   let check_main = check_expr main_expr global_table in
   match check_main with
-    | (Unit(_), _) -> (check_main, List.map (fun f -> check_func global_table f) funcs)
+    | Bool, _ | Nat, _ | Tensor(_), _ -> 
+            (check_main, List.map (fun f -> check_func global_table f) funcs)
     | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")

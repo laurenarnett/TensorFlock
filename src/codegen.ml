@@ -1,6 +1,7 @@
 module L = Llvm
 module A = Ast
 open Sast
+open Semant
 
 module StringMap = Map.Make(String)
 let context = L.global_context ()
@@ -12,10 +13,6 @@ let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
 
-let ltype_of_typ = function 
-    A.Unit(A.Nat) -> nat_t
-  | A.Unit(A.Bool) -> bool_t
-  | _ -> raise (Failure "Not yet implemented")
 
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
@@ -40,6 +37,16 @@ let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
 
 let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
+
+let rec ltype_of_typ = function 
+    A.Nat -> nat_t
+  | A.Bool -> bool_t
+  | A.Tensor([]) -> float_t
+  | A.Tensor(_) -> tensor_t
+  (* All remaining types are arrow types *)
+  | ts -> L.function_type (List.rev (list_of_type ts) |> List.hd |> ltype_of_typ) 
+          (list_of_type ts |> but_last |> List.map ltype_of_typ |> Array.of_list)
+
 
 let lookup name global_vars = try StringMap.find name global_vars
                     with Not_found -> raise (Failure "WIP")
@@ -90,7 +97,7 @@ let rec codegen_sexpr (typ, detail) map builder =
 
 
   match typ with
-  | A.Unit(A.Nat) ->
+  | A.Nat ->
     begin
       match detail with
       | SLiteral(i) -> L.const_int nat_t i
@@ -114,7 +121,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
-  | A.Unit(A.Bool) ->
+  | A.Bool ->
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
@@ -144,7 +151,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   (* Tensor of empty shape corresponds to single floating point number *)
-  | A.Unit(A.Tensor([])) -> 
+  | A.Tensor([]) -> 
     begin
       match detail with  
       | SFliteral(s) -> L.const_float_of_string float_t s
@@ -182,7 +189,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SApp(_,_) -> raise (Failure "Functions not yet implemented")
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | A.Unit(A.Tensor(_shape)) ->
+  | A.Tensor(_shape) ->
     begin
       match detail with
       | STLit(contents, literal_shape) -> 
@@ -233,43 +240,17 @@ let translate sprogram =
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
-  let handle_const typ = match typ with
-      A.Nat -> L.const_int nat_t 0
-    | A.Bool -> L.const_int bool_t 0
-    | A.Tensor([]) -> L.const_float float_t 0.
-    | A.Tensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
-  in
-
-  (* Declare global variables; save each value in a map *)
-  let the_global_vars = 
-    let global_var map (typ, name) = 
-      let init = handle_const typ
-    in StringMap.add name (L.define_global name init the_module) map
-  in List.fold_left 
-        begin
-          fun map fn ->
-            match fn.stype with
-            | A.Unit(t) -> global_var map (t, fn.sfname)
-            | A.Arrow(_, _) -> map (* do nothing for now *)
-        end
-        StringMap.empty (snd sprogram) in
-
-  let _codegen_globals = 
-    List.map (fun sfunc -> L.build_store 
-                  (codegen_sexpr sfunc.sfexpr the_global_vars builder)
-                  (lookup sfunc.sfname the_global_vars) builder) 
-  (snd sprogram) in
-  let the_expression = codegen_sexpr (fst sprogram) the_global_vars builder
+  let the_expression = codegen_sexpr (fst sprogram) StringMap.empty builder
   in ignore @@ (match fst (fst sprogram) with 
-    | A.Unit(A.Nat) -> L.build_call printf_func [| int_format_str ; the_expression |]
+    | A.Nat -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
-    | A.Unit(A.Bool) -> L.build_call printf_func [| bool_format_str ; 
+    | A.Bool -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
-    | A.Unit(A.Tensor([])) -> L.build_call printf_func 
+    | A.Tensor([]) -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | A.Unit(A.Tensor(_)) -> 
+    | A.Tensor(_) -> 
         let _ = L.build_call print_tensor_func [| the_expression |] 
             "print_tensor" builder in
         L.build_call tdelete_func [| the_expression |] "free_tensor" builder
