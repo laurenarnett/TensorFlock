@@ -19,7 +19,7 @@ and sexpr_detail =
 type sfunc = {
     sfname : string;
     stype : typ;
-    sfparams : string list;
+    sfparams : (typ * string) list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -44,7 +44,8 @@ let rec string_of_sexpr_detail e = match e with
       string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
       string_of_sexpr sexpr2
     | SApp(sexpr1, sexprs) ->
-      string_of_sexpr sexpr1 ^ " " ^ String.concat " " @@ List.map string_of_sexpr sexprs
+        string_of_sexpr sexpr1 ^ "[ " ^ 
+        String.concat "," (List.map string_of_sexpr sexprs) ^ "]"
     | SCondExpr(sexpr1, sexpr2, sexpr3) ->
       "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
       ^ " else " ^ string_of_sexpr sexpr3
@@ -53,7 +54,7 @@ and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_typ t
 
 let rec string_of_sfunc sfunc =
-  "(" ^ sfunc.sfname ^ (String.concat " " sfunc.sfparams)
+  "(" ^ sfunc.sfname ^ (String.concat " " (List.map snd sfunc.sfparams))
   ^ " : " ^ string_of_typ sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
