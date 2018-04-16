@@ -50,6 +50,9 @@ let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_mod
  * a real bug. *)
 let lookup name map = StringMap.find name map
 
+let dump_env map = StringMap.iter (fun name value -> print_endline
+    (name ^ " bound to " ^ (L.string_of_llvalue value))) map
+
 let rec codegen_sexpr (typ, detail) map builder = 
   let cond_expr pred cons alt = 
       (* Wholesale copying of the Kaleidescope tutorial's conditional
@@ -128,7 +131,8 @@ let rec codegen_sexpr (typ, detail) map builder =
             let ipow_func = L.declare_function "ipow" ipow_t the_module in
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
-      | SId(s) -> L.build_load (lookup s map) s builder
+      | SId(s) -> 
+              L.build_load (lookup s map) s builder
       | SApp(fn, params) -> fn_call fn params builder
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
@@ -241,39 +245,47 @@ let rec codegen_sexpr (typ, detail) map builder =
     end
   | _ -> raise (Failure "Not yet implemented")
 
-(* Given an sfunc, declare it in the_module, set the names of its parameters,
- * and return a new map with the environment of names bound to llvalues 
+(* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let codegen_proto sfunc map = 
+let codegen_proto env sfunc = 
   let the_function = 
       L.define_function (sfunc.sfname) (ltype_of_typ sfunc.stype) the_module in
-  let the_map = 
-      List.fold_left2 (fun env param value ->
-          L.set_value_name param value;
-          StringMap.add param value env
-          ) 
-      map sfunc.sfparams (Array.to_list (L.params the_function))
-  in 
-  the_map
+  StringMap.add sfunc.sfname the_function env
 
-let codegen_body map sfunc = 
+
+let codegen_body env sfunc = 
     let the_function = match L.lookup_function sfunc.sfname the_module with
         | Some f -> f
         | None -> raise (Failure "internal error - undefined function")
         in
-    let bb = L.append_block context (sfunc.sfname ^ "_entry") the_function in
+    (* let bb = L.append_block context (sfunc.sfname ^ "_entry") the_function in *)
     let fn_builder = L.builder_at_end context (L.entry_block the_function) in
-    L.position_at_end bb fn_builder;
-    let ret_val = codegen_sexpr sfunc.sfexpr map fn_builder in
+    (* L.position_at_end bb fn_builder; *)
+
+    (* Allocate function parameters:
+        * Returns a new env *)
+    let alloc_param env (typ, name) llval = 
+        L.set_value_name name llval;
+        let alloca = L.build_alloca (ltype_of_typ typ) name fn_builder in
+        ignore @@ L.build_store llval alloca fn_builder;
+        StringMap.add name alloca env in
+
+    let env = List.fold_left2 alloc_param 
+        env sfunc.sfparams (Array.to_list @@ L.params the_function) in
+
+    let ret_val = codegen_sexpr sfunc.sfexpr env fn_builder in
+    let _ = L.build_ret ret_val fn_builder in 
+    (* Return the new environemnt *)
     Llvm_analysis.assert_valid_function the_function;
-    L.build_ret ret_val fn_builder
+    env
 
 
 let translate sprogram =
-  let env = List.fold_left (fun map sfunc -> 
-      codegen_proto sfunc map
-    ) StringMap.empty (snd sprogram) in
-  ignore @@ List.map (codegen_body env) (snd sprogram);
+  (* Declare all defined functions *)
+  let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
+  dump_env env;
+  (* Build their bodies *)
+  let env = List.fold_left codegen_body env (snd sprogram) in
 
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
@@ -284,7 +296,7 @@ let translate sprogram =
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
-  let the_expression = codegen_sexpr (fst sprogram) StringMap.empty builder
+  let the_expression = codegen_sexpr (fst sprogram) env builder
   in ignore @@ (match fst (fst sprogram) with 
     | A.Nat -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder

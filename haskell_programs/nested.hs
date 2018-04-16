@@ -1,8 +1,5 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
-import Prelude (IO, Int, (*), (-), print, (==))
 main :: IO ()
-main = print (fac 5)
+main = return ()
 
 fac :: Int -> Int
 fac n = fac' 1 n
