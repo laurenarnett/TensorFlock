@@ -38,5 +38,6 @@ RUN ln -s /usr/bin/clang-3.8 /usr/bin/clang
 
 # Installing handy packages
 RUN apt-get install -y man-db valgrind
+RUN cd $HOME && wget http://releases.llvm.org/2.9/llvm-gcc4.2-2.9-x86_64-linux.tar.bz2 && tar xvjf llvm-gcc4.2-2.9-x86_64-linux.tar.bz2 && rm llvm-gcc4.2-2.9-x86_64-linux.tar.bz2
 
 ENTRYPOINT ["/bin/bash"]
