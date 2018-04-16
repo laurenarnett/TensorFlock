@@ -24,7 +24,7 @@ let rec ltype_of_typ = function
     A.Nat -> nat_t
   | A.Bool -> bool_t
   | A.Tensor([]) -> float_t
-  | A.Tensor(_) -> tensor_t
+  | A.Tensor(_) -> L.pointer_type tensor_t
   (* All remaining types are arrow types *)
   | ts -> L.function_type (List.rev (list_of_type ts) |> List.hd |> ltype_of_typ) 
           (list_of_type ts |> but_last |> List.map ltype_of_typ |> Array.of_list)
@@ -50,8 +50,10 @@ let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_mod
  * a real bug. *)
 let lookup name map = StringMap.find name map
 
-let dump_env map = StringMap.iter (fun name value -> print_endline
-    (name ^ " bound to " ^ (L.string_of_llvalue value))) map
+let dump_env map = StringMap.iter (fun name _value -> print_endline
+    (name ^ " bound to " ^ ""
+    (* (L.string_of_llvalue value) *)
+    )) map
 
 let rec codegen_sexpr (typ, detail) map builder = 
   let cond_expr pred cons alt = 
@@ -110,6 +112,9 @@ let rec codegen_sexpr (typ, detail) map builder =
       (fname ^ "_call") builder
     in
 
+  let handle_id s = match L.lookup_function s the_module with
+              None -> L.build_load (lookup s map) s builder
+            | Some f -> L.build_call f [||] s builder in
 
   match typ with
   | A.Nat ->
@@ -131,8 +136,7 @@ let rec codegen_sexpr (typ, detail) map builder =
             let ipow_func = L.declare_function "ipow" ipow_t the_module in
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
-      | SId(s) -> 
-              L.build_load (lookup s map) s builder
+      | SId(s) -> handle_id s
       | SApp(fn, params) -> fn_call fn params builder
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
@@ -141,7 +145,7 @@ let rec codegen_sexpr (typ, detail) map builder =
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
-      | SId(s) -> L.build_load (lookup s map) s builder
+      | SId(s) -> handle_id s
       | SBoolop(sexpr1, bop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
@@ -173,7 +177,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SFliteral(s) -> L.const_float_of_string float_t s
       | SUnop(A.Neg, sexpr) -> 
         L.build_fneg (codegen_sexpr sexpr map builder) "negfloattmp" builder
-      | SId(s) -> L.build_load (lookup s map) s builder
+      | SId(s) -> handle_id s
       | SAop(sexpr1, aop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
@@ -240,7 +244,7 @@ let rec codegen_sexpr (typ, detail) map builder =
                tshape_ptr';
                tcontents_ptr'|]
             "tensor_ptr" builder in the_ptr
-      | SId(s) -> L.build_load (lookup s map) s builder
+      | SId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented")
@@ -248,8 +252,11 @@ let rec codegen_sexpr (typ, detail) map builder =
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
 let codegen_proto env sfunc = 
-  let the_function = 
-      L.define_function (sfunc.sfname) (ltype_of_typ sfunc.stype) the_module in
+  let constant_func = List.length sfunc.sfparams = 0 in
+  let the_typ = if constant_func then L.function_type (ltype_of_typ sfunc.stype) [||]
+    else ltype_of_typ sfunc.stype in
+  
+  let the_function = L.define_function (sfunc.sfname) the_typ the_module in
   StringMap.add sfunc.sfname the_function env
 
 
@@ -270,20 +277,20 @@ let codegen_body env sfunc =
         ignore @@ L.build_store llval alloca fn_builder;
         StringMap.add name alloca env in
 
-    let env = List.fold_left2 alloc_param 
-        env sfunc.sfparams (Array.to_list @@ L.params the_function) in
+    let env' = List.fold_left2 alloc_param 
+        env sfunc.sfparams (L.params the_function |> Array.to_list) in
 
-    let ret_val = codegen_sexpr sfunc.sfexpr env fn_builder in
+    let ret_val = codegen_sexpr sfunc.sfexpr env' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
     (* Return the new environemnt *)
     Llvm_analysis.assert_valid_function the_function;
-    env
+
+    env'
 
 
 let translate sprogram =
   (* Declare all defined functions *)
   let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
-  dump_env env;
   (* Build their bodies *)
   let env = List.fold_left codegen_body env (snd sprogram) in
 
