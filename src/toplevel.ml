@@ -20,7 +20,7 @@ let () =
   let ast = Parser.program Scanner.token lexbuf in
   match !action with
      Ast -> print_string (Ast.string_of_program ast)
-   | Sast -> print_string (Sast.string_of_sprogram (Semant.check ast))
+   | Sast -> print_string (Sast.string_of_sprogram (Semant.check ast |> Lift.rename_sprogram))
    | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate (Semant.check ast)))
    | Compile -> let mdl = Codegen.translate (Semant.check ast) in
    Llvm_analysis.assert_valid_module mdl;
