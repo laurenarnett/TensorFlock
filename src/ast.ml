@@ -18,7 +18,6 @@ type aexpr =
     ALiteral of int
   | AId of string
   | AAop of aexpr * aop * aexpr
-  | AApp of aexpr * aexpr
 
 
 type shape = aexpr list
@@ -36,7 +35,7 @@ type expr =
   | Rop of expr * rop * expr
   | App of expr * expr
   | CondExpr of expr * expr * expr
-  | TensorIdx of string * expr list
+  | TensorIdx of string * string list
 
 type func_type = {
   ftyp_name : string;
@@ -83,9 +82,6 @@ let rec (string_of_aexpr : aexpr -> string) = function
   | AAop(e1, o, e2) ->
         "(" ^ string_of_aexpr e1 ^ " " ^ string_of_aop o ^ " "
             ^ string_of_aexpr e2 ^ ")"
-  | AApp(e1, e2) ->
-        "(" ^ string_of_aexpr e1 ^ " applied to " ^ string_of_aexpr e2 ^ ")"
-
 
 let rec (string_of_expr : expr -> string) = function
     Literal(l) -> "(" ^ string_of_int l ^ ")"
@@ -111,8 +107,7 @@ let rec (string_of_expr : expr -> string) = function
         "(" ^ " if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2
             ^ " else " ^ string_of_expr e3 ^ ")"
   | TensorIdx(id, idxs) ->
-        "(" ^ id ^ "[" ^ String.concat ", "
-            (List.map string_of_expr idxs) ^ "]" ^ ")"
+        "(" ^ id ^ "[" ^ String.concat ", " (idxs) ^ "]" ^ ")"
 
 
 let rec string_of_typ = function

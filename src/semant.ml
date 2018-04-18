@@ -22,10 +22,9 @@ let build_fns_table enclosing fns =
   let rec ids_of_aexpr = function
     | ALiteral(_) -> []
     | AId(s) -> [s]
-    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2
-    | AApp(e1, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
-  let ids_of_shape shape =
-    List.flatten @@
+    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
+  let ids_of_shape shape = 
+    List.flatten @@ 
     List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
   let rec ids_of_type = function
       Bool | Nat -> []
