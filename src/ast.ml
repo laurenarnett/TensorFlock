@@ -22,8 +22,7 @@ type aexpr =
 
 
 type shape = aexpr list
-type unit_type = Bool | Nat | Tensor of shape
-type typ = Unit of unit_type | Arrow of typ * typ
+type typ = Nat | Bool | Tensor of shape | Arrow of typ * typ
 
 type expr =
     Literal of int
@@ -116,13 +115,10 @@ let rec (string_of_expr : expr -> string) = function
             (List.map string_of_expr idxs) ^ "]" ^ ")"
 
 
-let string_of_unit_type = function
+let rec string_of_typ = function
     Bool -> "Bool"
   | Nat -> "Nat"
   | Tensor s -> "T<" ^ String.concat ", " (List.map string_of_aexpr s) ^ ">"
-
-let rec string_of_typ = function
-    Unit(t) -> string_of_unit_type t
   | Arrow(t, ts) -> string_of_typ t ^ " -> " ^ string_of_typ ts
 
 let rec string_of_func_type (ftype : func_type) =
