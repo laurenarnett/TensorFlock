@@ -20,6 +20,7 @@ type sfunc = {
     sfname : string;
     stype : typ;
     sfparams : (typ * string) list;
+    sindices : (aexpr * string) list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
