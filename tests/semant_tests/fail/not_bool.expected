@@ -1,0 +1,1 @@
+Fatal error: exception Failure("Declared type Bool -> Bool but received type Nat")
