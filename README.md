@@ -47,7 +47,33 @@ Our test runner checks three levels of compilation: parsing, semantic checking, 
 
 Parsing and semantic checking are verified on the basis of the exit code of the compilation process. Passing tests are expected to exit on 0, failing tests are expected to exit on some n > 0.
 
-In addition to the manner described above, passing codegen tests are also tested by comparing the output of the executed program with a canonical value. (The value is saved in a corresponding file with the extension `.pass` eg: `some_test.tf` => `some_test.pass`
+In addition to the manner described above, passing codegen tests are also tested by comparing the output of the executed program with a canonical value. (The value is saved in a corresponding file with the extension `.expected` eg: `some_test.tf` => `some_test.expected`
+
+### Test Suite
+Inside our `tests/semant_tests` directory are 16 passing tests and 8 failing tests. The following tests check for these features:
+- `pass/TLit.tf`: correctly outputting a `Tensor` literal
+- `pass/aop_add.tf`: addition of two `Nat`s, or integers
+- `pass/aop_div.tf`: division of two `Nat`s, or integers
+- `pass/aop_expt.tf`: exponentiation of a `Nat` by another `Nat`
+- `pass/aop_mod.tf`: modulo operation of two `Nat`s, or integers
+- `pass/aop_mul.tf`: multiplication of two `Nat`s, or integers
+- `pass/aop_sub.tf`: subtraction of two `Nat`s, or integers
+- `pass/boollit.tf`: correctly outputting a `Bool` literal
+- `pass/boolop_and.tf`: AND operation of two `Bool`s
+- `pass/boolop_or.tf`: OR operation of two `Bool`s
+- `pass/fliteral.tf`: correctly outputting a `float` literal, or a `Tensor` of 0 dimensions
+- `pass/id.tf`: declaring functions
+- `pass/literal.tf`: declaring `Nat` literals
+- `pass/rename.tf`: declaring same variable names in different scopes
+- `pass/rop_eq.tf`: relational == operation for two `Nat`s
+- `pass/scalar_mult.tf`: function that multiplies a `Nat` with a constant
+- `fail/TLit.tf`: inconsistent `Tensor` shape
+- `fail/funnyscope.tf`: variable with the same name used as both `Bool` and `Nat`
+- `fail/not_bool.tf`: function return type inconsistent with declaration (declared as `Bool`, returns `Nat`)
+- `fail/not_int.tf`: function return type inconsistent with declaration (declared as `Nat`, returns `Bool`)
+- `fail/scope_2d.tf`: undeclared variables used in an expression must be declared inside the immediate scope
+- `fail/shape_fn_conflict.tf`: tried to reuse a `Tensor` variable to declare its own shape
+- `fail/wrong_shape.tf`: `Tensor` variables with incorrect shapes
 
 ## Docker
 To ensure a consistent development environment we've created a Docker image with all external dependencies installed, as well as provide build targets to make, run, and test TensorFlock in a corresponding Docker containers.
