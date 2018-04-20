@@ -204,11 +204,11 @@ let rec check_expr expression table =
 (* If a function has a single type in its decl and the same
  * id appears in its definition raise error, else return true*)
 let recursive_check (ftyp, fdef) =
-  let {types=ftyp'; _} = ftyp in
+  let ftyp' = ftyp.types in
   let single_typ = match ftyp' with
     | Nat | Bool | Tensor(_) -> true
     | Arrow(_) -> false in
-  let {ftyp_name=fid; _} = ftyp in
+  let fid = ftyp.ftyp_name in
   let rec rec_def fexpr = match fexpr with
     | Literal(_) | Fliteral(_) | BoolLit(_) | TLit(_) -> false
     | Unop(_, e) -> rec_def e
@@ -219,8 +219,8 @@ let recursive_check (ftyp, fdef) =
     | CondExpr(e1, e2, e3) -> rec_def e1 && rec_def e2 && rec_def e3
     | TensorIdx(_, e) -> List.for_all rec_def e
     | Id(s) -> if s = fid then failwith "Recursively defined Nat/Bool/Tensor not permitted" else false in
-  let {main_expr=main_expr'; _} = fdef in
-  if single_typ && rec_def main_expr' then false else true
+  let main_expr = fdef.main_expr in
+  if single_typ && rec_def main_expr then false else true
 
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
