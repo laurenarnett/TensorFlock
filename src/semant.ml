@@ -210,8 +210,7 @@ let recursive_check (ftyp, fdef) =
     | Arrow(_) -> false in
   let {ftyp_name=fid; _} = ftyp in
   let rec rec_def fexpr = match fexpr with
-    | Literal(_) | Fliteral(_) | BoolLit(_) -> false
-    | TLit(e) -> List.for_all rec_def e
+    | Literal(_) | Fliteral(_) | BoolLit(_) | TLit(_) -> false
     | Unop(_, e) -> rec_def e
     | Aop(e1, _, e2) -> rec_def e1 && rec_def e2
     | Boolop(e1, _, e2) -> rec_def e1 && rec_def e2
