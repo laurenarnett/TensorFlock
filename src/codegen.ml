@@ -206,6 +206,9 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
           | A.Geq -> L.build_fcmp L.Fcmp.Oge lhs rhs "fgeqtemp" builder
         end
+      | SApp((_,SId("cast")), [param]) -> 
+        L.build_uitofp (codegen_sexpr param map builder) 
+          float_t "casted" builder
       | SApp(fn, params) -> fn_call fn params builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
@@ -286,7 +289,6 @@ let codegen_body env sfunc =
     Llvm_analysis.assert_valid_function the_function;
 
     env'
-
 
 let translate sprogram =
   (* Declare all defined functions *)
