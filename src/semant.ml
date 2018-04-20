@@ -7,6 +7,7 @@ module StringMap = Map.Make (String)
 (* symbols map to lists of types because 
  * this is how we represent the types * of functions *)
 type symbol_table = typ StringMap.t
+let base_map = StringMap.singleton "cast" (Arrow(Nat,Tensor([])))
 
 (* Create a table from a list of functions *)
 let build_fns_table enclosing fns = 
@@ -15,7 +16,7 @@ let build_fns_table enclosing fns =
     if StringMap.mem fdef.fdef_name table then raise
           (Failure ("attempting to redefine already defined symbol: " 
                     ^ fdef.fdef_name))
-    else StringMap.add fdef.fdef_name ftyp.types table) StringMap.empty fns in
+    else StringMap.add fdef.fdef_name ftyp.types table) base_map fns in
 
   (* Now add tensor shapes to the local_map *)
   let rec ids_of_aexpr = function
@@ -58,7 +59,7 @@ let build_local_table enclosing (ftyp, fdef) =
     List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure
      ("Non-linear pattern match encountered in definition of symbol " ^ param))
-    else StringMap.add param (typ) map) StringMap.empty types params in
+    else StringMap.add param (typ) map) base_map types params in
 
   let local_map = build_arg_map types params in
   (* Combine local map with enclosing map, 
