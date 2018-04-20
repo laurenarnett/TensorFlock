@@ -21,6 +21,7 @@ type sfunc = {
     stype : typ;
     sfparams : (typ * string) list;
     sindices : (aexpr * string) list;
+    slocals : (typ * string) list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
