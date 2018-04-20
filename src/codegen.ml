@@ -289,23 +289,12 @@ let codegen_body env sfunc =
     Llvm_analysis.assert_valid_function the_function;
 
     env'
-(*
-let cast_fn = 
-  let the_typ = L.function_type float_t [| nat_t |] in
-  let cast_proto = L.define_function "cast" the_typ the_module in
-  let fn_builder = L.builder_at_end context (L.entry_block cast_proto) in 
-  let alloca = L.build_alloca nat_t "nat" fn_builder in
-  ignore @@ L.build_store (Array.get (L.params cast_proto) 0) alloca fn_builder;
-  let ret_val = L.build_uitofp @@ Array.get (L.params cast_proto) 0 in
-  L.build_ret ret_val fn_builder
-*)
+
 let translate sprogram =
   (* Declare all defined functions *)
   let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
   (* Build their bodies *)
   let env = List.fold_left codegen_body env (snd sprogram) in
-  (* Add casting function *)
-(*  let env = StringMap.add "cast" cast_fn in*)
 
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
