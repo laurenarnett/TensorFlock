@@ -33,8 +33,8 @@ let rec last_stype styp = match styp with
 
 
 (* Create a table from a list of functions *)
-let build_fns_table enclosing fns =
-  let local_map' = List.fold_left
+let build_fns_table enclosing fns = 
+  let local_map = List.fold_left 
     (fun table (ftyp, fdef) ->
     if StringMap.mem fdef.fdef_name table then raise
           (Failure ("attempting to redefine already defined symbol: "
@@ -42,30 +42,7 @@ let build_fns_table enclosing fns =
     else StringMap.add fdef.fdef_name (styp_of_typ ftyp.types) table) 
         base_map fns in
 
-  (* Now add tensor shapes to the local_map *)
-  let rec ids_of_aexpr = function
-    | ALiteral(_) -> []
-    | AId(s) -> [s]
-    | AAop(e1, _, e2) -> ids_of_aexpr e1 @ ids_of_aexpr e2 in
-  let ids_of_shape shape = 
-    List.flatten @@ 
-    List.map (fun aexpr -> ids_of_aexpr aexpr) shape in
-  let rec ids_of_type = function
-      Bool | Nat -> []
-    | Tensor(shape) -> ids_of_shape shape
-    | Arrow(t1, t2) ->
-      ids_of_type t1 @ ids_of_type t2 in
-  let unique_shape_vars = List.sort_uniq compare @@ List.flatten @@
-    List.map (fun (ftyp, _) -> ids_of_type @@ ftyp.types) fns in
-
-  let local_map = List.fold_left
-    (fun table shape_var ->
-      if StringMap.mem shape_var table then raise
-          (Failure ("attempting to redefine already defined symbol: "
-                    ^ shape_var))
-      else StringMap.add shape_var SNat table) local_map' unique_shape_vars
-  in
-  (* Combine local map with enclosing map,
+  (* Combine local map with enclosing map, 
    * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
