@@ -20,14 +20,17 @@ let tensor_t = L.struct_type context [|
     L.pointer_type float_t; (* contents *)
   |]
 
-let rec ltype_of_typ = function 
-    A.Nat -> nat_t
-  | A.Bool -> bool_t
-  | A.Tensor([]) -> float_t
-  | A.Tensor(_) -> L.pointer_type tensor_t
+let rec ltype_of_styp = function 
+    SNat -> nat_t
+  | SBool -> bool_t
+  | STensor([]) -> float_t
+  | STensor(_) -> L.pointer_type tensor_t
   (* All remaining types are arrow types *)
-  | ts -> L.function_type (List.rev (list_of_type ts) |> List.hd |> ltype_of_typ) 
-          (list_of_type ts |> but_last |> List.map ltype_of_typ |> Array.of_list)
+  | ts -> let rec list_of_styp = function
+                | SNat -> [SNat] | SBool -> [SBool] | STensor(s) -> [STensor(s)]
+                | SArrow(t1, t2) -> list_of_styp t1 @ list_of_styp t2 in
+          L.function_type (List.rev (list_of_styp ts) |> List.hd |> ltype_of_styp) 
+          (list_of_styp ts |> but_last |> List.map ltype_of_styp |> Array.of_list)
 
 
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
@@ -117,7 +120,7 @@ let rec codegen_sexpr (typ, detail) map builder =
             | Some f -> L.build_call f [||] s builder in
 
   match typ with
-  | A.Nat ->
+  | SNat ->
     begin
       match detail with
       | SLiteral(i) -> L.const_int nat_t i
@@ -141,7 +144,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
-  | A.Bool ->
+  | SBool ->
     begin
       match detail with
       | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
@@ -171,7 +174,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   (* Tensor of empty shape corresponds to single floating point number *)
-  | A.Tensor([]) -> 
+  | STensor([]) -> 
     begin
       match detail with  
       | SFliteral(s) -> L.const_float_of_string float_t s
@@ -212,7 +215,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SApp(fn, params) -> fn_call fn params builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | A.Tensor(_shape) ->
+  | STensor(_shape) ->
     begin
       match detail with
       | STLit(contents, literal_shape) -> 
@@ -256,8 +259,8 @@ let rec codegen_sexpr (typ, detail) map builder =
  * This function has the side effect of mutating the module *)
 let codegen_proto env sfunc = 
   let constant_func = List.length sfunc.sfparams = 0 in
-  let the_typ = if constant_func then L.function_type (ltype_of_typ sfunc.stype) [||]
-    else ltype_of_typ sfunc.stype in
+  let the_typ = if constant_func then L.function_type (ltype_of_styp sfunc.stype) [||]
+    else ltype_of_styp sfunc.stype in
   
   let the_function = L.define_function (sfunc.sfname) the_typ the_module in
   StringMap.add sfunc.sfname the_function env
@@ -276,7 +279,7 @@ let codegen_body env sfunc =
         * Returns a new env *)
     let alloc_param env (typ, name) llval = 
         L.set_value_name name llval;
-        let alloca = L.build_alloca (ltype_of_typ typ) name fn_builder in
+        let alloca = L.build_alloca (ltype_of_styp typ) name fn_builder in
         ignore @@ L.build_store llval alloca fn_builder;
         StringMap.add name alloca env in
 
@@ -307,19 +310,19 @@ let translate sprogram =
 
   let the_expression = codegen_sexpr (fst sprogram) env builder
   in ignore @@ (match fst (fst sprogram) with 
-    | A.Nat -> L.build_call printf_func [| int_format_str ; the_expression |]
+    | SNat -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
-    | A.Bool -> L.build_call printf_func [| bool_format_str ; 
+    | SBool -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
-    | A.Tensor([]) -> L.build_call printf_func 
+    | STensor([]) -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | A.Tensor(_) -> 
+    | STensor(_) -> 
         let _ = L.build_call print_tensor_func [| the_expression |] 
             "print_tensor" builder in
         L.build_call tdelete_func [| the_expression |] "free_tensor" builder
-    | A.Arrow(_,_) -> raise (Failure "Internal error: semant failed")
+    | SArrow(_,_) -> raise (Failure "Internal error: semant failed")
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 

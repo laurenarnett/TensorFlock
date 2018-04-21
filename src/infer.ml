@@ -1,7 +1,29 @@
-(* Utility functions for tensor checking *)
+(* Inference on tensor shapes and maybe even general types, time permitting *)
 open Ast
 open Sast
 module StringMap = Map.Make (String)
+
+(* Tensor literal checking functions *)
+let rec flatten expr = match expr with (TLit(l)) -> (match l with
+  | Fliteral(_) :: _ -> l
+  | _ -> List.flatten (List.map flatten l))
+  | _ -> raise (Failure "can't flatten a non_tlit expr")
+
+let rec build_shape expr = match expr with
+  | Fliteral(_) -> []
+  | TLit(l) -> List.length l :: (build_shape (List.hd l))
+  | _ -> raise (Failure "Internal error: 
+                cannot call build_shape on non-tensor-literal expression")
+
+let rec verify expr = match expr with (TLit(l)) -> (match List.hd l with
+  | Fliteral(_) -> true
+  | TLit(x) -> List.for_all (fun c -> (match c with
+        | TLit(component) -> List.length component = List.length x
+        | _ -> raise (Failure "Invalid entity in tensor literal"))) l
+        && List.for_all (fun x -> x) (List.map verify l)
+  | _ -> raise (Failure "Invalid entity in tensor literal"))
+  | _ -> raise (Failure "internal error: can't verify non_tensor_literal")
+
 (* Given an id, the number that it is set to, and an aexpr, reduce the aexpr *)
 let rec eval env aexpr = match aexpr with
   | ALiteral num -> num
@@ -25,9 +47,9 @@ let rec env_of_funcs funcs =
   let env_of_func env (ftyp, fdef) = match ftyp.types, fdef.main_expr with 
     | Tensor(shape), TLit(contents) ->
         let ints = 
-        if Semant.verify @@ TLit(contents) 
-            then Semant.build_shape @@ TLit(contents)
-        else failwith (ftyp.ftyp_name ^ " is an invalid tensor literal") in
+        if verify @@ TLit(contents) 
+            then build_shape @@ TLit(contents)
+        else failwith ("Invalid tensor literal") in
       List.fold_left2 (fun map dim num ->
           (match dim with
           | ALiteral _ -> env
@@ -61,6 +83,16 @@ let rec deduce_shapes funcs =
       | Nat | Bool | Tensor [] -> typ
       | Tensor shape -> Tensor (List.map (fun s -> ALiteral(eval env s)) shape)
       | Arrow(t1, t2) -> Arrow(replace_type env t1, replace_type env t2) in
-    List.map (fun (ft, fd) -> 
+    let funcs' = List.map (fun (ft, fd) -> 
         {ft with types = replace_type env ft.types},
-        {fd with scope = deduce_shapes fd.scope }) funcs
+        {fd with scope = deduce_shapes fd.scope }) funcs in
+    (* Keep track of replaced ids by just adding a lot of global vars to the
+     * program *)
+    let new_funcs = StringMap.fold
+        (fun name i acc -> 
+            ({ftyp_name = name; types = Nat},
+            {fdef_name = name; fparams = []; main_expr = Literal i; scope = []})
+            :: acc) env funcs' in
+    new_funcs
+
+

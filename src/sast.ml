@@ -3,7 +3,7 @@ module StringMap = Map.Make (String)
 (* By this point in the pipeline, we should have been able to deduce all of the
  * shapes of tensors, so that we don't need to let them be arbitrary aexprs
  * anymore *)
-type styp = Bool | Nat | Tensor of int list | Arrow of styp * styp
+type styp = SBool | SNat | STensor of int list | SArrow of styp * styp
 
 type sexpr = styp * sexpr_detail
 and sexpr_detail =
@@ -34,11 +34,11 @@ type sfunc = {
 type sprogram = sexpr * sfunc list
 
 (* Pretty printing *)
-let rec string_of_styp : styp -> string = function
-    | Bool -> "Bool"
-    | Nat -> "Nat"
-    | Tensor shape -> "T<" ^ String.concat "," (List.map string_of_int shape) ^ ">"
-    | Arrow(t1, t2) -> string_of_styp t1 ^ " -> " ^ string_of_styp t2
+let rec string_of_styp = function
+    | SBool -> "Bool"
+    | SNat -> "Nat"
+    | STensor shape -> "T<" ^ String.concat "," (List.map string_of_int shape) ^ ">"
+    | SArrow(t1, t2) -> string_of_styp t1 ^ " -> " ^ string_of_styp t2
 
 let rec string_of_sexpr_detail e = match e with
     | SLiteral(i) -> string_of_int i
