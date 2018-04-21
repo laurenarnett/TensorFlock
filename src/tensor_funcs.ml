@@ -2,7 +2,6 @@
 open Ast
 open Sast
 module StringMap = Map.Make (String)
-
 (* Given an id, the number that it is set to, and an aexpr, reduce the aexpr *)
 let rec eval env aexpr = match aexpr with
   | ALiteral num -> num
@@ -20,11 +19,15 @@ let rec eval env aexpr = match aexpr with
              pow' 1 base expt in
         pow (eval env e1) (eval env e2)
 
-(* Given a sprogram, collect all tensor literal shapes and bind then to ids so
+(* Given a program, collect all tensor literal shapes and bind then to ids so
  * that we can reduce all shape expressions *)
-let rec env_of_sfuncs sfuncs = 
-  let env_of_sfunc env sfunc = match sfunc.sfexpr with 
-    | Tensor(shape), STLit(_, ints) ->
+let rec env_of_funcs funcs = 
+  let env_of_func env (ftyp, fdef) = match ftyp.types, fdef.main_expr with 
+    | Tensor(shape), TLit(contents) ->
+        let ints = 
+        if Semant.verify @@ TLit(contents) 
+            then Semant.build_shape @@ TLit(contents)
+        else failwith (ftyp.ftyp_name ^ " is an invalid tensor literal") in
       List.fold_left2 (fun map dim num ->
           (match dim with
           | ALiteral _ -> env
@@ -38,6 +41,8 @@ let rec env_of_sfuncs sfuncs =
                             as the shape of a tensor literal")
         ) env shape ints
     | _ -> env in
+
+
   let combine_envs env_list = List.fold_left (fun acc map ->
         (StringMap.union (fun id s1 s2 -> 
           if s1 = s2 then Some s2 else failwith 
@@ -46,16 +51,16 @@ let rec env_of_sfuncs sfuncs =
         ) StringMap.empty env_list in
         
   combine_envs @@ 
-    List.map (env_of_sfunc StringMap.empty) sfuncs @
+    List.map (env_of_func StringMap.empty) funcs @
     (* Recurse over all inner scopes *)
-    List.map (fun sf -> env_of_sfuncs sf.sscope) sfuncs
+    List.map (fun f -> env_of_funcs f.scope) (List.map snd funcs)
 
-let rec deduce_shapes sfuncs = 
-    let env = env_of_sfuncs sfuncs in
-    (* replace_type : env -> sfunc -> sfunc *)
-    let rec replace_type env stype = match stype with
-      | Nat | Bool | Tensor [] -> stype
+let rec deduce_shapes funcs = 
+    let env = env_of_funcs funcs in
+    let rec replace_type env typ = match typ with
+      | Nat | Bool | Tensor [] -> typ
       | Tensor shape -> Tensor (List.map (fun s -> ALiteral(eval env s)) shape)
       | Arrow(t1, t2) -> Arrow(replace_type env t1, replace_type env t2) in
-    List.map (fun sf -> {sf with stype = replace_type env sf.stype; 
-                 sscope = deduce_shapes sf.sscope }) sfuncs
+    List.map (fun (ft, fd) -> 
+        {ft with types = replace_type env ft.types},
+        {fd with scope = deduce_shapes fd.scope }) funcs

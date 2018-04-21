@@ -1,6 +1,11 @@
 open Ast
+module StringMap = Map.Make (String)
+(* By this point in the pipeline, we should have been able to deduce all of the
+ * shapes of tensors, so that we don't need to let them be arbitrary aexprs
+ * anymore *)
+type styp = Bool | Nat | Tensor of int list | Arrow of styp * styp
 
-type sexpr = typ * sexpr_detail
+type sexpr = styp * sexpr_detail
 and sexpr_detail =
     SLiteral of int
   | SBoolLit of bool
@@ -18,10 +23,10 @@ and sexpr_detail =
 
 type sfunc = {
     sfname : string;
-    stype : typ;
-    sfparams : (typ * string) list;
-    sindices : (aexpr * string) list;
-    slocals : (typ * string) list;
+    stype : styp;
+    sfparams : (styp * string) list;
+    sindices : int StringMap.t;
+    slocals : (styp * string) list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -29,6 +34,12 @@ type sfunc = {
 type sprogram = sexpr * sfunc list
 
 (* Pretty printing *)
+let rec string_of_styp : styp -> string = function
+    | Bool -> "Bool"
+    | Nat -> "Nat"
+    | Tensor shape -> "T<" ^ String.concat "," (List.map string_of_int shape) ^ ">"
+    | Arrow(t1, t2) -> string_of_styp t1 ^ " -> " ^ string_of_styp t2
+
 let rec string_of_sexpr_detail e = match e with
     | SLiteral(i) -> string_of_int i
     | SFliteral(s) -> s
@@ -53,11 +64,11 @@ let rec string_of_sexpr_detail e = match e with
       ^ " else " ^ string_of_sexpr sexpr3
     | STensorIdx(_,_,_) -> "Not yet implemented"
 and string_of_sexpr (t, det) =
-  string_of_sexpr_detail det ^ " : " ^ string_of_typ t
+  string_of_sexpr_detail det ^ " : " ^ string_of_styp t
 
 let rec string_of_sfunc sfunc =
   "(" ^ sfunc.sfname ^ (String.concat " " (List.map snd sfunc.sfparams))
-  ^ " : " ^ string_of_typ sfunc.stype ^ ") = "
+  ^ " : " ^ string_of_styp sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
   ^ "\n}"

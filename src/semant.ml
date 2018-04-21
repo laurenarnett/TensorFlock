@@ -259,8 +259,10 @@ let rec check_func enclosing (ftyp, fdef) =
   if recursive_check (ftyp, fdef) && last_type ftyp.types = fst this_sexpr then
 
     { sfname = ftyp.ftyp_name; stype = ftyp.types;
-      sfparams = sfparams; sfexpr = this_sexpr;
-      sscope = List.map (fun f -> check_func table f) fdef.scope }
+      sindices = []; (* for now... *)
+      slocals = []; (* also for now *)
+      sfparams = sfparams; sfexpr = this_sexpr; 
+      sscope = List.map (check_func table) fdef.scope }
 
     else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
            ^ " but received type " ^ string_of_typ @@ fst this_sexpr))
