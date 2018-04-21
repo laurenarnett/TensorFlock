@@ -51,6 +51,7 @@ let build_local_table enclosing (ftyp, fdef) =
   let types = but_last @@ list_of_type ftyp.types 
   and params = fdef.fparams in
 
+  (* TODO: refactor this garbage*)
   (* (1* Filter out any names declared with indices on the LHS of the function def *1) *)
   (* let args, indices = List.fold_right2 *) 
   (*   (fun param typ (arg, idx) -> *) 
