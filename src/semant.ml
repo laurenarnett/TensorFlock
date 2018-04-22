@@ -98,12 +98,7 @@ let string_of_table map =
 
 
 let rec lookup_symb symb table =
-    (* Find utility exists in ocaml 4.06 but Edwards doesn't have that version so
-     * we write it again here *)
-    let find' key map =
-        try Some (StringMap.find key map)
-        with Not_found -> None in
-  match find' symb table with
+  match StringMap.find_opt symb table with
     | None -> raise (Failure ("Encountered undefined symbol: " ^ symb))
     | Some typ_list -> typ_list
 
