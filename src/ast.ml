@@ -35,7 +35,7 @@ type expr =
   | Rop of expr * rop * expr
   | App of expr * expr
   | CondExpr of expr * expr * expr
-  | TensorIdx of string * string list
+  | TensorIdx of expr * string list
 
 type func_type = {
   ftyp_name : string;
@@ -106,8 +106,8 @@ let rec (string_of_expr : expr -> string) = function
   | CondExpr(e1, e2, e3) ->
         "(" ^ " if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2
             ^ " else " ^ string_of_expr e3 ^ ")"
-  | TensorIdx(id, idxs) ->
-        "(" ^ id ^ "[" ^ String.concat ", " (idxs) ^ "]" ^ ")"
+  | TensorIdx(e, idxs) ->
+        "(" ^ string_of_expr e ^ "[" ^ String.concat ", " (idxs) ^ "]" ^ ")"
 
 
 let rec string_of_typ = function
