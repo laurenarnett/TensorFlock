@@ -210,8 +210,10 @@ let recursive_check (ftyp, fdef) =
     | Rop(e1, _, e2) -> rec_def e1 && rec_def e2
     | App(e1, e2) -> rec_def e1 && rec_def e2
     | CondExpr(e1, e2, e3) -> rec_def e1 && rec_def e2 && rec_def e3
-    | TensorIdx(_, e) -> List.for_all rec_def e
-    | Id(s) -> if s = fid then failwith "Recursively defined Nat/Bool/Tensor not permitted" else false in
+    | TensorIdx(_, e) -> false (* For now, but I doubt this could actually be a problem*)
+    | Id(s) -> if s = fid then 
+        failwith "Recursively defined Nat/Bool/Tensor not permitted" 
+        else false in
   let main_expr = fdef.main_expr in
   if single_typ && rec_def main_expr then false else true
 
