@@ -14,7 +14,7 @@ let rec styp_of_typ = function
   | Nat -> SNat
   | Tensor s -> STensor (List.map (fun ax -> match ax with
              | ALiteral i -> i
-             | _ -> failwith "internal error: 
+             | _ -> failwith "internal error:
                     we shouldn't have any unresolved shapes here") s)
   | Arrow (t1, t2) -> SArrow (styp_of_typ t1, styp_of_typ t2)
 
@@ -33,22 +33,22 @@ let rec last_stype styp = match styp with
 
 
 (* Create a table from a list of functions *)
-let build_fns_table enclosing fns = 
-  let local_map = List.fold_left 
+let build_fns_table enclosing fns =
+  let local_map = List.fold_left
     (fun table (ftyp, fdef) ->
     if StringMap.mem ftyp.ftyp_name table then
           failwith ("attempting to redefine already defined symbol: "
                     ^ fdef.fdef_name)
-    else StringMap.add ftyp.ftyp_name (styp_of_typ ftyp.types) table) 
+    else StringMap.add ftyp.ftyp_name (styp_of_typ ftyp.types) table)
         base_map fns in
 
-  (* Combine local map with enclosing map, 
+  (* Combine local map with enclosing map,
    * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
 (* Create a local table for a single function's arguments *)
-let build_local_table enclosing (ftyp, fdef) = 
-  let types = but_last @@ list_of_type ftyp.types 
+let build_local_table enclosing (ftyp, fdef) =
+  let types = but_last @@ list_of_type ftyp.types
   and params = fdef.fparams in
 
   let build_arg_map types params =
@@ -67,15 +67,15 @@ let string_of_table map =
            ) (StringMap.bindings map)) ^ "\n"
 
 (* Type compare for Aops. Simple equality is not enough *)
-let rec compare_styp t1 t2 = 
+let rec compare_styp t1 t2 =
     (* (1* Debug *1) *)
     (* print_endline @@ "Compared types " ^ string_of_styp t1 ^ " and " ^ *)
     (* string_of_styp t2; *)
     match t1 with
     | SNat | SBool -> t1 = t2
     (* make this more sophisticated later *)
-    | STensor _ -> (match t2 with STensor _ -> true | _ -> false) 
-    | SArrow (t1', t2') -> 
+    | STensor _ -> (match t2 with STensor _ -> true | _ -> false)
+    | SArrow (t1', t2') ->
             match t2 with SArrow(t1'', t2'') ->
                   compare_styp t1' t1'' && compare_styp t2' t2''
                 | _ -> false
@@ -90,29 +90,29 @@ let rec check_expr expression table indices =
     | x :: y :: ys -> if x = y then x else find_dup (y :: ys) in
   let type_of expr = fst @@ fst (check_expr expr table indices) in
   (* Extract indices from expr *)
-  let rec extract indices expr = 
-      let combine map1 map2 = StringMap.union (fun _ n1 n2 -> 
+  let rec extract indices expr =
+      let combine map1 map2 = StringMap.union (fun _ n1 n2 ->
             if n1 = n2 then Some n2 else failwith @@ "Error - tried to rebind
             indices in " ^ string_of_expr expr) map1 map2 in
-      match expr with 
+      match expr with
     | Literal _ | Fliteral _ | BoolLit _ | TLit _ | TFile _ | Id _ -> indices
     | TensorIdx(e, ixs) -> (match type_of e with
-      | STensor(shape) -> List.fold_left2 (fun acc idx num -> 
+      | STensor(shape) -> List.fold_left2 (fun acc idx num ->
               match StringMap.find_opt idx acc with
                 | None -> StringMap.add idx num acc
-                | Some num' -> if num' = num then acc else 
+                | Some num' -> if num' = num then acc else
                 failwith @@ "Cannot rebind index " ^ idx
                 ^ ". It was already bound to " ^ string_of_int num'
                 ^ " and you are trying to rebind it to " ^ string_of_int num
               ) indices ixs shape
-      | t -> failwith @@ 
+      | t -> failwith @@
              "Type error: cannot index expression of type " ^ string_of_styp t
     )
     | Unop(_, e) -> extract indices e
     | Aop(e1, _, e2) | Boolop(e1, _, e2) | Rop(e1, _, e2) | App(e1, e2)
         -> combine (extract indices e1) (extract indices e2)
     | CondExpr(e1, e2, e3) -> combine (extract indices e3) @@
-        combine (extract indices e1) (extract indices e2) 
+        combine (extract indices e1) (extract indices e2)
   in
   let indices = extract indices expression in
 
@@ -128,7 +128,7 @@ let rec check_expr expression table indices =
     | Literal(i) -> (SNat , SLiteral(i)), indices
     | Fliteral(s) -> (STensor([]), SFliteral(s)), indices
     | BoolLit(b) -> (SBool, SBoolLit(b)), indices
-    | TLit(_) -> 
+    | TLit(_) ->
             let t = Infer.verify expression in if t then
             let shape = Infer.build_shape expression in
             let components = Infer.flatten expression in
@@ -144,7 +144,7 @@ let rec check_expr expression table indices =
       * http://camltastic.blogspot.com/2008/09/
       * tip-read-all-lines-from-file-most.html
       * *)
-            let readfile fpath = 
+            let readfile fpath =
               let lines = ref [] in
               let channel = open_in fpath in
               try
@@ -153,54 +153,54 @@ let rec check_expr expression table indices =
                 done; []
               with End_of_file ->
                 close_in channel;
-                List.rev !lines in 
+                List.rev !lines in
             let tensor_string = readfile filepath in
-            let shape = List.filter 
-                (fun substring -> String.length substring > 0) 
+            let shape = List.filter
+                (fun substring -> String.length substring > 0)
                 (String.split_on_char ' ' (List.hd tensor_string)) in
             let shape' = List.map int_of_string shape in
-            let components = (String.split_on_char ' ' (String.concat " " 
+            let components = (String.split_on_char ' ' (String.concat " "
                                                 (List.tl tensor_string))) in
             (STensor(shape'), STLit((components), shape')), indices
     | Id(s) -> (lookup_symb s, SId(s)), indices
-    | Unop(Neg, expr) -> begin 
-        match type_of expr with 
+    | Unop(Neg, expr) -> begin
+        match type_of expr with
           STensor [] ->
             (STensor [], SUnop(Neg, fst @@ check_expr expr table indices)), indices
-        | _ -> failwith @@ 
+        | _ -> failwith @@
         "Type error: cannot negate something that isn't an indexed tensor.
         Error in expression: " ^ string_of_expr expr
     end
-    | Aop(expr1, op, expr2) -> 
+    | Aop(expr1, op, expr2) ->
         if not @@ compare_styp (type_of expr1) (type_of expr2) then
         failwith "Detected arithmetic operation on incompatible types" else
         begin
             match type_of expr1, type_of expr2 with
             | SNat, SNat -> (SNat,
-                    SAop((fst @@ check_expr expr1 table indices), 
+                    SAop((fst @@ check_expr expr1 table indices),
                         op, (fst @@ check_expr expr2 table indices))), indices
             | SBool, _ -> failwith "Detected arithmetic operation on boolean"
             | STensor([]), STensor([]) -> (STensor([]),
-                    SAop((fst @@ check_expr expr1 table indices), 
+                    SAop((fst @@ check_expr expr1 table indices),
                         op, (fst @@ check_expr expr2 table indices))), indices
             | STensor _, STensor _ ->
                 let sexpr1, _ = check_expr expr1 table indices in
                 let sexpr2, _ = check_expr expr2 table indices in
             begin
-                match op with 
-                | Add | Sub | Mod | Expt | Div -> 
+                match op with
+                | Add | Sub | Mod | Expt | Div ->
                     begin
-                      match sexpr1, sexpr2 with 
+                      match sexpr1, sexpr2 with
                       | (STensor shape1, STensorIdx(_, idxs1)),
                         (STensor shape2, STensorIdx(_, idxs2)) ->
                         if not @@ (shape1 = shape2) || (shape1 = []) || (shape2 = [])
                         then failwith "Type error, cannot perform
                         non-multiplicative operations on tensors of different
                         shapes unless one of them is rank 0."
-                        else if shape1 = shape2 && idxs1 <> idxs2 then 
+                        else if shape1 = shape2 && idxs1 <> idxs2 then
                             failwith "If the two tensors are indeed of the same
                             shape, then you need to index them accordingly."
-                        else 
+                        else
             let ret_type = if shape1 = [] then STensor shape2 else STensor shape1 in
             let ret_idxs = if idxs1 = [] then idxs2 else idxs1 in
             let ret_expr = ret_type, SAop(sexpr1, op, sexpr2)
@@ -208,45 +208,45 @@ let rec check_expr expression table indices =
                       | _ -> failwith "Type error line 175"
                     end
 
-                | Mult -> 
+                | Mult ->
                     begin
-                      match sexpr1, sexpr2 with 
+                      match sexpr1, sexpr2 with
                       | (STensor shape1, STensorIdx(_, idxs1)),
                         (STensor shape2, STensorIdx(_, idxs2)) ->
             let all_idxs = idxs1 @ idxs2 in
             if List.sort compare all_idxs = List.sort_uniq compare all_idxs
-            then 
+            then
             let new_shape = shape1 @ shape2 in
-            let new_idxs = idxs1 @ idxs2 in 
-            (STensor new_shape, 
-                STensorIdx((STensor new_shape, SAop(sexpr1, Mult, sexpr2)), 
+            let new_idxs = idxs1 @ idxs2 in
+            (STensor new_shape,
+                STensorIdx((STensor new_shape, SAop(sexpr1, Mult, sexpr2)),
                             new_idxs)), indices
-            else if List.length (List.sort compare all_idxs) = 
-                    List.length (List.sort_uniq compare all_idxs) + 1 then 
+            else if List.length (List.sort compare all_idxs) =
+                    List.length (List.sort_uniq compare all_idxs) + 1 then
             let the_index = find_dup (List.sort compare all_idxs) in
-            let new_idxs, new_shape = 
+            let new_idxs, new_shape =
                 List.filter (fun (i, _) -> i <> the_index) (List.combine all_idxs
                 (shape1 @ shape2)) |> List.split in
-            let the_size = 
-                List.filter (fun (i, _) -> i = the_index) 
+            let the_size =
+                List.filter (fun (i, _) -> i = the_index)
                     (List.combine all_idxs (shape1 @ shape2))
                 |> List.hd |> snd in
-            let the_sexpr = (STensor new_shape, 
+            let the_sexpr = (STensor new_shape,
                 Contract { index = the_index, the_size;
-                sexpr = STensor (shape1 @ shape2), 
+                sexpr = STensor (shape1 @ shape2),
                         SAop(sexpr1, Mult, sexpr2) }
                 )
-            in (STensor new_shape, STensorIdx(the_sexpr, new_idxs)), 
+            in (STensor new_shape, STensorIdx(the_sexpr, new_idxs)),
             StringMap.remove the_index indices
             else failwith "Type error line 216"
-            
-                
+
+
                       | _ -> failwith "Type error in tensor multiplication"
                     end
 
 
             end
-            | SArrow(_,_), _ -> 
+            | SArrow(_,_), _ ->
                 failwith "Arithmetic operation on partially applied function"
             | _ -> failwith @@ "Type error in " ^ string_of_expr expression
         end
@@ -256,7 +256,7 @@ let rec check_expr expression table indices =
             match type_of expr1 with
             | SNat -> failwith "Detected boolean operation on Nats"
             | SBool -> (SBool,
-                    SBoolop((fst @@ check_expr expr1 table indices), 
+                    SBoolop((fst @@ check_expr expr1 table indices),
                         op, (fst @@ check_expr expr2 table indices))), indices
             | STensor(_) ->
                     failwith "Detected boolean operation on incompatible types"
@@ -268,7 +268,7 @@ let rec check_expr expression table indices =
         begin
             match type_of expr1 with
             | SNat | STensor [] -> (SBool,
-                    SRop((fst @@ check_expr expr1 table indices), 
+                    SRop((fst @@ check_expr expr1 table indices),
                         op, (fst @@ check_expr expr2 table indices))), indices
             | SBool -> failwith "Detected relational operation on boolean"
             | STensor(_) -> failwith "No ordering exists on arbitrary rank tensors"
@@ -283,9 +283,9 @@ let rec check_expr expression table indices =
             match type_of expr1' with
             | SArrow(first_param_type, remaining_types) ->
               if type_of expr2' = first_param_type
-                 then (last_stype remaining_types, 
-                 SApp(fst @@ check_expr expr1' table indices, 
-                      fst (check_expr expr2' table indices) 
+                 then (last_stype remaining_types,
+                 SApp(fst @@ check_expr expr1' table indices,
+                      fst (check_expr expr2' table indices)
                       :: [fst @@ check_expr expr2 table indices])), indices
               else
                   failwith ("Expected type " ^ string_of_styp first_param_type
@@ -307,31 +307,31 @@ let rec check_expr expression table indices =
       end
     | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> SBool
         then failwith "Non-boolean expression in if statement"
-        else if type_of expr2 <> type_of expr3 then 
+        else if type_of expr2 <> type_of expr3 then
         failwith "Incompatible types in conditional expressions" else
         (type_of expr2,
          SCondExpr(fst @@ check_expr expr1 table indices,
-                   fst @@ check_expr expr2 table indices, 
+                   fst @@ check_expr expr2 table indices,
                    fst @@check_expr expr3 table indices)), indices
-    | TensorIdx(e, idxs) -> 
+    | TensorIdx(e, idxs) ->
         if List.sort compare idxs = List.sort_uniq compare idxs then
         (type_of e, STensorIdx(fst @@ check_expr e table indices, idxs)), indices
-        else if List.length (List.sort compare idxs) = 
-                List.length (List.sort_uniq compare idxs) + 1 then 
+        else if List.length (List.sort compare idxs) =
+                List.length (List.sort_uniq compare idxs) + 1 then
         let the_index = find_dup (List.sort compare idxs) in
         let old_shape = match type_of e with
           | STensor old_shape -> old_shape
           | _ -> failwith "Type error - cannot index non-tensor object" in
-        let new_idxs, new_shape = 
-          List.filter (fun (i, _) -> i <> the_index) (List.combine idxs old_shape) 
+        let new_idxs, new_shape =
+          List.filter (fun (i, _) -> i <> the_index) (List.combine idxs old_shape)
             |> List.split in
-        let the_size = 
+        let the_size =
           List.filter (fun (i, _) -> i = the_index) (List.combine idxs old_shape)
             |> List.hd |> snd in
         let the_sexpr = (STensor new_shape, Contract { index = the_index, the_size;
-                sexpr = STensor old_shape, 
+                sexpr = STensor old_shape,
                         STensorIdx(fst @@ check_expr e table indices, idxs) }) in
-        (STensor new_shape, STensorIdx(the_sexpr, new_idxs)), 
+        (STensor new_shape, STensorIdx(the_sexpr, new_idxs)),
             StringMap.remove the_index indices
         else failwith @@ "Cannot contract more than one set of indices in a single
                             tensor. Failed at " ^ string_of_expr e
@@ -354,8 +354,8 @@ let recursive_check (ftyp, fdef) =
     | CondExpr(e1, e2, e3) -> rec_def e1 && rec_def e2 && rec_def e3
     (* For now, but I doubt this could actually be a problem*)
     | TensorIdx(_, _e) -> false
-    | Id(s) -> if s = fid then 
-        failwith "Recursively defined Nat/Bool/Tensor not permitted" 
+    | Id(s) -> if s = fid then
+        failwith "Recursively defined Nat/Bool/Tensor not permitted"
         else false in
   let main_expr = fdef.main_expr in
   if single_typ && rec_def main_expr then false else true
@@ -364,12 +364,12 @@ let recursive_check (ftyp, fdef) =
  * be on the RHS of something with an indexed LHS. *)
 let rec is_scalar sexpr = match fst sexpr with
   | STensor shape -> begin
-          match snd sexpr with 
+          match snd sexpr with
       | SLiteral _ | SBoolLit _ | SFliteral _ -> true
       | STLit _ -> false
       | SId _ -> shape = []
       | SUnop(_, e) -> is_scalar e
-      | SBoolop _ | SRop _ -> 
+      | SBoolop _ | SRop _ ->
               failwith "internal error, semant failed. Shouldn't have Boolops
               or Rops in consideration for being scalars"
       | SCondExpr(_, e2, e3) -> is_scalar e2 && is_scalar e3
@@ -380,21 +380,21 @@ let rec is_scalar sexpr = match fst sexpr with
       | Forall _ -> failwith "Forall shouldn't be introduced yet"
     end
   | _ -> false
-    
+
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
     let lhs_indices = match String.contains fdef.fdef_name '[' with
       | false -> StringMap.empty
-      | true -> 
+      | true ->
           let indices = List.nth (String.split_on_char '[' fdef.fdef_name) 1 in
-          let indices = String.sub indices 0 (String.length indices - 1) in 
+          let indices = String.sub indices 0 (String.length indices - 1) in
           let indices = String.split_on_char ',' indices in
-          match ftyp.types with 
-            | Tensor(shape) -> List.fold_left2 (fun acc idx num -> 
-                match num with 
+          match ftyp.types with
+            | Tensor(shape) -> List.fold_left2 (fun acc idx num ->
+                match num with
                   | ALiteral n -> (match StringMap.find_opt idx acc with
                       | None -> StringMap.add idx n acc
-                      | Some n' -> if n' = n then acc else 
+                      | Some n' -> if n' = n then acc else
                         failwith @@ "Cannot rebind index " ^ idx
                         ^ ". It was already bound to " ^ string_of_int n'
                         ^ " and you are trying to rebind it to " ^ string_of_int n
@@ -403,7 +403,7 @@ let rec check_func enclosing (ftyp, fdef) =
                 ) StringMap.empty indices shape
             | t -> failwith @@ "Type error: " ^ "cannot index entity of type " ^
                    string_of_typ t in
-  
+
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
   let this_sexpr, rhs_indices = check_expr fdef.main_expr table lhs_indices in
@@ -413,32 +413,32 @@ let rec check_func enclosing (ftyp, fdef) =
     (list_of_type ftyp.types |> but_last) fdef.fparams [] in
 
   if
-       StringMap.is_empty all_indices && 
-       recursive_check (ftyp, fdef) && 
-       last_type ftyp.types = fst this_sexpr 
-  then 
+       StringMap.is_empty all_indices &&
+       recursive_check (ftyp, fdef) &&
+       last_type ftyp.types = fst this_sexpr
+  then
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
-      sfparams = sfparams; 
-      sfexpr = this_sexpr; 
+      sfparams = sfparams;
+      sfexpr = this_sexpr;
       sscope = List.map (check_func table) fdef.scope }
   else if
-       StringMap.is_empty lhs_indices && 
+       StringMap.is_empty lhs_indices &&
        recursive_check (ftyp, fdef) &&
-       last_type ftyp.types = fst this_sexpr 
+       last_type ftyp.types = fst this_sexpr
   then
-      let this_sexpr' = (fst this_sexpr, 
+      let this_sexpr' = (fst this_sexpr,
       Forall { indices = StringMap.bindings rhs_indices; sexpr = this_sexpr; }) in
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
-      sfparams = sfparams; 
+      sfparams = sfparams;
       sfexpr = this_sexpr';
       sscope = List.map (check_func table) fdef.scope }
-  else 
+  else
        let module Set = Set.Make (String) in
-       let rhs_set = StringMap.fold (fun s _ acc -> Set.add s acc) 
+       let rhs_set = StringMap.fold (fun s _ acc -> Set.add s acc)
                      rhs_indices Set.empty in
-       let lhs_set = StringMap.fold (fun s _ acc -> Set.add s acc) 
+       let lhs_set = StringMap.fold (fun s _ acc -> Set.add s acc)
                      lhs_indices Set.empty in
        if
        not (StringMap.is_empty lhs_indices) &&
@@ -447,16 +447,16 @@ let rec check_func enclosing (ftyp, fdef) =
        is_scalar this_sexpr &&
        match ftyp.types with Tensor _ -> true | _ -> false
   then
-      let this_sexpr' = (fst this_sexpr, 
+      let this_sexpr' = (fst this_sexpr,
       Forall { indices = StringMap.bindings all_indices; sexpr = this_sexpr; }) in
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
-      sfparams = sfparams; 
+      sfparams = sfparams;
       sfexpr = this_sexpr';
       sscope = List.map (check_func table) fdef.scope }
 
   else failwith @@ "Declared type " ^ string_of_typ ftyp.types
-           ^ " but received type " ^ string_of_styp @@ fst this_sexpr 
+           ^ " but received type " ^ string_of_styp @@ fst this_sexpr
 
 (* Check entire program *)
 let check (main_expr, funcs) =
@@ -466,6 +466,6 @@ let check (main_expr, funcs) =
   let global_table = build_fns_table StringMap.empty funcs in
   let check_main, _ = check_expr main_expr global_table StringMap.empty in
   match check_main with
-    | SBool, _ | SNat, _ | STensor(_), _ -> 
+    | SBool, _ | SNat, _ | STensor(_), _ ->
             (check_main, List.map (check_func global_table) funcs)
     | _ -> failwith "main must be of type Tensor, Nat, or Bool"
