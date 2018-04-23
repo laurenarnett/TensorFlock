@@ -43,7 +43,8 @@ decls:
 
 funct:
   ftyp fdef
-    { if $1.ftyp_name <> $2.fdef_name then raise
+    { if $1.ftyp_name <> (String.sub $2.fdef_name 0 (String.length $1.ftyp_name))
+      then raise
       (Failure ("\nName of function in type: " ^ $1.ftyp_name ^
                 "\nand in definition: " ^ $2.fdef_name ^ "\ndo not match\n"))
       else ($1, $2) }
@@ -52,15 +53,18 @@ ftyp:
    ID COLON types SEMI
      { { ftyp_name = $1; types = $3; } }
 
+lhsid:
+    ID { $1 }
+  | TIDX tidx RBRACK { $1 ^ "[" ^ String.concat "," $2 ^ "]"}
+
 formals:
     { [] }
-  | formals ID { $2 :: $1 }
+  | formals lhsid { $2 :: $1 }
 
 fdef:
-   ID formals DEFINE expr SEMI scope
+   lhsid formals DEFINE expr SEMI scope
      { { fdef_name = $1; fparams = List.rev $2;
          main_expr = $4; scope   = List.rev $6; } }
-
 
 types:
   /* Don't pattern match on empty list because that should fail */
@@ -102,7 +106,7 @@ fexpr:
 
 brackexpr:
     TIDX tidx RBRACK
-      { TensorIdx($1, List.rev $2) }
+      { TensorIdx(Id $1, List.rev $2) }
   | lexpr { $1 }
 
 lexpr:
@@ -114,8 +118,8 @@ lexpr:
 
 tidx:
   /* Don't match on an empty tensor index */
-  | expr            { [$1] }
-  | tidx COMMA expr { $3 :: $1 }
+  | ID            { [$1] }
+  | tidx COMMA ID { $3 :: $1 }
 
 scope:
            { [] }
@@ -147,12 +151,7 @@ saexpr:
   | saexpr DIVIDE saexpr   { AAop($1, Div, $3) }
   | saexpr MOD    saexpr   { AAop($1, Mod, $3) }
   | saexpr EXPT saexpr     { AAop($1, Expt, $3) }
-  | sfexpr                 { $1 }
-
-sfexpr:
-      sfexpr slexpr { AApp($1, $2) }
-  | slexpr { $1 }
-
+  | slexpr                 { $1 }
 
 slexpr:
     LITERAL          { ALiteral($1) }

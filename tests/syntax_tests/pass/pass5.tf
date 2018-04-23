@@ -21,7 +21,7 @@ fn : T<1,2>;
 fn arg1 arg2 = arg1[i,j];
 
 returnItself : T<a,b> -> T<>;
-returnItself = m[0,1];
+returnItself = m[i,j];
 
 ex : T<n+3, 2> -> T<n, 2>;
 ex = m;

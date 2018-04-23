@@ -2,8 +2,8 @@
 // Single index
 main = 2. * aDouble;
 
-aDouble : T<>;
-aDouble = myTensor[2];
+/* aDouble : T<>; */
+/* aDouble = myTensor[2]; */
 
 // Multiple index
 anotherDouble : T<>;

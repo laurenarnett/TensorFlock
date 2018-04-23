@@ -49,7 +49,8 @@ rule token = parse
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
 | id   as lxm { ID(lxm) }
 (* Require that tensor indexing have no whitespace after an identifier *)
-| (id as lxm) '[' { TIDX (lxm) } 
+| (id as lxm) '[' { TIDX(lxm) } 
+(* Fnames and params can have indices attached to them *)
 | eof { EOF }
 | _ as char { raise (Failure("illegal character " ^ Char.escaped char)) }
 
