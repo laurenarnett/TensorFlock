@@ -20,12 +20,21 @@ and sexpr_detail =
   | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
   | STensorIdx of sexpr * string list
+  (* mat1[i,j] * mat2[j,k] desugars to 
+   * Forall i : _some_int, k : _another_int . 
+   * Contract mat1[i,j], mat2[j,k], 1, 0, yet_another_int
+   * whose type is Tensor<_some_int, _another_int> *)
+  | Forall of { indices : (string * int) list; sexpr : sexpr }
+  | Contract of { tensor1 : sexpr
+                ; tensor2 : sexpr
+                ; axis1 : int
+                ; axis2 : int 
+                ; sexpr : sexpr }
 
 type sfunc = {
     sfname : string;
     stype : styp;
     sfparams : (styp * string) list;
-    sindices : int StringMap.t;
     slocals : (styp * string) list;
     sfexpr : sexpr;
     sscope : sfunc list;
@@ -35,34 +44,36 @@ type sprogram = sexpr * sfunc list
 
 (* Pretty printing *)
 let rec string_of_styp = function
-    | SBool -> "Bool"
-    | SNat -> "Nat"
-    | STensor shape -> "T<" ^ String.concat "," (List.map string_of_int shape) ^ ">"
-    | SArrow(t1, t2) -> string_of_styp t1 ^ " -> " ^ string_of_styp t2
+  | SBool -> "Bool"
+  | SNat -> "Nat"
+  | STensor shape -> "T<" ^ String.concat "," (List.map string_of_int shape) ^ ">"
+  | SArrow(t1, t2) -> string_of_styp t1 ^ " -> " ^ string_of_styp t2
 
 let rec string_of_sexpr_detail e = match e with
-    | SLiteral(i) -> string_of_int i
-    | SFliteral(s) -> s
-    | STLit(contents, _shape) -> "[" ^ String.concat " " contents ^ "]" 
-    | SId(s) -> s
-    | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
-    | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr
-    | SAop(sexpr1, op, sexpr2) ->
-      string_of_sexpr sexpr1 ^ " " ^ string_of_aop op ^ " " ^
-      string_of_sexpr sexpr2
-    | SBoolop(sexpr1, op, sexpr2) ->
-      string_of_sexpr sexpr1 ^ " " ^ string_of_bop op ^ " " ^
-      string_of_sexpr sexpr2
-    | SRop(sexpr1, op, sexpr2) ->
-      string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
-      string_of_sexpr sexpr2
-    | SApp(sexpr1, sexprs) ->
-        string_of_sexpr sexpr1 ^ "[ " ^ 
-        String.concat "," (List.map string_of_sexpr sexprs) ^ "]"
-    | SCondExpr(sexpr1, sexpr2, sexpr3) ->
-      "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
-      ^ " else " ^ string_of_sexpr sexpr3
-    | STensorIdx(_,_) -> "Not yet implemented"
+  | SLiteral(i) -> string_of_int i
+  | SFliteral(s) -> s
+  | STLit(contents, _shape) -> "[" ^ String.concat " " contents ^ "]" 
+  | SId(s) -> s
+  | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
+  | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr
+  | SAop(sexpr1, op, sexpr2) ->
+    string_of_sexpr sexpr1 ^ " " ^ string_of_aop op ^ " " ^
+    string_of_sexpr sexpr2
+  | SBoolop(sexpr1, op, sexpr2) ->
+    string_of_sexpr sexpr1 ^ " " ^ string_of_bop op ^ " " ^
+    string_of_sexpr sexpr2
+  | SRop(sexpr1, op, sexpr2) ->
+    string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
+    string_of_sexpr sexpr2
+  | SApp(sexpr1, sexprs) ->
+      string_of_sexpr sexpr1 ^ "[ " ^ 
+      String.concat "," (List.map string_of_sexpr sexprs) ^ "]"
+  | SCondExpr(sexpr1, sexpr2, sexpr3) ->
+    "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
+    ^ " else " ^ string_of_sexpr sexpr3
+  | STensorIdx(_,_) -> "Not yet implemented"
+  | Forall _ -> "Not yet implemented"
+  | Contract _ -> "Not yet implemented"
 and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_styp t
 
