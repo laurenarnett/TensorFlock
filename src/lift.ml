@@ -28,6 +28,7 @@ let rec rename old_name new_name sexpr = match sexpr with
               (t2, rename old_name new_name e2),
               (t3, rename old_name new_name e3))
   | STensorIdx(_, _) -> raise (Failure "Not yet imlemented")
+  | _ -> failwith "Not yet implemented"
 
 (* The new_id function takes an identifier and returns a new one. The method of
  * dealing with a mutable counter was taken from 
