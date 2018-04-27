@@ -239,8 +239,8 @@ let compare_styp t1 t2 = match t1 with
     
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
-    let indices = match String.contains fdef.fdef_name '[' with
-      | false -> StringMap.empty
+    let index_map, index_list = match String.contains fdef.fdef_name '[' with
+      | false -> StringMap.empty, []
       | true -> 
           let indices = List.nth (String.split_on_char '[' fdef.fdef_name) 1 in
           let indices = String.sub indices 0 (String.length indices - 1) in 
@@ -257,25 +257,42 @@ let rec check_func enclosing (ftyp, fdef) =
                       )
                   | _ -> failwith "internal error: infer failed"
                 ) StringMap.empty indices shape
+                , indices
             | t -> failwith @@ "Type error: " ^ "cannot index entity of type " ^
                    string_of_typ t in
   
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
-  let this_sexpr = check_expr fdef.main_expr table indices in
+  let this_sexpr = check_expr fdef.main_expr table index_map in
   let sfparams = List.fold_right2 (fun typ arg acc -> (typ, arg)::acc)
     (list_of_type ftyp.types |> but_last) fdef.fparams [] in
 
-  if recursive_check (ftyp, fdef) && 
-     compare_styp (last_type ftyp.types) (fst this_sexpr) then
-
+  if
+       StringMap.is_empty index_map && 
+       recursive_check (ftyp, fdef) && 
+       last_type ftyp.types = fst this_sexpr 
+  then 
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
       sfparams = sfparams; sfexpr = this_sexpr; 
       sscope = List.map (check_func table) fdef.scope }
+  else if
+       not (StringMap.is_empty index_map) && 
+       recursive_check (ftyp, fdef) &&
+       compare_styp (last_type ftyp.types) (fst this_sexpr)
+  then
+      let this_sexpr' = (fst this_sexpr, 
+      Forall { indices = List.map 
+              (fun i -> (i, StringMap.find i index_map)) index_list;
+          sexpr = this_sexpr; }) in
+    { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
+      slocals = []; (* for now *)
+      sfparams = sfparams; 
+      sfexpr = this_sexpr';
+      sscope = List.map (check_func table) fdef.scope }
 
-    else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
-           ^ " but received type " ^ string_of_styp @@ fst this_sexpr)) 
+  else failwith @@ "Declared type " ^ string_of_typ ftyp.types
+           ^ " but received type " ^ string_of_styp @@ fst this_sexpr 
 
 (* Check entire program *)
 let check (main_expr, funcs) =
@@ -287,4 +304,4 @@ let check (main_expr, funcs) =
   match check_main with
     | SBool, _ | SNat, _ | STensor(_), _ -> 
             (check_main, List.map (fun f -> check_func global_table f) funcs)
-    | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")
+    | _ -> failwith "main must be of type Tensor, Nat, or Bool"
