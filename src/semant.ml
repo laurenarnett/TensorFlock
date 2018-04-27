@@ -83,6 +83,8 @@ let rec check_expr expression table indices =
                 | None -> StringMap.add idx num acc
                 | Some num' -> if num' = num then acc else 
                 failwith @@ "Cannot rebind index " ^ idx
+                ^ ". It was already bound to " ^ string_of_int num'
+                ^ " and you are trying to rebind it to " ^ string_of_int num
               ) indices ixs shape
       | t -> failwith @@ 
              "Type error: cannot index expression of type " ^ string_of_styp t
@@ -202,7 +204,9 @@ let rec check_expr expression table indices =
          SCondExpr(check_expr expr1 table indices,
                    check_expr expr2 table indices, check_expr expr3 table
                    indices))
-    | TensorIdx(_,_) -> raise (Failure "Not yet implemented")
+    | TensorIdx(e, idxs) -> (type_of e,
+        Forall { indices = List.map (fun i -> i, StringMap.find i indices) idxs;
+                 sexpr = type_of e, STensorIdx(check_expr e table indices, idxs)})
 
 (* If a function has a single type in its decl and the same
  * id appears in its definition raise error, else return true*)
@@ -227,6 +231,12 @@ let recursive_check (ftyp, fdef) =
   let main_expr = fdef.main_expr in
   if single_typ && rec_def main_expr then false else true
 
+let compare_styp t1 t2 = match t1 with
+    | SNat | SBool -> t1 = t2
+    (* make this more sophisticated later *)
+    | STensor _ -> (match t2 with STensor _ -> true | _ -> false) 
+    | SArrow (_,_) -> failwith "Internal error, shouldn't be comparing arrow types"
+    
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
     let indices = match String.contains fdef.fdef_name '[' with
@@ -237,22 +247,27 @@ let rec check_func enclosing (ftyp, fdef) =
           let indices = String.split_on_char ',' indices in
           match ftyp.types with 
             | Tensor(shape) -> List.fold_left2 (fun acc idx num -> 
-                    match num with 
-                      | ALiteral n -> (match StringMap.find_opt idx acc with
-                          | None -> StringMap.add idx n acc
-                          | Some n' -> if n' = n then acc else 
-                          failwith @@ "Cannot rebind index " ^ idx
-                          )
-                      | _ -> failwith "internal error: infer failed"
-                    ) StringMap.empty indices shape
+                match num with 
+                  | ALiteral n -> (match StringMap.find_opt idx acc with
+                      | None -> StringMap.add idx n acc
+                      | Some n' -> if n' = n then acc else 
+                        failwith @@ "Cannot rebind index " ^ idx
+                        ^ ". It was already bound to " ^ string_of_int n'
+                        ^ " and you are trying to rebind it to " ^ string_of_int n
+                      )
+                  | _ -> failwith "internal error: infer failed"
+                ) StringMap.empty indices shape
             | t -> failwith @@ "Type error: " ^ "cannot index entity of type " ^
                    string_of_typ t in
+  
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
   let this_sexpr = check_expr fdef.main_expr table indices in
   let sfparams = List.fold_right2 (fun typ arg acc -> (typ, arg)::acc)
     (list_of_type ftyp.types |> but_last) fdef.fparams [] in
-  if recursive_check (ftyp, fdef) && last_type ftyp.types = fst this_sexpr then
+
+  if recursive_check (ftyp, fdef) && 
+     compare_styp (last_type ftyp.types) (fst this_sexpr) then
 
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
