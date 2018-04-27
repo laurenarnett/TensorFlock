@@ -69,6 +69,37 @@ let string_of_table map =
 
 (* Check expr: return sexpr or error *)
 let rec check_expr expression table indices =
+  let type_of expr = fst (check_expr expr table indices) in
+  (* Extract indices from expr *)
+  let rec extract indices expr = 
+      let combine map1 map2 = StringMap.union (fun _ n1 n2 -> 
+            if n1 = n2 then Some n2 else failwith @@ "Error - tried to rebind
+            indices in " ^ string_of_expr expr) map1 map2 in
+      match expr with 
+    | Literal _ | Fliteral _ | BoolLit _ | TLit _ | Id _ -> indices
+    | TensorIdx(e, ixs) -> (match type_of e with
+      | STensor(shape) -> List.fold_left2 (fun acc idx num -> 
+              match StringMap.find_opt idx acc with
+                | None -> StringMap.add idx num acc
+                | Some num' -> if num' = num then acc else 
+                failwith @@ "Cannot rebind index " ^ idx
+              ) indices ixs shape
+      | t -> failwith @@ 
+             "Type error: cannot index expression of type " ^ string_of_styp t
+    )
+    | Unop(_, e) -> extract indices e
+    | Aop(e1, _, e2) | Boolop(e1, _, e2) | Rop(e1, _, e2) | App(e1, e2)
+        -> combine (extract indices e1) (extract indices e2)
+    | CondExpr(e1, e2, e3) -> combine (extract indices e3) @@
+        combine (extract indices e1) (extract indices e2) 
+  in
+  let indices = extract indices expression in
+
+  (* Debug *)
+  StringMap.iter (fun ix v -> 
+      print_endline @@ "Index " ^ ix ^ " bound to " ^ string_of_int v) indices;
+
+  
   (* Lookup symbols in index table first because they should shadow *)
   let rec lookup_symb symb =
     match StringMap.find_opt symb indices with
@@ -77,7 +108,6 @@ let rec check_expr expression table indices =
         | Some typ -> typ
         | None -> failwith ("Encountered undefined symbol: " ^ symb) in
 
-  let type_of expr = fst (check_expr expr table indices) in
   match (expression : expr) with
     | Literal(i) -> (SNat , SLiteral(i))
     | Fliteral(s) -> (STensor([]), SFliteral(s))

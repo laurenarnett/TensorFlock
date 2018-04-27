@@ -71,7 +71,8 @@ let rec string_of_sexpr_detail e = match e with
   | SCondExpr(sexpr1, sexpr2, sexpr3) ->
     "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
     ^ " else " ^ string_of_sexpr sexpr3
-  | STensorIdx(_,_) -> "Not yet implemented"
+  | STensorIdx(e, indices) -> 
+        string_of_sexpr e ^ "[" ^ String.concat "," indices ^ "]"
   | Forall _ -> "Not yet implemented"
   | Contract _ -> "Not yet implemented"
 and string_of_sexpr (t, det) =
