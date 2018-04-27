@@ -236,9 +236,13 @@ let rec check_func enclosing (ftyp, fdef) =
           let indices = String.sub indices 0 (String.length indices - 1) in 
           let indices = String.split_on_char ',' indices in
           match ftyp.types with 
-            | Tensor(shape) -> List.fold_left2 (fun acc ix num -> 
+            | Tensor(shape) -> List.fold_left2 (fun acc idx num -> 
                     match num with 
-                      | ALiteral n -> StringMap.add ix n acc
+                      | ALiteral n -> (match StringMap.find_opt idx acc with
+                          | None -> StringMap.add idx n acc
+                          | Some n' -> if n' = n then acc else 
+                          failwith @@ "Cannot rebind index " ^ idx
+                          )
                       | _ -> failwith "internal error: infer failed"
                     ) StringMap.empty indices shape
             | t -> failwith @@ "Type error: " ^ "cannot index entity of type " ^
