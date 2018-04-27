@@ -54,7 +54,7 @@ ftyp:
      { { ftyp_name = $1; types = $3; } }
 
 indexlhs:
-   TIDX tidx RBRACK { $1 ^ "[" ^ String.concat "," $2 ^ "]" }
+   TIDX tidx RBRACK { $1 ^ "[" ^ String.concat "," (List.rev $2) ^ "]" }
 
 formals:
     { [] }
