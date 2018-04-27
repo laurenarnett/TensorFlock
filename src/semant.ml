@@ -14,7 +14,7 @@ let rec styp_of_typ = function
   | Nat -> SNat
   | Tensor s -> STensor (List.map (fun ax -> match ax with
              | ALiteral i -> i
-             | _ -> failwith "internal error:
+             | _ -> failwith "internal error: 
                     we shouldn't have any unresolved shapes here") s)
   | Arrow (t1, t2) -> SArrow (styp_of_typ t1, styp_of_typ t2)
 
@@ -33,45 +33,45 @@ let rec last_stype styp = match styp with
 
 
 (* Create a table from a list of functions *)
-let build_fns_table enclosing fns =
-  let local_map = List.fold_left
+let build_fns_table enclosing fns = 
+  let local_map = List.fold_left 
     (fun table (ftyp, fdef) ->
     if StringMap.mem fdef.fdef_name table then raise
           (Failure ("attempting to redefine already defined symbol: "
                     ^ fdef.fdef_name))
-    else StringMap.add fdef.fdef_name (styp_of_typ ftyp.types) table)
+    else StringMap.add fdef.fdef_name (styp_of_typ ftyp.types) table) 
         base_map fns in
 
-  (* Combine local map with enclosing map,
+  (* Combine local map with enclosing map, 
    * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
 (* Create a local table for a single function's arguments *)
-let build_local_table enclosing (ftyp, fdef) =
-  let types = but_last @@ list_of_type ftyp.types
+let build_local_table enclosing (ftyp, fdef) = 
+  let types = but_last @@ list_of_type ftyp.types 
   and params = fdef.fparams in
 
   (* TODO: refactor this garbage*)
   (* (1* Filter out any names declared with indices on the LHS of the function def *1) *)
-  (* let args, indices = List.fold_right2 *)
-  (*   (fun param typ (arg, idx) -> *)
-  (*   if String.contains param '[' then *)
-  (*       let lst = (match String.split_on_char '[' param with *)
+  (* let args, indices = List.fold_right2 *) 
+  (*   (fun param typ (arg, idx) -> *) 
+  (*   if String.contains param '[' then *) 
+  (*       let lst = (match String.split_on_char '[' param with *) 
   (*           | [a; is] -> [a; is] *)
   (*           | _ -> raise (Failure "Internal parsing error")) *)
   (*       in *)
   (*       let a = List.nth lst 0 and is = List.nth lst 1 in *)
   (*       let is = String.sub is 0 (String.length is - 1) in *)
-  (*       let is = String.split_on_char ',' is in *)
-  (*       let bound = List.fold_right2 (fun str len acc -> *)
+  (*       let is = String.split_on_char ',' is in *) 
+  (*       let bound = List.fold_right2 (fun str len acc -> *) 
   (*           let is_bound = List.assoc_opt str acc in *)
   (*               if is_bound = Some len || is_bound = None then *)
-  (*                   (str, len) :: acc else *)
+  (*                   (str, len) :: acc else *) 
   (*               raise (Failure ("Error: index " ^ str ^ "is already bound to shape " *)
-  (*                   ^ string_of_int len ^ " and cannot be rebound."))) is *)
+  (*                   ^ string_of_int len ^ " and cannot be rebound."))) is *) 
   (*           (match typ with STensor(shape) -> shape | _ -> raise (Failure *)
   (*           "Invalid type: cannot index a non-tensor parameter.")) [] in *)
-  (*       a :: arg, List.fold_right (fun ix ixs -> StringMap.add (fst ix) *)
+  (*       a :: arg, List.fold_right (fun ix ixs -> StringMap.add (fst ix) *) 
   (*       (match snd ix with ALiteral i -> i | _ -> failwith "error") ixs) bound idx *)
   (*   else param :: arg, idx *)
   (* ) params (types) ([], StringMap.empty) in *)
@@ -86,7 +86,7 @@ let build_local_table enclosing (ftyp, fdef) =
   (* Add the indices, all bound to Nat type *)
   (* let local_map = StringMap.fold *)
   (*   (fun name _ acc -> StringMap.add name SNat acc) indices local_map in *)
-  (* Combine local map with enclosing map,
+  (* Combine local map with enclosing map, 
    * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
@@ -211,67 +211,30 @@ let recursive_check (ftyp, fdef) =
     | App(e1, e2) -> rec_def e1 && rec_def e2
     | CondExpr(e1, e2, e3) -> rec_def e1 && rec_def e2 && rec_def e3
     | TensorIdx(_, _e) -> false (* For now, but I doubt this could actually be a problem*)
-    | Id(s) -> if s = fid then
-        failwith "Recursively defined Nat/Bool/Tensor not permitted"
+    | Id(s) -> if s = fid then 
+        failwith "Recursively defined Nat/Bool/Tensor not permitted" 
         else false in
   let main_expr = fdef.main_expr in
   if single_typ && rec_def main_expr then false else true
 
-(* Check the fdef.main_expr for free vars. First make a list of ids that are
- * free vars. Then lookup those ids in the enclosing scope to get an ids type.
- * Create this as a list.
- * Then, iterate over this list and add the id and types to ftyp.types and
- * fdef.fparams *)
-let rec lift_params enclosing (ftyp, fdef) =
-  let rec get_free_vars e acc = match e with
-    | Literal(_) | Fliteral(_) | BoolLit(_) | TLit(_) -> acc
-    | Unop(_, e) -> get_free_vars e acc
-    | Aop(e1, _, e2) -> let lst = get_free_vars e1 acc in get_free_vars e2 lst
-    | Boolop(e1, _, e2) -> let lst = get_free_vars e1 acc in get_free_vars e2 lst
-    | Rop(e1, _, e2) -> let lst = get_free_vars e1 acc in get_free_vars e2 lst
-    | App(e1, e2) -> let lst = get_free_vars e1 acc in get_free_vars e2 lst
-    | CondExpr(e1, e2, e3) -> let lst = get_free_vars e1 acc in
-      let lst' = get_free_vars e2 lst in get_free_vars e3 lst'
-    | TensorIdx(_, _e) -> get_free_vars e acc
-    | Id(s) -> if StringMap.mem s enclosing && not (List.mem s fdef.fparams)
-    (* the lookup call below breaks subsequent use of 'enclosing' because
-     * it returns an object of type: Sast.styp but we need an object of
-     * type Ast.typ to cons to ftyp.types *)
-      then let typ = lookup_symb s enclosing in (s, typ) :: acc else acc in
-  let free_vars = get_free_vars fdef.main_expr [] in
-  List.fold_left (fun (ft, fd) (id, typ) ->
-    let ft' = {ftyp_name = ft.ftyp_name;
-               types = Ast.Arrow(typ, ft.types) } and
-    fd' = {fdef_name = fd.fdef_name;
-               fparams = id :: fd.fparams;
-               main_expr = fd.main_expr;
-               scope = fd.scope } in (ft', fd'))
-    (ftyp, fdef) free_vars
-
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
-  (* lift the params here, using the enclosing table above *)
-  print_endline "original func:";
-  print_endline @@ Ast.string_of_func (ftyp, fdef);
-  let (ftyp', fdef') = lift_params enclosing (ftyp, fdef) in
-  print_endline "lifted func:";
-  print_endline @@ Ast.string_of_func (ftyp', fdef');
-  let table' = build_local_table enclosing (ftyp', fdef') in
-  let table  = build_fns_table table' fdef'.scope in
+  let table' = build_local_table enclosing (ftyp, fdef) in
+  let table  = build_fns_table table' fdef.scope in
 
-  let this_sexpr = check_expr fdef'.main_expr table in
+  let this_sexpr = check_expr fdef.main_expr table in
   let sfparams = List.fold_right2 (fun typ arg acc -> (typ, arg)::acc)
-    (list_of_type ftyp'.types |> but_last) fdef'.fparams [] in
-  if recursive_check (ftyp', fdef') && last_type ftyp'.types = fst this_sexpr then
+    (list_of_type ftyp.types |> but_last) fdef.fparams [] in
+  if recursive_check (ftyp, fdef) && last_type ftyp.types = fst this_sexpr then
 
-    { sfname = ftyp'.ftyp_name; stype = styp_of_typ ftyp'.types;
+    { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       sindices = StringMap.empty; (* for now... *)
       slocals = []; (* also for now *)
-      sfparams = sfparams; sfexpr = this_sexpr;
+      sfparams = sfparams; sfexpr = this_sexpr; 
       sscope = List.map (check_func table) fdef.scope }
 
     else raise (Failure ("Declared type " ^ string_of_typ ftyp.types
-           ^ " but received type " ^ string_of_styp @@ fst this_sexpr))
+           ^ " but received type " ^ string_of_styp @@ fst this_sexpr)) 
 
 (* Check entire program *)
 let check (main_expr, funcs) =
@@ -281,6 +244,6 @@ let check (main_expr, funcs) =
   let global_table = build_fns_table StringMap.empty funcs in
   let check_main = check_expr main_expr global_table in
   match check_main with
-    | SBool, _ | SNat, _ | STensor(_), _ ->
+    | SBool, _ | SNat, _ | STensor(_), _ -> 
             (check_main, List.map (fun f -> check_func global_table f) funcs)
     | _ -> raise (Failure "main must be of type Tensor, Nat, or Bool")
