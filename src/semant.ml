@@ -36,10 +36,10 @@ let rec last_stype styp = match styp with
 let build_fns_table enclosing fns = 
   let local_map = List.fold_left 
     (fun table (ftyp, fdef) ->
-    if StringMap.mem fdef.fdef_name table then raise
+    if StringMap.mem ftyp.ftyp_name table then raise
           (Failure ("attempting to redefine already defined symbol: "
                     ^ fdef.fdef_name))
-    else StringMap.add fdef.fdef_name (styp_of_typ ftyp.types) table) 
+    else StringMap.add ftyp.ftyp_name (styp_of_typ ftyp.types) table) 
         base_map fns in
 
   (* Combine local map with enclosing map, 
@@ -51,31 +51,6 @@ let build_local_table enclosing (ftyp, fdef) =
   let types = but_last @@ list_of_type ftyp.types 
   and params = fdef.fparams in
 
-  (* TODO: refactor this garbage*)
-  (* (1* Filter out any names declared with indices on the LHS of the function def *1) *)
-  (* let args, indices = List.fold_right2 *) 
-  (*   (fun param typ (arg, idx) -> *) 
-  (*   if String.contains param '[' then *) 
-  (*       let lst = (match String.split_on_char '[' param with *) 
-  (*           | [a; is] -> [a; is] *)
-  (*           | _ -> raise (Failure "Internal parsing error")) *)
-  (*       in *)
-  (*       let a = List.nth lst 0 and is = List.nth lst 1 in *)
-  (*       let is = String.sub is 0 (String.length is - 1) in *)
-  (*       let is = String.split_on_char ',' is in *) 
-  (*       let bound = List.fold_right2 (fun str len acc -> *) 
-  (*           let is_bound = List.assoc_opt str acc in *)
-  (*               if is_bound = Some len || is_bound = None then *)
-  (*                   (str, len) :: acc else *) 
-  (*               raise (Failure ("Error: index " ^ str ^ "is already bound to shape " *)
-  (*                   ^ string_of_int len ^ " and cannot be rebound."))) is *) 
-  (*           (match typ with STensor(shape) -> shape | _ -> raise (Failure *)
-  (*           "Invalid type: cannot index a non-tensor parameter.")) [] in *)
-  (*       a :: arg, List.fold_right (fun ix ixs -> StringMap.add (fst ix) *) 
-  (*       (match snd ix with ALiteral i -> i | _ -> failwith "error") ixs) bound idx *)
-  (*   else param :: arg, idx *)
-  (* ) params (types) ([], StringMap.empty) in *)
-
   let build_arg_map types params =
     List.fold_left2 (fun map typ param ->
     if StringMap.mem param map then raise (Failure
@@ -83,11 +58,6 @@ let build_local_table enclosing (ftyp, fdef) =
     else StringMap.add param typ map) base_map types params in
 
   let local_map = build_arg_map types params in
-  (* Add the indices, all bound to Nat type *)
-  (* let local_map = StringMap.fold *)
-  (*   (fun name _ acc -> StringMap.add name SNat acc) indices local_map in *)
-  (* Combine local map with enclosing map, 
-   * throwing away the redundant variables in enclosing scope *)
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
 (* Pretty printing *)
@@ -229,10 +199,23 @@ let recursive_check (ftyp, fdef) =
 
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
+    let indices = match String.contains fdef.fdef_name '[' with
+      | false -> StringMap.empty
+      | true -> 
+          let indices = List.nth (String.split_on_char '[' fdef.fdef_name) 1 in
+          let indices = String.sub indices 0 (String.length indices - 1) in 
+          let indices = String.split_on_char ',' indices in
+          match ftyp.types with 
+            | Tensor(shape) -> List.fold_left2 (fun acc ix num -> 
+                    match num with 
+                      | ALiteral n -> StringMap.add ix n acc
+                      | _ -> failwith "internal error: infer failed"
+                    ) StringMap.empty indices shape
+            | t -> failwith @@ "Type error: " ^ "cannot index entity of type " ^
+                   string_of_typ t in
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
-
-  let this_sexpr = check_expr fdef.main_expr table StringMap.empty in
+  let this_sexpr = check_expr fdef.main_expr table indices in
   let sfparams = List.fold_right2 (fun typ arg acc -> (typ, arg)::acc)
     (list_of_type ftyp.types |> but_last) fdef.fparams [] in
   if recursive_check (ftyp, fdef) && last_type ftyp.types = fst this_sexpr then
