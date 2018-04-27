@@ -36,9 +36,9 @@ let rec last_stype styp = match styp with
 let build_fns_table enclosing fns = 
   let local_map = List.fold_left 
     (fun table (ftyp, fdef) ->
-    if StringMap.mem ftyp.ftyp_name table then raise
-          (Failure ("attempting to redefine already defined symbol: "
-                    ^ fdef.fdef_name))
+    if StringMap.mem ftyp.ftyp_name table then
+          failwith ("attempting to redefine already defined symbol: "
+                    ^ fdef.fdef_name)
     else StringMap.add ftyp.ftyp_name (styp_of_typ ftyp.types) table) 
         base_map fns in
 
@@ -53,8 +53,8 @@ let build_local_table enclosing (ftyp, fdef) =
 
   let build_arg_map types params =
     List.fold_left2 (fun map typ param ->
-    if StringMap.mem param map then raise (Failure
-     ("Non-linear pattern match encountered in definition of symbol " ^ param))
+    if StringMap.mem param map then failwith
+     ("Non-linear pattern match encountered in definition of symbol " ^ param)
     else StringMap.add param typ map) base_map types params in
 
   let local_map = build_arg_map types params in
@@ -119,53 +119,53 @@ let rec check_expr expression table indices =
                  let components = Infer.flatten expression in
                  let unwrap_components = List.map (fun c -> match c with
                   | Fliteral(f) -> f
-                  | _ -> raise (Failure "Internal error: non-float encounted in
-                 tensor literal")
+                  | _ -> failwith "Internal error: non-float encounted in
+                 tensor literal"
                  ) in
                  (STensor(shape), STLit(unwrap_components components, shape))
-                 else raise (Failure "Invalid tensor literal")
+                 else failwith "Invalid tensor literal"
     | Id(s) -> (lookup_symb s, SId(s))
-    | Unop(Neg, _expr) -> raise (Failure
-          "You can't negate Nats and tensors haven't been implemented yet")
-    | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
-        (Failure "Detected arithmetic operation on incompatible types") else
+    | Unop(Neg, _expr) -> failwith
+          "You can't negate Nats and tensors haven't been implemented yet"
+    | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then 
+        failwith "Detected arithmetic operation on incompatible types" else
         begin
             match type_of expr1 with
                 | SNat -> (SNat,
                         SAop((check_expr expr1 table indices), 
                             op, (check_expr expr2 table indices)))
-                | SBool -> raise (Failure "Detected arithmetic operation on boolean")
+                | SBool -> failwith "Detected arithmetic operation on boolean"
                 | STensor([]) -> (STensor([]),
                         SAop((check_expr expr1 table indices), 
                             op, (check_expr expr2 table indices)))
-                | STensor(_) -> raise (Failure "Not yet implemented")
-                | SArrow(_,_) -> raise
-                        (Failure "Arithmetic operation on partially applied function")
+                | STensor(_) -> failwith "Not yet implemented"
+                | SArrow(_,_) -> 
+                    failwith "Arithmetic operation on partially applied function"
         end
-    | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
-        (Failure "Detected boolean operation on incompatible types") else
+    | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then
+        failwith "Detected boolean operation on incompatible types" else
         begin
             match type_of expr1 with
-            | SNat -> raise (Failure "Detected boolean operation on Nats")
+            | SNat -> failwith "Detected boolean operation on Nats"
             | SBool -> (SBool,
                     SBoolop((check_expr expr1 table indices), 
                         op, (check_expr expr2 table indices)))
-            | STensor(_) -> raise
-                    (Failure "Detected boolean operation on incompatible types")
-            | SArrow(_,_) -> raise
-                    (Failure "Boolean operation on partially applied function")
+            | STensor(_) ->
+                    failwith "Detected boolean operation on incompatible types"
+            | SArrow(_,_) ->
+                    failwith "Boolean operation on partially applied function"
         end
-    | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then raise
-        (Failure "Detected relational operation on incompatible types") else
+    | Rop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then
+        failwith "Detected relational operation on incompatible types" else
         begin
             match type_of expr1 with
             | SNat -> (SBool,
                     SRop((check_expr expr1 table indices), 
                         op, (check_expr expr2 table indices)))
-            | SBool -> raise (Failure "Detected relational operation on boolean")
-            | STensor(_) -> raise (Failure "Not yet implemented")
-            | SArrow(_,_) -> raise
-                        (Failure "Relational operation on partially applied function")
+            | SBool -> failwith "Detected relational operation on boolean"
+            | STensor(_) -> failwith "Not yet implemented"
+            | SArrow(_,_) ->
+                    failwith "Relational operation on partially applied function"
         end
     | App(expr1, expr2) ->
       begin
@@ -179,9 +179,9 @@ let rec check_expr expression table indices =
                  SApp(check_expr expr1' table indices, check_expr expr2' table
                         indices :: [check_expr expr2 table indices]))
               else
-                 raise (Failure ("Expected type " ^ string_of_styp first_param_type
-                       ^ " but instead received " ^ string_of_styp (type_of expr2)))
-            | _ -> raise (Failure "Type error")
+                  failwith ("Expected type " ^ string_of_styp first_param_type
+                     ^ " but instead received " ^ string_of_styp (type_of expr2))
+            | _ -> failwith "Type error"
           end
         | _ ->
           begin
@@ -191,15 +191,15 @@ let rec check_expr expression table indices =
                  then (return_type, SApp(check_expr expr1 table indices,
                  [check_expr expr2 table indices]))
               else
-                 raise (Failure ("Expected type " ^ string_of_styp param_type
-                       ^ " but instead received " ^ string_of_styp (type_of expr2)))
-            | _ -> raise (Failure "Type error")
+                  failwith ("Expected type " ^ string_of_styp param_type
+                     ^ " but instead received " ^ string_of_styp (type_of expr2))
+            | _ -> failwith "Type error"
           end
       end
     | CondExpr(expr1, expr2, expr3) -> if type_of expr1 <> SBool
-        then raise (Failure "Non-boolean expression in if statement")
-        else if type_of expr2 <> type_of expr3 then raise
-        (Failure "Incompatible types in conditional expressions") else
+        then failwith "Non-boolean expression in if statement"
+        else if type_of expr2 <> type_of expr3 then 
+        failwith "Incompatible types in conditional expressions" else
         (type_of expr2,
          SCondExpr(check_expr expr1 table indices,
                    check_expr expr2 table indices, check_expr expr3 table
