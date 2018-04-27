@@ -124,9 +124,11 @@ let rec check_expr expression table indices =
                  ) in
                  (STensor(shape), STLit(unwrap_components components, shape))
                  else failwith "Invalid tensor literal"
-    | Id(s) -> (lookup_symb s, SId(s))
-    | Unop(Neg, _expr) -> failwith
-          "You can't negate Nats and tensors haven't been implemented yet"
+    | Id(s) -> if StringMap.mem s indices 
+        then lookup_symb s, Forall { indices = [(s, StringMap.find s indices)]; 
+                                     sexpr = lookup_symb s, SId(s) }
+        else (lookup_symb s, SId(s))
+    | Unop(Neg, expr) -> type_of expr, SUnop(Neg, check_expr expr table indices)
     | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then 
         failwith "Detected arithmetic operation on incompatible types" else
         begin
