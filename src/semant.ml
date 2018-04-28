@@ -97,11 +97,6 @@ let rec check_expr expression table indices =
   in
   let indices = extract indices expression in
 
-  (* (1* Debug *1) *)
-  (* StringMap.iter (fun ix v -> *) 
-  (*     print_endline @@ "Index " ^ ix ^ " bound to " ^ string_of_int v) indices; *)
-
-  
   (* Lookup symbols in index table first because they should shadow *)
   let rec lookup_symb symb =
     match StringMap.find_opt symb indices with
@@ -298,8 +293,15 @@ let rec check_func enclosing (ftyp, fdef) =
       sfparams = sfparams; 
       sfexpr = this_sexpr';
       sscope = List.map (check_func table) fdef.scope }
-  else if
-       not (StringMap.is_empty lhs_indices) && 
+  else 
+       let module Set = Set.Make (String) in
+       let rhs_set = StringMap.fold (fun s _ acc -> Set.add s acc) 
+                     rhs_indices Set.empty in
+       let lhs_set = StringMap.fold (fun s _ acc -> Set.add s acc) 
+                     lhs_indices Set.empty in
+       if
+       not (StringMap.is_empty lhs_indices) &&
+       Set.subset rhs_set lhs_set &&
        recursive_check (ftyp, fdef) &&
        fst this_sexpr = STensor [] &&
        match ftyp.types with Tensor _ -> true | _ -> false
