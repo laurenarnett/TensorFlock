@@ -117,7 +117,8 @@ let rec codegen_sexpr (typ, detail) map builder =
 
   let handle_id s = match L.lookup_function s the_module with
               None -> L.build_load (lookup s map) s builder
-            | Some f -> L.build_call f [||] s builder in
+            | Some f -> print_endline "handle_id failure"; 
+              L.build_call f [||] s builder in
 
   match typ with
   | SNat ->
@@ -255,18 +256,41 @@ let rec codegen_sexpr (typ, detail) map builder =
     end
   | _ -> raise (Failure "Not yet implemented")
 
+(* Use in declaring global vars *)
+let handle_const typ = match typ with
+      SNat -> L.const_int nat_t 0
+    | SBool -> L.const_int bool_t 0
+    | STensor([]) -> L.const_float float_t 0.
+    | STensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
+    | _ -> raise (Failure "declare globals on unit type only")
+
+(* Given a global var, declare it in the_module, and return a new map.
+ * This function has the side effect of mutating the module *)
+let declare_global env sfunc = 
+  StringMap.add sfunc.sfname 
+    (L.define_global sfunc.sfname (handle_const sfunc.stype) the_module) env
+
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let codegen_proto env sfunc = 
-  let constant_func = List.length sfunc.sfparams = 0 in
-  let the_typ = if constant_func then L.function_type (ltype_of_styp sfunc.stype) [||]
-    else ltype_of_styp sfunc.stype in
-  
+let declare_fn env sfunc = 
+  let the_typ = ltype_of_styp sfunc.stype in
   let the_function = L.define_function (sfunc.sfname) the_typ the_module in
   StringMap.add sfunc.sfname the_function env
 
+(* Declare globals and functions for sfuncs *)
+let codegen_proto env sfunc = 
+    match List.length sfunc.sfparams with
+      0 -> declare_global env sfunc 
+    | _ -> declare_fn env sfunc
 
-let codegen_body env sfunc = 
+(* Codegen for globals *)
+let codegen_global env sfunc builder = 
+  ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env builder)
+    (lookup sfunc.sfname env) builder;
+  env
+
+(* Codegen for function body *)
+let codegen_fn_body env sfunc = 
     let the_function = match L.lookup_function sfunc.sfname the_module with
         | Some f -> f
         | None -> raise (Failure "internal error - undefined function")
@@ -288,20 +312,27 @@ let codegen_body env sfunc =
 
     let ret_val = codegen_sexpr sfunc.sfexpr env' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
-    (* Return the new environemnt *)
+    (* Return the new environment *)
     Llvm_analysis.assert_valid_function the_function;
 
     env'
 
-let translate sprogram =
-  (* Declare all defined functions *)
-  let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
-  (* Build their bodies *)
-  let env = List.fold_left codegen_body env (snd sprogram) in
+(* Codegen on globals and functions *)
+let codegen_body builder env sfunc = 
+    match List.length sfunc.sfparams with
+        0 -> codegen_global env sfunc builder
+      | _ -> codegen_fn_body env sfunc
 
+let translate sprogram =
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
+
+  (* Declare all defined functions *)
+  let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
+  (* Build their bodies *)
+  let env = List.fold_left (codegen_body builder) env (snd sprogram) in
+
   let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
   let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
   let float_format_str = L.build_global_stringptr "%g\n" "fmt" builder in
