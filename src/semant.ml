@@ -247,7 +247,7 @@ let compare_styp t1 t2 = match t1 with
     
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
-    let index_map = match String.contains fdef.fdef_name '[' with
+    let lhs_indices = match String.contains fdef.fdef_name '[' with
       | false -> StringMap.empty
       | true -> 
           let indices = List.nth (String.split_on_char '[' fdef.fdef_name) 1 in
@@ -270,27 +270,42 @@ let rec check_func enclosing (ftyp, fdef) =
   
   let table' = build_local_table enclosing (ftyp, fdef) in
   let table  = build_fns_table table' fdef.scope in
-  let this_sexpr, indices = check_expr fdef.main_expr table index_map in
+  let this_sexpr, rhs_indices = check_expr fdef.main_expr table lhs_indices in
+  let all_indices =
+      StringMap.union (fun _ _ v -> Some v) rhs_indices lhs_indices in
   let sfparams = List.fold_right2 (fun typ arg acc -> (typ, arg)::acc)
     (list_of_type ftyp.types |> but_last) fdef.fparams [] in
 
   if
-       StringMap.is_empty index_map && 
+       StringMap.is_empty all_indices && 
        recursive_check (ftyp, fdef) && 
        last_type ftyp.types = fst this_sexpr 
   then 
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
-      sfparams = sfparams; sfexpr = this_sexpr; 
+      sfparams = sfparams; 
+      sfexpr = this_sexpr; 
       sscope = List.map (check_func table) fdef.scope }
   else if
-       not (StringMap.is_empty index_map) && 
+       StringMap.is_empty lhs_indices && 
+       recursive_check (ftyp, fdef) &&
+       last_type ftyp.types = fst this_sexpr 
+  then
+      let this_sexpr' = (fst this_sexpr, 
+      Forall { indices = StringMap.bindings rhs_indices; sexpr = this_sexpr; }) in
+    { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
+      slocals = []; (* for now *)
+      sfparams = sfparams; 
+      sfexpr = this_sexpr';
+      sscope = List.map (check_func table) fdef.scope }
+  else if
+       not (StringMap.is_empty lhs_indices) && 
        recursive_check (ftyp, fdef) &&
        fst this_sexpr = STensor [] &&
        match ftyp.types with Tensor _ -> true | _ -> false
   then
       let this_sexpr' = (fst this_sexpr, 
-      Forall { indices = StringMap.bindings indices; sexpr = this_sexpr; }) in
+      Forall { indices = StringMap.bindings all_indices; sexpr = this_sexpr; }) in
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       slocals = []; (* for now *)
       sfparams = sfparams; 
@@ -309,5 +324,5 @@ let check (main_expr, funcs) =
   let check_main, _ = check_expr main_expr global_table StringMap.empty in
   match check_main with
     | SBool, _ | SNat, _ | STensor(_), _ -> 
-            (check_main, List.map (fun f -> check_func global_table f) funcs)
+            (check_main, List.map (check_func global_table) funcs)
     | _ -> failwith "main must be of type Tensor, Nat, or Bool"
