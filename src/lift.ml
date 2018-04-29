@@ -89,49 +89,119 @@ let rename_sprogram (main_expr, sfuncs) =
 (* Taken from semant, primed with "cast" *)
 let base_map = StringMap.singleton "cast" (SArrow(SNat,STensor([])))
 
+(* Takes in a list of sfuncs, and returns a string map of
+ * Key: ids
+ * Value: stype *)
 let build_fns_table enclosing sfuncs =
   let local_map = List.fold_left (fun table sfunc ->
     StringMap.add sfunc.sfname sfunc.stype table) base_map sfuncs in
   StringMap.union (fun _key _v1 v2 -> Some v2) enclosing local_map
 
+let build_locals_table enclosing _sfunc = enclosing
+
+(* Replace the func with the matching id, return
+ * an updated sprogram *)
+let rec replace_sfunc sfunc sfuncs = List.fold_left
+  (fun lst sfunc' ->
+    (* First check if the func def is in a sscope *)
+    let sscope' = replace_sfunc sfunc sfunc.sscope in
+    (* Replaces a sfunc with one that has lifted params. If the name
+     * of the sfunc passed in matches the name that we're trying to replace,
+     * then replace it, else return the sfunc that was passed in *)
+    if sfunc'.sfname = sfunc.sfname then
+    { sfname = sfunc.sfname;
+      stype = sfunc.stype;
+      sfparams = sfunc.sfparams;
+      sindices = sfunc.sindices;
+      slocals = sfunc.slocals;
+      sfexpr = sfunc.sfexpr;
+      (* replace with the scope above *)
+      sscope = sscope' } :: lst
+    else
+    { sfname = sfunc'.sfname;
+      stype = sfunc'.stype;
+      sfparams = sfunc'.sfparams;
+      sindices = sfunc'.sindices;
+      slocals = sfunc'.slocals;
+      sfexpr = sfunc'.sfexpr;
+      (* replace with the scope above *)
+      sscope = sscope' } :: lst ) [] sfuncs
+
+(* Stub *)
+let update_call_sites sfunc sfuncs = sfuncs
+
+(* Take in a sexpr and return a list of ids inside that sexpr *)
+let rec get_ids (sexper : Sast.sexpr) acc = match sexper with
+  | (_,SLiteral(_)) | (_, SFliteral(_))
+  | (_, SBoolLit(_)) | (_, STLit(_)) -> acc
+  | (_, SUnop(_, e)) -> get_ids e acc
+  | (_, SAop(e1, _, e2)) -> let lst = get_ids e1 acc in
+    get_ids e2 lst
+  | (_, SBoolop(e1, _, e2)) -> let lst = get_ids e1 acc
+    in get_ids e2 lst
+  | (_, SRop(e1, _, e2)) -> let lst = get_ids e1 acc
+    in get_ids e2 lst
+  | (_, SApp(e1, e2)) -> let lst = get_ids e1 acc in
+    List.fold_left (fun lst' sexpr -> get_ids sexpr lst') lst e2
+  | (_, SCondExpr(e1, e2, e3)) -> let lst = get_ids e1 acc in
+    let lst' = get_ids e2 lst in get_ids e3 lst'
+  | (_, STensorIdx(_, _)) -> acc
+  | (styp, SId(s)) -> (s, styp) :: acc
+
+(* Get a list of ids from a list of sfuncs *)
+let get_func_ids sfuncs = List.fold_left
+  (fun lst sfunc -> sfunc.sfname :: lst) [] sfuncs
+
 (* Take in a sfunc and its enclosing scope, and return the sfunc
  * with all its free variables lifted into params *)
-let lift_params enclosing sfunc =
-  let param_ids = List.fold_left
+(* functions need to only lift the params of your parent
+ * Whats in scope:
+   * - funcs in the enclosing scope
+   * - func defs one scope below
+   * - func params
+   * Free vars = (ids in sfunc.sexpr) \ (enclosing, func defs one scope below,
+   * func params)*)
+let rec lift_params enclosing sfunc sfuncs =
+  let sexpr_id_typs = get_ids sfunc.sfexpr [] in
+  let local_map = build_locals_table enclosing sfunc in
+  (* Build up four sets from which we'll derive the free vars:
+   * local_ids \ (enclosing_ids U sscope_func_ids U param_ids) *)
+  let sexpr_ids = StringSet.of_list @@ List.fold_left
+    (fun lst (id, _) -> id :: lst) [] sexpr_id_typs in
+  let enclosing_ids = StringSet.of_list @@ StringMap.fold
+    (fun k _ lst -> k :: lst) enclosing [] in
+  let sscope_func_ids = StringSet.of_list @@ get_func_ids sfunc.sscope in
+  let param_ids = StringSet.of_list @@ List.fold_left
     (fun lst (_, s) -> s :: lst) [] sfunc.sfparams in
-  let rec get_free_vars (e : sexpr) acc = match e with
-    | (_,SLiteral(_)) | (_, SFliteral(_))
-    | (_, SBoolLit(_)) | (_, STLit(_)) -> acc
-    | (_, SUnop(_, e)) -> get_free_vars e acc
-    | (_, SAop(e1, _, e2)) -> let lst = get_free_vars e1 acc in
-      get_free_vars e2 lst
-    | (_, SBoolop(e1, _, e2)) -> let lst = get_free_vars e1 acc
-      in get_free_vars e2 lst
-    | (_, SRop(e1, _, e2)) -> let lst = get_free_vars e1 acc
-      in get_free_vars e2 lst
-    | (_, SApp(e1, e2)) -> let lst = get_free_vars e1 acc in
-      List.fold_left (fun lst' sexpr -> get_free_vars sexpr lst') lst e2
-    | (_, SCondExpr(e1, e2, e3)) -> let lst = get_free_vars e1 acc in
-      let lst' = get_free_vars e2 lst in get_free_vars e3 lst'
-    | (_, STensorIdx(_, _e)) -> get_free_vars e acc
-    | (styp, SId(s)) -> if StringMap.mem s enclosing &&
-      not (List.mem s param_ids)
-      then (s, styp) :: acc else acc in
-  let free_vars = get_free_vars sfunc.sfexpr [] in
-  List.fold_left (fun sfunc' (id, styp) ->
+  let in_scope_ids = StringSet.union enclosing_ids
+    (StringSet.union sscope_func_ids param_ids) in
+  let free_vars_ids = StringSet.filter
+    (fun id -> StringSet.mem id in_scope_ids) sexpr_ids in
+  (* Rejoin free var ids with thier styps *)
+  let free_vars = StringSet.fold
+    (fun id lst -> let styp = StringMap.find id local_map in
+      (id, styp) :: lst) free_vars_ids [] in
+  let lifted_sfunc = List.fold_left (fun sfunc' (id, styp) ->
+    let lifted_sscope = List.fold_left
+      (fun sfscope sfunc'' ->
+        (lift_params local_map sfunc'' sfscope)) sfunc'.sscope
+        sfunc'.sscope in
     { sfname = sfunc'.sfname;
       stype = sfunc'.stype;
       sfparams = (styp, id) :: sfunc'.sfparams;
       sindices = sfunc'.sindices;
       slocals = (styp, id) :: sfunc'.sfparams;
       sfexpr = sfunc'.sfexpr;
-      sscope = sfunc'.sscope })
-    sfunc free_vars
-
+      sscope = lifted_sscope }) sfunc free_vars in
+  (* Now rebuild sfuncs with the lifted sfunc *)
+  let updated_sfuncs = replace_sfunc lifted_sfunc sfuncs in
+  (* Return a new sprogram with updated call sites *)
+  (*update_call_sites lifted_sfunc updated_sfuncs*)
+  updated_sfuncs
 
 let lift_params_sprogram (_main_sexpr, sfuncs) =
   let global_table = build_fns_table StringMap.empty sfuncs in
-  let _lifted_sfuncs = List.fold_left (fun lst sfunc ->
-    (lift_params global_table sfunc) :: lst) [] sfuncs in
+  let _lifted_sfuncs = List.fold_left (fun sfuncs' sfunc ->
+    lift_params global_table sfunc sfuncs') sfuncs  sfuncs in
   _lifted_sfuncs
 
