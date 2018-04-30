@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "../src/runtime.c"
+#include "../src/runtime-copy.c"
 #include <assert.h>
 
 // which indices we are currently on for one of the tensors, 
@@ -111,13 +111,16 @@ int main() {
                 21.0, 22.0, 23.0, 24.0}; 
     T *someT = talloc(3, s, vals);
 
-    nat s2[] = {3, 5, 1};
-    double vals2[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
-                11.0, 12.0, 13.0, 14.0, 15.0};
+    nat s2[] = {2, 3, 4};
+    /*double vals2[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 
+                11.0, 12.0, 13.0, 14.0, 15.0};*/
+    double vals2[] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0,  
+                11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 
+                21.0, 22.0, 23.0, 24.0}; 
     T *otherT = talloc(3, s2, vals2);
 
-    nat new_shape[] = {2, 4, 5, 1};
-    T *res = contract(someT, otherT, 2, 0, new_shape, 4);
+    nat new_shape[] = {2, 4, 2, 4};
+    T *res = contract(someT, otherT, 2, 1, new_shape, 4);
 
     print_tensor(res);
 
