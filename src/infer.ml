@@ -43,6 +43,13 @@ let rec eval env aexpr = match aexpr with
 
 (* Given a program, collect all tensor literal shapes and bind then to ids so
  * that we can reduce all shape expressions *)
+let combine_envs env_list = List.fold_left (fun acc map ->
+    (StringMap.union (fun id s1 s2 -> 
+      if s1 = s2 then Some s2 else failwith 
+      (id ^ " is already bound to " ^ string_of_int s1 ^
+      ". Cannot bind it to " ^ string_of_int s2 ^ " as well.")) acc map)
+    ) StringMap.empty env_list
+        
 let rec env_of_funcs funcs = 
   let env_of_func env (ftyp, fdef) = match ftyp.types, fdef.main_expr with 
     | Tensor(shape), TLit(contents) ->
@@ -65,27 +72,21 @@ let rec env_of_funcs funcs =
     | _ -> env in
 
 
-  let combine_envs env_list = List.fold_left (fun acc map ->
-        (StringMap.union (fun id s1 s2 -> 
-          if s1 = s2 then Some s2 else failwith 
-          (id ^ " is already bound to " ^ string_of_int s1 ^
-          ". Cannot bind it to " ^ string_of_int s2 ^ " as well.")) acc map)
-        ) StringMap.empty env_list in
-        
   combine_envs @@ 
     List.map (env_of_func StringMap.empty) funcs @
     (* Recurse over all inner scopes *)
     List.map (fun f -> env_of_funcs f.scope) (List.map snd funcs)
 
-let rec deduce_shapes funcs = 
-    let env = env_of_funcs funcs in
+let deduce_shapes funcs = 
+let rec deduce_shapes enclosing funcs = 
+    let env = combine_envs [enclosing; env_of_funcs funcs] in
     let rec replace_type env typ = match typ with
       | Nat | Bool | Tensor [] -> typ
       | Tensor shape -> Tensor (List.map (fun s -> ALiteral(eval env s)) shape)
       | Arrow(t1, t2) -> Arrow(replace_type env t1, replace_type env t2) in
     let funcs' = List.map (fun (ft, fd) -> 
         {ft with types = replace_type env ft.types},
-        {fd with scope = deduce_shapes fd.scope }) funcs in
+        {fd with scope = deduce_shapes env fd.scope}) funcs in
     (* Keep track of replaced ids by just adding a lot of global vars to the
      * program *)
     let new_funcs = StringMap.fold
@@ -93,6 +94,7 @@ let rec deduce_shapes funcs =
             ({ftyp_name = name; types = Nat},
             {fdef_name = name; fparams = []; main_expr = Literal i; scope = []})
             :: acc) env funcs' in
-    new_funcs
+    new_funcs in
+deduce_shapes StringMap.empty funcs
 
 

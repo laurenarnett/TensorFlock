@@ -27,8 +27,9 @@ let rec rename old_name new_name sexpr = match sexpr with
     SCondExpr((t1, rename old_name new_name e1),
               (t2, rename old_name new_name e2),
               (t3, rename old_name new_name e3))
-  | STensorIdx(_, _) -> raise (Failure "Not yet imlemented")
-  | _ -> failwith "Not yet implemented"
+  | STensorIdx((t, e), _) -> rename old_name new_name e
+  | Forall r -> rename old_name new_name (snd r.sexpr)
+  | Contract r -> rename old_name new_name (snd r.sexpr)
 
 (* The new_id function takes an identifier and returns a new one. The method of
  * dealing with a mutable counter was taken from 
@@ -84,4 +85,3 @@ let rename_sprogram (main_expr, sfuncs) =
             List.fold_right StringSet.add (List.map snd sf.sfparams) enclosing' in
             rename_sfunc enclosing'' sf) sfuncs in
     main_expr, rename_sfuncs sfuncs StringSet.empty
-

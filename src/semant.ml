@@ -66,6 +66,20 @@ let string_of_table map =
   List.map (fun (name, types) -> name ^ " : " ^ (string_of_styp types)
            ) (StringMap.bindings map)) ^ "\n"
 
+(* Type compare for Aops. Simple equality is not enough *)
+let rec compare_styp t1 t2 = 
+    (* (1* Debug *1) *)
+    (* print_endline @@ "Compared types " ^ string_of_styp t1 ^ " and " ^ *)
+    (* string_of_styp t2; *)
+    match t1 with
+    | SNat | SBool -> t1 = t2
+    (* make this more sophisticated later *)
+    | STensor _ -> (match t2 with STensor _ -> true | _ -> false) 
+    | SArrow (t1', t2') -> 
+            match t2 with SArrow(t1'', t2'') ->
+                  compare_styp t1' t1'' && compare_styp t2' t2''
+                | _ -> false
+
 
 (* Check expr: expr -> table -> indices -> sexpr * indices *)
 let rec check_expr expression table indices =
@@ -129,7 +143,8 @@ let rec check_expr expression table indices =
         "Type error: cannot negate something that isn't an indexed tensor.
         Error in expression: " ^ string_of_expr expr
     end
-    | Aop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then 
+    | Aop(expr1, op, expr2) -> 
+        if not @@ compare_styp (type_of expr1) (type_of expr2) then
         failwith "Detected arithmetic operation on incompatible types" else
         begin
             match type_of expr1 with
@@ -140,7 +155,34 @@ let rec check_expr expression table indices =
             | STensor([]) -> (STensor([]),
                     SAop((fst @@ check_expr expr1 table indices), 
                         op, (fst @@ check_expr expr2 table indices))), indices
-            | STensor(_) -> failwith "Not yet implemented"
+            | STensor(_) ->
+                let sexpr1, _ = check_expr expr1 table indices in
+                let sexpr2, _ = check_expr expr2 table indices in
+            begin
+                match op with 
+                | Add | Sub | Mod | Expt | Div -> 
+                    begin
+                      match sexpr1, sexpr2 with 
+                      | (STensor shape1, STensorIdx(_, idxs1)),
+                        (STensor shape2, STensorIdx(_, idxs2)) ->
+                        if not @@ (shape1 = shape2) || (shape1 = []) || (shape2 = [])
+                        then failwith "Type error, cannot perform
+                        non-multiplicative operations on tensors of different
+                        shapes unless one of them is rank 0."
+                        else if shape1 = shape2 && idxs1 <> idxs2 then 
+                            failwith "If the two tensors are indeed of the same
+                            shape, then you need to index them accordingly."
+                        else 
+            let ret_type = if shape1 = [] then STensor shape2 else STensor shape1 in
+            let ret_idxs = if idxs1 = [] then idxs2 else idxs1 in
+            let ret_expr = ret_type, SAop(sexpr1, op, sexpr2)
+            in (ret_type, STensorIdx(ret_expr, ret_idxs)), indices
+                      | _ -> failwith "Type error line 175"
+                    end
+
+                | Mult -> failwith "not yet implemented"
+
+            end
             | SArrow(_,_) -> 
                 failwith "Arithmetic operation on partially applied function"
         end
@@ -234,12 +276,6 @@ let recursive_check (ftyp, fdef) =
   let main_expr = fdef.main_expr in
   if single_typ && rec_def main_expr then false else true
 
-let compare_styp t1 t2 = match t1 with
-    | SNat | SBool -> t1 = t2
-    (* make this more sophisticated later *)
-    | STensor _ -> (match t2 with STensor _ -> true | _ -> false) 
-    | SArrow (_,_) -> failwith "Internal error, shouldn't be comparing arrow types"
-
 (* The is_scalar function checks if a tensor is indexed enough to be able to
  * be on the RHS of something with an indexed LHS. *)
 let rec is_scalar sexpr = match fst sexpr with
@@ -254,8 +290,8 @@ let rec is_scalar sexpr = match fst sexpr with
               or Rops in consideration for being scalars"
       | SCondExpr(_, e2, e3) -> is_scalar e2 && is_scalar e3
       | STensorIdx _ -> true
-      | SAop(_e1, _, _e2) -> shape = []
-      | SApp(_e, _es) -> false
+      | SAop(e1, _, e2) -> is_scalar e1 && is_scalar e2
+      | SApp(_e, _es) -> shape = []
       | Contract _ -> shape = []
       | Forall _ -> failwith "Forall shouldn't be introduced yet"
     end

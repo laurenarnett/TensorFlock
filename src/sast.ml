@@ -81,7 +81,7 @@ and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_styp t
 
 let rec string_of_sfunc sfunc =
-  "(" ^ sfunc.sfname ^ (String.concat " " (List.map snd sfunc.sfparams))
+  "(" ^ sfunc.sfname ^ " " ^ (String.concat " " (List.map snd sfunc.sfparams))
   ^ " : " ^ string_of_styp sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
