@@ -257,7 +257,7 @@ let rec codegen_sexpr (typ, detail) map builder =
   | _ -> raise (Failure "Not yet implemented")
 
 (* Use in declaring global vars *)
-let handle_const typ = match typ with
+let handle_const sfunc = match sfunc.stype with
       SNat -> L.const_int nat_t 0
     | SBool -> L.const_int bool_t 0
     | STensor([]) -> L.const_float float_t 0.
@@ -268,7 +268,7 @@ let handle_const typ = match typ with
  * This function has the side effect of mutating the module *)
 let declare_global env sfunc = 
   StringMap.add sfunc.sfname 
-    (L.define_global sfunc.sfname (handle_const sfunc.stype) the_module) env
+    (L.define_global sfunc.sfname (handle_const sfunc) the_module) env
 
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
@@ -324,12 +324,10 @@ let codegen_body builder env sfunc =
       | _ -> codegen_fn_body env sfunc
 
 let translate sprogram =
-  let sprogram_nodes = List.map Topsort.sfunc_to_node (snd sprogram) in
-  let sprogram = (fst sprogram, (Topsort.topsort sprogram_nodes [])) in
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
-
+  ignore @@ List.map (fun x -> print_endline x.sfname) (snd sprogram);
   (* Declare all defined functions *)
   let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
   (* Build their bodies *)

@@ -243,6 +243,7 @@ let check (main_expr, funcs) =
   (* First build table of functions in global scope *)
   let global_table = build_fns_table StringMap.empty funcs in
   let check_main = check_expr main_expr global_table in
+
   match check_main with
     | SBool, _ | SNat, _ | STensor(_), _ -> 
             (check_main, List.map (fun f -> check_func global_table f) funcs)

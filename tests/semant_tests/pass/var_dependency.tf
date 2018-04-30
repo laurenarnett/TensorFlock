@@ -1,0 +1,9 @@
+main = x;
+x : Nat;
+x = y;
+y : Nat;
+y = z;
+z : Nat;
+z = a;
+a : Nat;
+a = 1;
