@@ -17,16 +17,58 @@ let rec get_expr_ids id_list sexpr = match sexpr with
   | SRop((_t1, e1), _o, (_t2, e2)) -> 
     let id_list' = get_expr_ids id_list e1 in
         get_expr_ids id_list' e2
-  | SApp((t, e), es) -> 
+  | SApp((_t, _e), es) -> 
      List.fold_right (fun sx acc -> (get_expr_ids acc (snd sx))) es id_list
-  | SCondExpr((t1, e1), (t2, e2), (t3, e3)) -> 
+  | SCondExpr((_t1, e1), (_t2, e2), (_t3, e3)) -> 
     let id_list' = get_expr_ids id_list e1 in
     let id_list'' = get_expr_ids id_list' e2 in
         get_expr_ids id_list'' e3
   | STensorIdx(_, _) -> raise (Failure "Not yet imlemented")
 
-(*
-let topsort sfuncs = 
-  let zero_indegree = List.filter (fun sfunc: List.length sfunc.sfparams = 0)
-      sfuncs
-   *)
+type node = {
+  data : sfunc;
+  edges : string list;
+}
+
+(* Make record of sfunc with its corresponding incoming edges *)
+let sfunc_to_node sfunc = 
+  { data = sfunc; edges = get_expr_ids [] (snd sfunc.sfexpr) }
+
+let node_to_sfunc node = node.data
+
+(* Remove id from explored list *)
+let remove_id id node = 
+ { data = node.data; 
+   edges = List.filter (fun edge -> id <> edge) node.edges
+ }
+
+let topsort_elt sfunc nodes_list sorted_list = 
+  let sorted_list' = sfunc::sorted_list in
+
+  (* Returns if node contains an edge to this sfunc *)
+  let contains_id id node = List.exists (fun edge -> id = edge) node.edges in
+
+  (* Filter on sfuncs dependent on equivalent ids as this sfunc's name *)
+  let sfunc_edges,others = List.partition (fun node -> 
+      contains_id (sfunc.sfname) node) nodes_list in
+
+  (* Update filtered nodes, removing edge of this variable dependency *)
+  let updated_nodes = List.map (fun node -> 
+      remove_id sfunc.sfname node) sfunc_edges in
+
+  (sorted_list', updated_nodes @ others)
+
+
+let rec topsort remaining_nodes sorted_list =
+  (* Set of all nodes with no incoming edge *)
+  let zero_indegree, others = List.partition (fun node -> 
+      List.length node.edges = 0) remaining_nodes in
+  begin
+    match List.length zero_indegree with
+      0 -> List.rev sorted_list 
+    | _ -> let (sorted_list', remaining_nodes) = 
+             topsort_elt (node_to_sfunc (List.hd zero_indegree)) 
+               (List.tl zero_indegree @ others)
+               sorted_list in
+            topsort remaining_nodes sorted_list'
+  end

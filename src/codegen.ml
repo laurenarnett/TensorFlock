@@ -324,6 +324,8 @@ let codegen_body builder env sfunc =
       | _ -> codegen_fn_body env sfunc
 
 let translate sprogram =
+  let sprogram_nodes = List.map Topsort.sfunc_to_node (snd sprogram) in
+  let sprogram = (fst sprogram, (Topsort.topsort sprogram_nodes [])) in
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
