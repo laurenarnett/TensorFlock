@@ -267,8 +267,9 @@ T *contract_rec(T *t1, T *t2, T *res, nat ind1, nat ind2, nat *new_shape,
     return res;
 }
 
-T *contract(T *t1, T *t2, nat ind1, nat ind2, nat *new_shape, nat new_rank) {
+T *contract(T *t1, T *t2, nat ind1, nat ind2, nat *new_shape) {
 
+    nat new_rank = t1->rank + t2->rank - 2;
     nat curr_ind[new_rank];
     memset(curr_ind, 0, sizeof(nat) * new_rank);
 
