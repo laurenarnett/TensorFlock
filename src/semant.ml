@@ -133,16 +133,16 @@ let rec check_expr expression table indices =
         failwith "Detected arithmetic operation on incompatible types" else
         begin
             match type_of expr1 with
-                | SNat -> (SNat,
-                        SAop((fst @@ check_expr expr1 table indices), 
-                            op, (fst @@ check_expr expr2 table indices))), indices
-                | SBool -> failwith "Detected arithmetic operation on boolean"
-                | STensor([]) -> (STensor([]),
-                        SAop((fst @@ check_expr expr1 table indices), 
-                            op, (fst @@ check_expr expr2 table indices))), indices
-                | STensor(_) -> failwith "Not yet implemented"
-                | SArrow(_,_) -> 
-                    failwith "Arithmetic operation on partially applied function"
+            | SNat -> (SNat,
+                    SAop((fst @@ check_expr expr1 table indices), 
+                        op, (fst @@ check_expr expr2 table indices))), indices
+            | SBool -> failwith "Detected arithmetic operation on boolean"
+            | STensor([]) -> (STensor([]),
+                    SAop((fst @@ check_expr expr1 table indices), 
+                        op, (fst @@ check_expr expr2 table indices))), indices
+            | STensor(_) -> failwith "Not yet implemented"
+            | SArrow(_,_) -> 
+                failwith "Arithmetic operation on partially applied function"
         end
     | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then
         failwith "Detected boolean operation on incompatible types" else
@@ -161,11 +161,11 @@ let rec check_expr expression table indices =
         failwith "Detected relational operation on incompatible types" else
         begin
             match type_of expr1 with
-            | SNat -> (SBool,
+            | SNat | STensor [] -> (SBool,
                     SRop((fst @@ check_expr expr1 table indices), 
                         op, (fst @@ check_expr expr2 table indices))), indices
             | SBool -> failwith "Detected relational operation on boolean"
-            | STensor(_) -> failwith "Not yet implemented"
+            | STensor(_) -> failwith "No ordering exists on arbitrary rank tensors"
             | SArrow(_,_) ->
                     failwith "Relational operation on partially applied function"
         end
@@ -208,7 +208,7 @@ let rec check_expr expression table indices =
                    fst @@ check_expr expr2 table indices, 
                    fst @@check_expr expr3 table indices)), indices
     | TensorIdx(e, idxs) -> 
-        (STensor [], STensorIdx(fst @@ check_expr e table indices, idxs)), indices
+        (type_of e, STensorIdx(fst @@ check_expr e table indices, idxs)), indices
 
 (* If a function has a single type in its decl and the same
  * id appears in its definition raise error, else return true*)
@@ -239,6 +239,27 @@ let compare_styp t1 t2 = match t1 with
     (* make this more sophisticated later *)
     | STensor _ -> (match t2 with STensor _ -> true | _ -> false) 
     | SArrow (_,_) -> failwith "Internal error, shouldn't be comparing arrow types"
+
+(* The is_scalar function checks if a tensor is indexed enough to be able to
+ * be on the RHS of something with an indexed LHS. *)
+let rec is_scalar sexpr = match fst sexpr with
+  | STensor shape -> begin
+          match snd sexpr with 
+      | SLiteral _ | SBoolLit _ | SFliteral _ -> true
+      | STLit _ -> false
+      | SId _ -> shape = []
+      | SUnop(_, e) -> is_scalar e
+      | SBoolop _ | SRop _ -> 
+              failwith "internal error, semant failed. Shouldn't have Boolops
+              or Rops in consideration for being scalars"
+      | SCondExpr(_, e2, e3) -> is_scalar e2 && is_scalar e3
+      | STensorIdx _ -> true
+      | SAop(_e1, _, _e2) -> shape = []
+      | SApp(_e, _es) -> false
+      | Contract _ -> shape = []
+      | Forall _ -> failwith "Forall shouldn't be introduced yet"
+    end
+  | _ -> false
     
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
@@ -303,7 +324,7 @@ let rec check_func enclosing (ftyp, fdef) =
        not (StringMap.is_empty lhs_indices) &&
        Set.subset rhs_set lhs_set &&
        recursive_check (ftyp, fdef) &&
-       fst this_sexpr = STensor [] &&
+       is_scalar this_sexpr &&
        match ftyp.types with Tensor _ -> true | _ -> false
   then
       let this_sexpr' = (fst this_sexpr, 
