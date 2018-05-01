@@ -310,6 +310,14 @@ let codegen_fn_body env sfunc =
     let env' = List.fold_left2 alloc_param 
         env sfunc.sfparams (L.params the_function |> Array.to_list) in
 
+    let alloc_scope scope = 
+      let sorted_scope = snd (Topsort.make_topsort ([], scope)) in
+      let llvals = List.map codegen_sexpr (fun sfunc -> (sfunc.stype, sfunc.sfexpr)
+      let env'' = List.fold_left2 alloc_param env' 
+          (fun sfunc -> (sfunc.stype, sfunc.sfname)) sorted_scope;
+        env''
+      
+
     let ret_val = codegen_sexpr sfunc.sfexpr env' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
     (* Return the new environment *)
