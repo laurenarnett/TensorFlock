@@ -83,6 +83,11 @@ let rec compare_styp t1 t2 =
 
 (* Check expr: expr -> table -> indices -> sexpr * indices *)
 let rec check_expr expression table indices =
+    (* Finds the duplicated item in a sorted list *)
+  let rec find_dup = function
+      [] -> failwith "Internal error: called find_dup on indices with no dups"
+    | [x] -> x
+    | x :: y :: ys -> if x = y then x else find_dup (y :: ys) in
   let type_of expr = fst @@ fst (check_expr expr table indices) in
   (* Extract indices from expr *)
   let rec extract indices expr = 
@@ -147,15 +152,15 @@ let rec check_expr expression table indices =
         if not @@ compare_styp (type_of expr1) (type_of expr2) then
         failwith "Detected arithmetic operation on incompatible types" else
         begin
-            match type_of expr1 with
-            | SNat -> (SNat,
+            match type_of expr1, type_of expr2 with
+            | SNat, SNat -> (SNat,
                     SAop((fst @@ check_expr expr1 table indices), 
                         op, (fst @@ check_expr expr2 table indices))), indices
-            | SBool -> failwith "Detected arithmetic operation on boolean"
-            | STensor([]) -> (STensor([]),
+            | SBool, _ -> failwith "Detected arithmetic operation on boolean"
+            | STensor([]), STensor([]) -> (STensor([]),
                     SAop((fst @@ check_expr expr1 table indices), 
                         op, (fst @@ check_expr expr2 table indices))), indices
-            | STensor(_) ->
+            | STensor _, STensor _ ->
                 let sexpr1, _ = check_expr expr1 table indices in
                 let sexpr2, _ = check_expr expr2 table indices in
             begin
@@ -180,11 +185,47 @@ let rec check_expr expression table indices =
                       | _ -> failwith "Type error line 175"
                     end
 
-                | Mult -> failwith "wip"
+                | Mult -> 
+                    begin
+                      match sexpr1, sexpr2 with 
+                      | (STensor shape1, STensorIdx(_, idxs1)),
+                        (STensor shape2, STensorIdx(_, idxs2)) ->
+            let all_idxs = idxs1 @ idxs2 in
+            if List.sort compare all_idxs = List.sort_uniq compare all_idxs
+            then 
+            let new_shape = shape1 @ shape2 in
+            let new_idxs = idxs1 @ idxs2 in 
+            (STensor new_shape, 
+                STensorIdx((STensor new_shape, SAop(sexpr1, Mult, sexpr2)), 
+                            new_idxs)), indices
+            else if List.length (List.sort compare all_idxs) = 
+                    List.length (List.sort_uniq compare all_idxs) + 1 then 
+            let the_index = find_dup (List.sort compare all_idxs) in
+            let new_idxs, new_shape = 
+                List.filter (fun (i, _) -> i <> the_index) (List.combine all_idxs
+                (shape1 @ shape2)) |> List.split in
+            let the_size = 
+                List.filter (fun (i, _) -> i = the_index) 
+                    (List.combine all_idxs (shape1 @ shape2))
+                |> List.hd |> snd in
+            let the_sexpr = (STensor new_shape, 
+                Contract { index = the_index, the_size;
+                sexpr = STensor (shape1 @ shape2), 
+                        SAop(sexpr1, Mult, sexpr2) }
+                )
+            in (STensor new_shape, STensorIdx(the_sexpr, new_idxs)), 
+            StringMap.remove the_index indices
+            else failwith "Type error line 216"
+            
+                
+                      | _ -> failwith "Type error in tensor multiplication"
+                    end
+
 
             end
-            | SArrow(_,_) -> 
+            | SArrow(_,_), _ -> 
                 failwith "Arithmetic operation on partially applied function"
+            | _ -> failwith @@ "Type error in " ^ string_of_expr expression
         end
     | Boolop(expr1, op, expr2) -> if type_of expr1 <> type_of expr2 then
         failwith "Detected boolean operation on incompatible types" else
@@ -254,11 +295,6 @@ let rec check_expr expression table indices =
         (type_of e, STensorIdx(fst @@ check_expr e table indices, idxs)), indices
         else if List.length (List.sort compare idxs) = 
                 List.length (List.sort_uniq compare idxs) + 1 then 
-        (* Finds the duplicated item in a sorted list *)
-        let rec find_dup = function
-            [] -> failwith "Internal error: called find_dup on indices with no dups"
-          | [x] -> x
-          | x :: y :: ys -> if x = y then x else find_dup (y :: ys) in
         let the_index = find_dup (List.sort compare idxs) in
         let old_shape = match type_of e with
           | STensor old_shape -> old_shape
