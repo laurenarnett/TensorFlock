@@ -96,5 +96,3 @@ let rec deduce_shapes enclosing funcs =
             :: acc) env funcs' in
     new_funcs in
 deduce_shapes StringMap.empty funcs
-
-

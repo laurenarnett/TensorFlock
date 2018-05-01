@@ -25,11 +25,8 @@ and sexpr_detail =
    * Contract mat1[i,j], mat2[j,k], 1, 0, yet_another_int
    * whose type is Tensor<_some_int, _another_int> *)
   | Forall of { indices : (string * int) list; sexpr : sexpr }
-  | Contract of { tensor1 : sexpr
-                ; tensor2 : sexpr
-                ; axis1 : int
-                ; axis2 : int 
-                ; sexpr : sexpr }
+  | Contract of { index : (string * int); sexpr : sexpr}
+                
 
 type sfunc = {
     sfname : string;
@@ -76,14 +73,16 @@ let rec string_of_sexpr_detail e = match e with
   | Forall r -> "forall " ^ String.concat "," 
       (List.map (fun (i, n) -> i ^ " in range " ^ string_of_int n) r.indices)
       ^ " . " ^ string_of_sexpr r.sexpr
-  | Contract _ -> "Not yet implemented"
+  | Contract r -> "contract " ^ string_of_sexpr r.sexpr 
+                  ^ " over " ^ (fst r.index)
 and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_styp t
 
 let rec string_of_sfunc sfunc =
   "(" ^ sfunc.sfname ^ " " ^ (String.concat " " (List.map snd sfunc.sfparams))
   ^ " : " ^ string_of_styp sfunc.stype ^ ") = "
-  ^ string_of_sexpr sfunc.sfexpr ^ "\n{\n"
+  ^ string_of_sexpr sfunc.sfexpr ^ if sfunc.sscope = [] then "" else
+  "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
   ^ "\n}"
 

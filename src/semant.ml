@@ -180,7 +180,7 @@ let rec check_expr expression table indices =
                       | _ -> failwith "Type error line 175"
                     end
 
-                | Mult -> failwith "not yet implemented"
+                | Mult -> failwith "wip"
 
             end
             | SArrow(_,_) -> 
@@ -250,7 +250,32 @@ let rec check_expr expression table indices =
                    fst @@ check_expr expr2 table indices, 
                    fst @@check_expr expr3 table indices)), indices
     | TensorIdx(e, idxs) -> 
+        if List.sort compare idxs = List.sort_uniq compare idxs then
         (type_of e, STensorIdx(fst @@ check_expr e table indices, idxs)), indices
+        else if List.length (List.sort compare idxs) = 
+                List.length (List.sort_uniq compare idxs) + 1 then 
+        (* Finds the duplicated item in a sorted list *)
+        let rec find_dup = function
+            [] -> failwith "Internal error: called find_dup on indices with no dups"
+          | [x] -> x
+          | x :: y :: ys -> if x = y then x else find_dup (y :: ys) in
+        let the_index = find_dup (List.sort compare idxs) in
+        let old_shape = match type_of e with
+          | STensor old_shape -> old_shape
+          | _ -> failwith "Type error - cannot index non-tensor object" in
+        let new_idxs, new_shape = 
+          List.filter (fun (i, _) -> i <> the_index) (List.combine idxs old_shape) 
+            |> List.split in
+        let the_size = 
+          List.filter (fun (i, _) -> i = the_index) (List.combine idxs old_shape)
+            |> List.hd |> snd in
+        let the_sexpr = (STensor new_shape, Contract { index = the_index, the_size;
+                sexpr = STensor old_shape, 
+                        STensorIdx(fst @@ check_expr e table indices, idxs) }) in
+        (STensor new_shape, STensorIdx(the_sexpr, new_idxs)), 
+            StringMap.remove the_index indices
+        else failwith @@ "Cannot contract more than one set of indices in a single
+                            tensor. Failed at " ^ string_of_expr e
 
 (* If a function has a single type in its decl and the same
  * id appears in its definition raise error, else return true*)
