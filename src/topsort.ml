@@ -23,7 +23,9 @@ let rec get_expr_ids id_list sexpr = match sexpr with
     let id_list' = get_expr_ids id_list e1 in
     let id_list'' = get_expr_ids id_list' e2 in
         get_expr_ids id_list'' e3
-  | STensorIdx(_, _) -> raise (Failure "Not yet imlemented")
+  | STensorIdx(e, _) -> get_expr_ids id_list (snd e)
+  | Forall r -> get_expr_ids id_list (snd r.sexpr)
+  | Contract r -> get_expr_ids id_list (snd r.sexpr)
 
 type node = {
   data : sfunc;
