@@ -66,6 +66,7 @@ let rec topsort remaining_nodes sorted_list =
       List.length node.edges = 0) remaining_nodes in
   (* Check for cycles *)
   if List.length zero_indegree = 0 && List.length sorted_list = 0 
+      && List.length others > 0
     then raise (Failure "Cycle in variable declaration") else
   begin
     match List.length zero_indegree with
