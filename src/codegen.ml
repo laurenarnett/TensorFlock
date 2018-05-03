@@ -54,8 +54,8 @@ let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_mod
 let lookup name map = StringMap.find name map
 
 let _dump_env map = StringMap.iter (fun name _value -> print_endline
-    (name ^ " bound to " ^ ""
-    (* (L.string_of_llvalue value) *)
+    (name ^ " bound to " ^
+    (L.string_of_llvalue _value)
     )) map
 
 let rec codegen_sexpr (typ, detail) map builder = 
