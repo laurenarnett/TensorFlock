@@ -64,6 +64,9 @@ let rec topsort remaining_nodes sorted_list =
   (* Set of all nodes with no incoming edge *)
   let zero_indegree, others = List.partition (fun node -> 
       List.length node.edges = 0) remaining_nodes in
+  (* Check for cycles *)
+  if List.length zero_indegree = 0 && List.length sorted_list = 0 
+    then raise (Failure "Cycle in variable declaration") else
   begin
     match List.length zero_indegree with
       0 -> List.rev sorted_list 
