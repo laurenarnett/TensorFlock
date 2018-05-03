@@ -33,7 +33,7 @@ type node = {
 (* Make record of sfunc with its corresponding incoming edges *)
 let sfunc_to_node sfunc = 
   let unique_ids = List.sort_uniq compare (get_expr_ids [] (snd sfunc.sfexpr)) in
-  { data = sfunc; edges = unique_ids}
+     { data = sfunc; edges = unique_ids }
 
 let node_to_sfunc node = node.data
 
@@ -81,6 +81,11 @@ let make_topsort (main_expr, sfuncs) =
         SArrow(_,_) -> false
        | _ -> true)) sfuncs
   in
-  let nodes_list = List.map sfunc_to_node var_list in
+  let add_scope_vars var_list sfunc = List.fold_left 
+      (fun acc sfunc -> sfunc::acc) var_list sfunc.sscope in
+  let fold_list = var_list in
+  let var_list' = List.fold_left 
+      (fun acc sfunc -> add_scope_vars acc sfunc) fold_list var_list in 
+  let nodes_list = List.map sfunc_to_node var_list' in
   let sorted_list = ((topsort nodes_list []) @ sfunc_list) in
   main_expr, sorted_list 

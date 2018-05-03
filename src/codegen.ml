@@ -53,9 +53,9 @@ let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_mod
  * a real bug. *)
 let lookup name map = StringMap.find name map
 
-let dump_env map = StringMap.iter (fun name _value -> print_endline
-    (name ^ " bound to " ^ ""
-    (* (L.string_of_llvalue value) *)
+let _dump_env map = StringMap.iter (fun name _value -> print_endline
+    (name ^ " bound to " ^
+    (L.string_of_llvalue _value)
     )) map
 
 let rec codegen_sexpr (typ, detail) map builder = 
@@ -109,6 +109,7 @@ let rec codegen_sexpr (typ, detail) map builder =
                 | Some callee -> callee
                 | None -> raise (Failure "Internal error - undefined function")
     in 
+
     L.build_call callee 
       (List.map (fun expr -> codegen_sexpr expr map builder) params 
                 |> Array.of_list) 
@@ -254,7 +255,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
-  | _ -> raise (Failure "Not yet implemented")
+  | _ -> raise (Failure "Not yet implemented") 
 
 (* Use in declaring global vars *)
 let handle_const sfunc = match sfunc.stype with
@@ -281,13 +282,13 @@ let declare_fn env sfunc =
 let codegen_proto env sfunc = 
     match List.length sfunc.sfparams with
       0 -> declare_global env sfunc 
-    | _ -> declare_fn env sfunc
+    | _ -> declare_fn env sfunc 
 
 (* Codegen for globals *)
 let codegen_global env sfunc builder = 
   ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env builder)
     (lookup sfunc.sfname env) builder;
-  env
+  env 
 
 (* Codegen for function body *)
 let codegen_fn_body env sfunc = 
@@ -307,15 +308,31 @@ let codegen_fn_body env sfunc =
         ignore @@ L.build_store llval alloca fn_builder;
         StringMap.add name alloca env in
 
-    let env' = List.fold_left2 alloc_param 
+    let env' = 
+      List.fold_left2 alloc_param 
         env sfunc.sfparams (L.params the_function |> Array.to_list) in
 
-    let ret_val = codegen_sexpr sfunc.sfexpr env' fn_builder in
+    (* Allocate scope variables:
+        * Returns a new env *) 
+    let alloc_scope scope env = 
+      let sorted_scope = snd (Topsort.make_topsort ([], scope)) in
+      let llvals = List.map handle_const sorted_scope in
+      List.fold_left2 (fun acc sfunc llval -> 
+          alloc_param acc (sfunc.stype, sfunc.sfname) llval) 
+        env sorted_scope llvals in
+    let env'' = alloc_scope sfunc.sscope env' in 
+
+    (* codegen on variables in scope, adding their values to env'' *) 
+    ignore @@ List.iter (fun sfunc -> 
+        ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env'' fn_builder) 
+          (lookup sfunc.sfname env'') fn_builder) sfunc.sscope;
+
+    let ret_val = codegen_sexpr sfunc.sfexpr env'' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
     (* Return the new environment *)
     Llvm_analysis.assert_valid_function the_function;
 
-    env'
+    env''
 
 (* Codegen on globals and functions *)
 let codegen_body builder env sfunc = 
@@ -327,7 +344,7 @@ let translate sprogram =
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
-  ignore @@ List.map (fun x -> print_endline x.sfname) (snd sprogram);
+
   (* Declare all defined functions *)
   let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
   (* Build their bodies *)
