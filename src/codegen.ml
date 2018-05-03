@@ -115,11 +115,6 @@ let translate sprogram =
                   | None -> raise (Failure "Internal error - undefined function")
       in 
 
-(*      let scope = (List.find (fun sfunc -> sfunc.sfname = fname) 
-                     (snd sprogram)).sscope in
-      ignore @@ List.iter (fun sfunc -> 
-          ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr map builder) 
-            (lookup sfunc.sfname map) builder) scope;*)
       L.build_call callee 
         (List.map (fun expr -> codegen_sexpr expr map builder) params 
                   |> Array.of_list) 
@@ -330,15 +325,19 @@ let translate sprogram =
         List.fold_left2 (fun acc sfunc llval -> 
             alloc_param acc (sfunc.stype, sfunc.sfname) llval) 
           env sorted_scope llvals in
-
       let env'' = alloc_scope sfunc.sscope env' in 
+      (*List.iter (fun sfunc -> print_endline (fst sfunc)) (StringMap.bindings
+                                                            env'');*)
+      ignore @@ List.iter (fun sfunc -> 
+          ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env'' fn_builder) 
+            (lookup sfunc.sfname env'') fn_builder) sfunc.sscope;
 
       let ret_val = codegen_sexpr sfunc.sfexpr env'' fn_builder in
       let _ = L.build_ret ret_val fn_builder in 
       (* Return the new environment *)
       Llvm_analysis.assert_valid_function the_function;
 
-      env' in
+      env'' in
 
   (* Codegen on globals and functions *)
   let codegen_body builder env sfunc = 
