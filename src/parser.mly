@@ -53,18 +53,22 @@ ftyp:
    ID COLON types SEMI
      { { ftyp_name = $1; types = $3; } }
 
-lhsid:
-    ID { $1 }
-  | TIDX tidx RBRACK { $1 ^ "[" ^ String.concat "," $2 ^ "]"}
+indexlhs:
+   TIDX tidx RBRACK { $1 ^ "[" ^ String.concat "," (List.rev $2) ^ "]" }
 
 formals:
     { [] }
-  | formals lhsid { $2 :: $1 }
+  | formals ID { $2 :: $1 }
+
+lhs:
+    ID formals { ($1, $2) }
+  | indexlhs { ($1, []) }
 
 fdef:
-   lhsid formals DEFINE expr SEMI scope
-     { { fdef_name = $1; fparams = List.rev $2;
-         main_expr = $4; scope   = List.rev $6; } }
+   lhs DEFINE expr SEMI scope
+     { { fdef_name = fst $1; fparams = List.rev @@ snd $1;
+         main_expr = $3; scope   = List.rev $5; } }
+
 
 types:
   /* Don't pattern match on empty list because that should fail */
