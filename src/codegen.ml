@@ -326,8 +326,8 @@ let translate sprogram =
             alloc_param acc (sfunc.stype, sfunc.sfname) llval) 
           env sorted_scope llvals in
       let env'' = alloc_scope sfunc.sscope env' in 
-      (*List.iter (fun sfunc -> print_endline (fst sfunc)) (StringMap.bindings
-                                                            env'');*)
+
+      (* codegen on variables in scope, adding their values to env'' *) 
       ignore @@ List.iter (fun sfunc -> 
           ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env'' fn_builder) 
             (lookup sfunc.sfname env'') fn_builder) sfunc.sscope;

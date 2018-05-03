@@ -33,17 +33,7 @@ type node = {
 (* Make record of sfunc with its corresponding incoming edges *)
 let sfunc_to_node sfunc = 
   let unique_ids = List.sort_uniq compare (get_expr_ids [] (snd sfunc.sfexpr)) in
-(*  let id_cmp id sfunc_list = List.exists (fun sfunc -> id = sfunc.sfname)
-      sfunc_list in
-  (* Filter funcs present in scope *)
-  let scope_ids, fn_ids = List.partition 
-      (fun id -> id_cmp id sfunc_list) unique_ids in
-  (* Verify they're present in scope *)
-  let scope_check ids = List.partition 
-      (fun id -> id_cmp id sfunc.sscope) ids |> fst |> List.length in 
-  match scope_check scope_ids with 
-    0 ->*) { data = sfunc; edges = unique_ids }
-  (*| _ -> raise (Failure "All ids in expr must be in global or fn scope")*)
+     { data = sfunc; edges = unique_ids }
 
 let node_to_sfunc node = node.data
 
