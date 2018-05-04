@@ -210,27 +210,32 @@ let rec update_call_sites sfunc sfuncs = List.map
 let get_func_ids sfuncs = List.fold_left
   (fun lst sfunc -> sfunc.sfname :: lst) [] sfuncs
 
+let params_to_stringmap (params : (Sast.styp * string) list) = List.fold_right
+  (fun (typ, id) map -> StringMap.add id typ map) params StringMap.empty
+
 (* Take in a sfunc and its enclosing scope, and return the sfunc
  * with all its free variables lifted into params *)
-let rec lift_params enclosing sfunc sfuncs =
+(* lift ids that are params of a parent, and not params of the current sfunc *)
+let rec lift_params parental_params sfunc sfuncs =
   let sexpr_id_typs : (string * Sast.styp) list = get_ids sfunc.sfexpr [] in
-  let local_map = build_locals_table enclosing sfunc in
+  let current_params = params_to_stringmap sfunc.sfparams in
+  (* this is a string map of any parents params unioned with current params *)
+  let enclosing_params = StringMap.union (fun _k _v1 v2 -> Some v2)
+  parental_params current_params in
+  let local_map = build_locals_table StringMap.empty sfunc in
   let lifted_sscope = List.fold_left
     (fun sfscope sfunc' ->
-      (lift_params local_map sfunc' sfscope)) sfunc.sscope
+      (lift_params enclosing_params sfunc' sfscope)) sfunc.sscope
       sfunc.sscope in
-  (* Build up four sets from which we'll derive the free vars:
-   * local_ids \ (enclosing_ids U param_ids U sscope_func_ids) *)
+
   let sexpr_ids = StringSet.of_list @@ List.fold_left
     (fun lst (id, _) -> id :: lst) [] sexpr_id_typs in
   let enclosing_ids = StringSet.of_list @@ StringMap.fold
-    (fun k _ lst -> k :: lst) enclosing [] in
-  let sscope_func_ids = StringSet.of_list @@ get_func_ids lifted_sscope in
+    (fun k _ lst -> k :: lst) enclosing_params [] in
   let param_ids = StringSet.of_list @@ List.fold_left
     (fun lst (_, s) -> s :: lst) [] sfunc.sfparams in
-  let in_scope_ids = (StringSet.union sscope_func_ids param_ids) in
   let free_vars_ids = StringSet.filter
-    (fun id -> not (StringSet.mem id in_scope_ids)
+    (fun id -> not (StringSet.mem id param_ids)
                && (StringSet.mem id enclosing_ids)) sexpr_ids in
   (* Rejoin free var ids with their styps *)
   let free_vars = if StringSet.cardinal free_vars_ids > 0 then
@@ -259,8 +264,8 @@ let rec block_float sfuncs acc = List.fold_left
 
 let lift_sprogram (main_sexpr', sfuncs') =
   let (main_sexpr, sfuncs) = rename_sprogram (main_sexpr', sfuncs') in
-  let global_table = build_fns_table StringMap.empty sfuncs in
-  let _lifted_sfuncs = List.fold_left (fun sfuncs' sfunc ->
-    lift_params global_table sfunc sfuncs') sfuncs  sfuncs in
-  let block_floated_sfuncs = block_float _lifted_sfuncs [] in
+  (*let global_table = build_fns_table StringMap.empty sfuncs in*)
+  let lifted_sfuncs = List.fold_left (fun sfuncs' sfunc ->
+    lift_params StringMap.empty sfunc sfuncs') sfuncs  sfuncs in
+  let block_floated_sfuncs = block_float lifted_sfuncs [] in
   (main_sexpr, block_floated_sfuncs)
