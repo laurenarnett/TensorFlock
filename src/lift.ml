@@ -115,8 +115,7 @@ let rec replace_sfunc sfunc sfuncs = List.map
   (fun sfunc' ->
     (* First check if the func def is in a sscope *)
     (* its failing below *)
-    let sscope' = if List.length sfunc.sscope > 0 then
-      replace_sfunc sfunc sfunc'.sscope else [] in
+    let sscope' = replace_sfunc sfunc sfunc'.sscope in
     (* Replaces a sfunc with one that has lifted params. If the name
      * of the sfunc passed in matches the name that we're trying to replace,
      * then replace it, else return the sfunc that was passed in *)
@@ -169,7 +168,7 @@ let update_sapp sexpr sfunc = match sexpr with
     let params_len = List.length sfunc.sfparams in
     let args_len = List.length e2 in
     (* check if the ids match and if any params have been lifted *)
-    if app_id = sfunc.sfname && params_len  > args_len
+    if app_id = sfunc.sfname && params_len > args_len
       then let ids_of_params = List.fold_right
         (fun (styp, id) lst -> (styp, SId(id)) :: lst) sfunc.sfparams [] in
       let no_of_new_params = List.length sfunc.sfparams - List.length e2 in
@@ -253,10 +252,15 @@ let rec lift_params enclosing sfunc sfuncs =
   (* Return a new sprogram with updated call sites *)
   update_call_sites lifted_sfunc updated_sfuncs
 
-let lift_params_sprogram (main_sexpr', sfuncs') =
+let rec block_float sfuncs acc = List.fold_left
+    (fun lst sfunc ->
+      let sscope_sfuncs = sfunc.sscope in
+      {sfunc with sscope = []; } :: (lst @ sscope_sfuncs)) acc sfuncs
+
+let lift_sprogram (main_sexpr', sfuncs') =
   let (main_sexpr, sfuncs) = rename_sprogram (main_sexpr', sfuncs') in
   let global_table = build_fns_table StringMap.empty sfuncs in
-  let lifted_sfuncs = List.fold_left (fun sfuncs' sfunc ->
+  let _lifted_sfuncs = List.fold_left (fun sfuncs' sfunc ->
     lift_params global_table sfunc sfuncs') sfuncs  sfuncs in
-  (main_sexpr, lifted_sfuncs)
-
+  let block_floated_sfuncs = block_float _lifted_sfuncs [] in
+  (main_sexpr, block_floated_sfuncs)

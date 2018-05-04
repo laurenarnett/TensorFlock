@@ -20,13 +20,13 @@ and sexpr_detail =
   | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
   | STensorIdx of sexpr * string list
-  (* mat1[i,j] * mat2[j,k] desugars to 
-   * Forall i : _some_int, k : _another_int . 
+  (* mat1[i,j] * mat2[j,k] desugars to
+   * Forall i : _some_int, k : _another_int .
    * Contract mat1[i,j], mat2[j,k], 1, 0, yet_another_int
    * whose type is Tensor<_some_int, _another_int> *)
   | Forall of { indices : (string * int) list; sexpr : sexpr }
   | Contract of { index : (string * int); sexpr : sexpr}
-                
+
 
 type sfunc = {
     sfname : string;
@@ -49,7 +49,7 @@ let rec string_of_styp = function
 let rec string_of_sexpr_detail e = match e with
   | SLiteral(i) -> string_of_int i
   | SFliteral(s) -> s
-  | STLit(contents, _shape) -> "[" ^ String.concat " " contents ^ "]" 
+  | STLit(contents, _shape) -> "[" ^ String.concat " " contents ^ "]"
   | SId(s) -> s
   | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
   | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr
@@ -63,17 +63,17 @@ let rec string_of_sexpr_detail e = match e with
     string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
     string_of_sexpr sexpr2
   | SApp(sexpr1, sexprs) ->
-      string_of_sexpr sexpr1 ^ "[ " ^ 
+      string_of_sexpr sexpr1 ^ "[ " ^
       String.concat "," (List.map string_of_sexpr sexprs) ^ "]"
   | SCondExpr(sexpr1, sexpr2, sexpr3) ->
     "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
     ^ " else " ^ string_of_sexpr sexpr3
-  | STensorIdx(e, indices) -> 
+  | STensorIdx(e, indices) ->
         string_of_sexpr e ^ "[" ^ String.concat "," indices ^ "]"
-  | Forall r -> "forall " ^ String.concat "," 
+  | Forall r -> "forall " ^ String.concat ","
       (List.map (fun (i, n) -> i ^ " in range " ^ string_of_int n) r.indices)
       ^ " . " ^ string_of_sexpr r.sexpr
-  | Contract r -> "contract " ^ string_of_sexpr r.sexpr 
+  | Contract r -> "contract " ^ string_of_sexpr r.sexpr
                   ^ " over " ^ (fst r.index)
 and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_styp t
