@@ -223,7 +223,7 @@ let rec lift_params parental_params sfunc sfuncs =
     (fun lst (_, s) -> s :: lst) [] sfunc.sfparams in
   let free_vars_ids = StringSet.filter
     (fun id -> not (StringSet.mem id param_ids)
-               && (StringSet.mem id enclosing_ids)) sexpr_ids in
+               (*&& (StringSet.mem id enclosing_ids)*)) sexpr_ids in
 
   print_endline "=========================";
   print_endline ("sfunc: " ^ sfunc.sfname);
@@ -267,10 +267,17 @@ let rec lift_params parental_params sfunc sfuncs =
   (* Return a new sprogram with updated call sites *)
   update_call_sites lifted_sfunc updated_sfuncs
 
+(* Take in a list of sfuncs, and partition it into two lists of
+ * sfunc decls, and everything else: (decls, vars) *)
+let get_sfunc_decls sfuncs = List.fold_left
+  (fun (decls, vars) sfunc -> match sfunc.stype with
+  | SArrow(_, _) -> (sfunc :: decls, vars)
+  | _ -> (decls, sfunc :: vars) ) ([], []) sfuncs
+
 let rec block_float sfuncs acc = List.fold_left
     (fun lst sfunc ->
-      let sscope_sfuncs = sfunc.sscope in
-      {sfunc with sscope = []; } :: (lst @ sscope_sfuncs)) acc sfuncs
+      let (collected_decls, sscope_sfuncs) = get_sfunc_decls sfunc.sscope in
+      {sfunc with sscope = sscope_sfuncs; } :: (lst @ collected_decls)) acc sfuncs
 
 let lift_sprogram (main_sexpr', sfuncs') =
   let (main_sexpr, sfuncs) = rename_sprogram (main_sexpr', sfuncs') in
