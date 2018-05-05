@@ -112,31 +112,12 @@ let build_locals_table enclosing sfunc =
 (* Replace the func with the matching id, return
  * an updated sprogram *)
 let rec replace_sfunc sfunc sfuncs = List.map
-  (fun sfunc' ->
     (* First check if the func def is in a sscope *)
     (* its failing below *)
-    let sscope' = replace_sfunc sfunc sfunc'.sscope in
     (* Replaces a sfunc with one that has lifted params. If the name
      * of the sfunc passed in matches the name that we're trying to replace,
      * then replace it, else return the sfunc that was passed in *)
-    if sfunc'.sfname = sfunc.sfname then
-    { sfname = sfunc.sfname;
-      stype = sfunc.stype;
-      sfparams = sfunc.sfparams;
-      sindices = sfunc.sindices;
-      slocals = sfunc.slocals;
-      sfexpr = sfunc.sfexpr;
-      (* replace with the scope above *)
-      sscope = sscope' }
-    else
-    { sfname = sfunc'.sfname;
-      stype = sfunc'.stype;
-      sfparams = sfunc'.sfparams;
-      sindices = sfunc'.sindices;
-      slocals = sfunc'.slocals;
-      sfexpr = sfunc'.sfexpr;
-      (* replace with the scope above *)
-      sscope = sscope' }) sfuncs
+  (fun sfunc' -> if sfunc'.sfname = sfunc.sfname then sfunc else sfunc') sfuncs
 
 (* Take in a sexpr and return a list of ids inside that sexpr *)
 let rec get_ids (sexper : Sast.sexpr) acc = match sexper with
@@ -217,26 +198,47 @@ let params_to_stringmap (params : (Sast.styp * string) list) = List.fold_right
  * with all its free variables lifted into params *)
 (* lift ids that are params of a parent, and not params of the current sfunc *)
 let rec lift_params parental_params sfunc sfuncs =
+  (* make a list of (id * styp)'s, used to create a map of ids to types *)
   let sexpr_id_typs : (string * Sast.styp) list = get_ids sfunc.sfexpr [] in
+  let local_map = List.fold_left
+    (fun map (id, styp) -> StringMap.add id styp map) StringMap.empty sexpr_id_typs  in
+  (* make a map of the current parameters *)
   let current_params = params_to_stringmap sfunc.sfparams in
-  (* this is a string map of any parents params unioned with current params *)
+  (* this is a string map of any parents params unioned with current params,
+   * to be used in the recursive on sfunc.sscope *)
   let enclosing_params = StringMap.union (fun _k _v1 v2 -> Some v2)
   parental_params current_params in
-  let local_map = build_locals_table StringMap.empty sfunc in
   let lifted_sscope = List.fold_left
     (fun sfscope sfunc' ->
       (lift_params enclosing_params sfunc' sfscope)) sfunc.sscope
       sfunc.sscope in
 
+  (* this creates the three sets that will be used to determine if a
+   * free var should be listed *)
   let sexpr_ids = StringSet.of_list @@ List.fold_left
     (fun lst (id, _) -> id :: lst) [] sexpr_id_typs in
   let enclosing_ids = StringSet.of_list @@ StringMap.fold
-    (fun k _ lst -> k :: lst) enclosing_params [] in
+    (fun k _ lst -> k :: lst) parental_params [] in
   let param_ids = StringSet.of_list @@ List.fold_left
     (fun lst (_, s) -> s :: lst) [] sfunc.sfparams in
   let free_vars_ids = StringSet.filter
     (fun id -> not (StringSet.mem id param_ids)
                && (StringSet.mem id enclosing_ids)) sexpr_ids in
+
+  print_endline "=========================";
+  print_endline ("sfunc: " ^ sfunc.sfname);
+  print_endline "Local map:";
+  StringMap.iter (fun k v -> print_endline ("key: " ^ k ^ " val: " ^
+  Sast.string_of_styp v)) local_map;
+  print_endline "sexpr ids:";
+  StringSet.iter (fun el -> print_endline el) sexpr_ids;
+  print_endline "enclosing ids:";
+  StringSet.iter (fun el -> print_endline el) enclosing_ids;
+  print_endline "param ids:";
+  StringSet.iter (fun el -> print_endline el) param_ids;
+  print_endline "free var ids:";
+  StringSet.iter (fun el -> print_endline el) free_vars_ids;
+
   (* Rejoin free var ids with their styps *)
   let free_vars = if StringSet.cardinal free_vars_ids > 0 then
     StringSet.fold
@@ -244,16 +246,24 @@ let rec lift_params parental_params sfunc sfuncs =
     (id, styp) :: lst) free_vars_ids []
     else []
   in
-  let lifted_sfunc = List.fold_left (fun sfunc' (id, styp) ->
-    { sfname = sfunc'.sfname;
-      stype = SArrow(styp, sfunc'.stype);
-      sfparams = (styp, id) :: sfunc'.sfparams;
-      sindices = sfunc'.sindices;
-      slocals = (styp, id) :: sfunc'.sfparams;
-      sfexpr = sfunc'.sfexpr;
-      sscope = lifted_sscope }) sfunc free_vars in
+  print_endline "lifted sfunc:";
+  (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
+  (*print_endline "Now manually mess with it:";*)
+  let updated_stype = List.fold_left
+    (fun stype' (_, styp) -> SArrow(styp, stype')) sfunc.stype free_vars in
+  let updated_sfparams = List.fold_left
+    (fun sfparams' (id, styp) -> (styp, id) :: sfparams' ) sfunc.sfparams
+    free_vars in
+  let lifted_sfunc = {sfunc with
+                 stype = updated_stype;
+                 sfparams = updated_sfparams;
+                 sscope = lifted_sscope;} in
+  print_endline @@ Sast.string_of_sfunc lifted_sfunc;
   (* Now rebuild sfuncs with the lifted sfunc *)
   let updated_sfuncs = replace_sfunc lifted_sfunc sfuncs in
+  (*print_endline "updated_sfuncs";*)
+  (*List.iter (fun f -> print_endline @@ Sast.string_of_sfunc f) updated_sfuncs;*)
+  print_endline "+++++++++++++++++++++++++";
   (* Return a new sprogram with updated call sites *)
   update_call_sites lifted_sfunc updated_sfuncs
 
@@ -266,6 +276,6 @@ let lift_sprogram (main_sexpr', sfuncs') =
   let (main_sexpr, sfuncs) = rename_sprogram (main_sexpr', sfuncs') in
   (*let global_table = build_fns_table StringMap.empty sfuncs in*)
   let lifted_sfuncs = List.fold_left (fun sfuncs' sfunc ->
-    lift_params StringMap.empty sfunc sfuncs') sfuncs  sfuncs in
+    lift_params StringMap.empty sfunc sfuncs') sfuncs sfuncs in
   let block_floated_sfuncs = block_float lifted_sfuncs [] in
   (main_sexpr, block_floated_sfuncs)
