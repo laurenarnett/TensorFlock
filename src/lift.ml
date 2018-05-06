@@ -64,13 +64,26 @@ let rename_sfunc enclosing sfunc =
           (StringMap.add name new_name diff, new_name :: names)
         else (diff, name :: names)) sfunc.sscope (to_change', []) in
 
+  let update_sfunc_sexpr sfunc =  (fst sfunc.sfexpr),
+          StringMap.fold (fun oldn newn expr -> rename oldn newn expr)
+          to_change (snd sfunc.sfexpr) in
+
+  let updated_sscope' = List.map2
+          (fun sf name -> { sf with sfname = name }) sfunc.sscope new_sfnames in
+
+  let updated_sscope = List.map
+    (fun sfunc' -> {sfunc' with sfexpr = update_sfunc_sexpr sfunc';})
+    updated_sscope' in
+
   { sfunc with
       sfparams = new_params;
-      sscope = List.map2
-          (fun sf name -> { sf with sfname = name }) sfunc.sscope new_sfnames;
-      sfexpr = (fst sfunc.sfexpr),
-          StringMap.fold (fun oldn newn expr -> rename oldn newn expr)
-          to_change (snd sfunc.sfexpr)
+      (*sscope = List.map2*)
+          (*(fun sf name -> { sf with sfname = name }) sfunc.sscope new_sfnames;*)
+      sscope = updated_sscope;
+      (*sfexpr = (fst sfunc.sfexpr),*)
+          (*StringMap.fold (fun oldn newn expr -> rename oldn newn expr)*)
+          (*to_change (snd sfunc.sfexpr)*)
+      sfexpr = update_sfunc_sexpr sfunc;
   }
 
 (* Rename all of the sfuncs in a sprogram. NOTE: we do not need to rename the
@@ -78,6 +91,7 @@ let rename_sfunc enclosing sfunc =
  * scope, which never get renamed. *)
 let rename_sprogram (main_expr, sfuncs) =
     let rec rename_sfuncs sfuncs enclosing =
+      (* this adds the current sfunc to the enclosing list *)
         let enclosing' = List.fold_right StringSet.add (List.map (fun sf ->
             sf.sfname) sfuncs) enclosing in
         List.map (fun sf ->
@@ -142,17 +156,21 @@ let get_first_n lst n = List.rev @@ List.fold_left
   (fun acc el -> if List.length acc = n then acc else el :: acc) [] lst
 
 (* This basically takes in an SApp and an updated sfunc, and modifies
- * the SApp to have the same args as the lifted params in sfunc *)
+ * the SApp to have the same args and type as the lifted params in sfunc *)
 let update_sapp sexpr sfunc = match sexpr with
   | (t, SApp(e1, e2)) ->
     let (app_id, _) = List.hd @@ get_ids e1 [] in
     let params_len = List.length sfunc.sfparams in
     let args_len = List.length e2 in
+    print_endline @@ "app id: " ^ app_id ^ " sfunc id: " ^ sfunc.sfname;
     (* check if the ids match and if any params have been lifted *)
-    if app_id = sfunc.sfname && params_len > args_len
-      then let ids_of_params = List.fold_right
+    if app_id = sfunc.sfname (*&& params_len > args_len *) then
+      let ids_of_params =
+    print_endline "we have an sapp update";
+        List.fold_right
         (fun (styp, id) lst -> (styp, SId(id)) :: lst) sfunc.sfparams [] in
-      let no_of_new_params = List.length sfunc.sfparams - List.length e2 in
+
+      let no_of_new_params = params_len - args_len  in
       let updated_args = (get_first_n ids_of_params no_of_new_params) @ e2 in
       (t, SApp(e1, updated_args))
     else if app_id =  sfunc.sfname && params_len < args_len then
@@ -166,7 +184,11 @@ let update_sapp sexpr sfunc = match sexpr with
  * a new list of sfuncs with updated call sites for the sfunc *)
 let rec update_call_sites sfunc sfuncs = List.map
   (fun sfunc' ->
+      print_endline ("lifted sfunc: " ^ sfunc.sfname ^ " sfunc to update " ^
+        sfunc'.sfname );
+    (* First, recursively update sscope *)
     let updated_sscope = update_call_sites sfunc sfunc'.sscope in
+    (* Then check a sexpr to see if it is an sapp and call update on it *)
     let rec update_sexpr sexpr = match sexpr with
     | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
     (* Tensor indices can not have function application, hence no update *)
@@ -178,12 +200,10 @@ let rec update_call_sites sfunc sfuncs = List.map
     | (t, SRop(e1, r, e2)) -> (t, SRop(update_sexpr e1, r, update_sexpr e2))
     | (t, SCondExpr(e1, e2, e3)) ->
       (t, SCondExpr(update_sexpr e1, update_sexpr e2, update_sexpr e3))
-    | (t, SApp(e1, e2)) -> update_sapp (t, SApp(e1, e2)) sfunc in
-    { sfname = sfunc'.sfname;
-      stype = sfunc'.stype;
-      sfparams = sfunc'.sfparams;
-      sindices = sfunc'.sindices;
-      slocals = sfunc'.slocals;
+    | (t, SApp(e1, e2)) -> if sfunc.sfname = sfunc'.sfname then
+      update_sapp (t, SApp(e1, e2)) sfunc else (t, SApp(e1, e2)) in
+    (* return an updated sfunc *)
+    { sfunc' with
       sfexpr = update_sexpr sfunc'.sfexpr;
       sscope = updated_sscope; } ) sfuncs
 
@@ -221,23 +241,25 @@ let rec lift_params parental_params sfunc sfuncs =
     (fun k _ lst -> k :: lst) parental_params [] in
   let param_ids = StringSet.of_list @@ List.fold_left
     (fun lst (_, s) -> s :: lst) [] sfunc.sfparams in
+  (* this is the business end of lifting, this sets the conditions to decide
+   * if an id gets lifted to a parameter *)
   let free_vars_ids = StringSet.filter
     (fun id -> not (StringSet.mem id param_ids)
-               (*&& (StringSet.mem id enclosing_ids)*)) sexpr_ids in
-
-  print_endline "=========================";
-  print_endline ("sfunc: " ^ sfunc.sfname);
-  print_endline "Local map:";
-  StringMap.iter (fun k v -> print_endline ("key: " ^ k ^ " val: " ^
-  Sast.string_of_styp v)) local_map;
-  print_endline "sexpr ids:";
-  StringSet.iter (fun el -> print_endline el) sexpr_ids;
-  print_endline "enclosing ids:";
-  StringSet.iter (fun el -> print_endline el) enclosing_ids;
-  print_endline "param ids:";
-  StringSet.iter (fun el -> print_endline el) param_ids;
-  print_endline "free var ids:";
-  StringSet.iter (fun el -> print_endline el) free_vars_ids;
+               && (StringSet.mem id enclosing_ids)) sexpr_ids in
+  (*Debugging*)
+  (*print_endline "=========================";*)
+  (*print_endline ("sfunc: " ^ sfunc.sfname);*)
+  (*print_endline "Local map:";*)
+  (*StringMap.iter (fun k v -> print_endline ("key: " ^ k ^ " val: " ^*)
+  (*Sast.string_of_styp v)) local_map;*)
+  (*print_endline "sexpr ids:";*)
+  (*StringSet.iter (fun el -> print_endline el) sexpr_ids;*)
+  (*print_endline "enclosing ids:";*)
+  (*StringSet.iter (fun el -> print_endline el) enclosing_ids;*)
+  (*print_endline "param ids:";*)
+  (*StringSet.iter (fun el -> print_endline el) param_ids;*)
+  (*print_endline "free var ids:";*)
+  (*StringSet.iter (fun el -> print_endline el) free_vars_ids;*)
 
   (* Rejoin free var ids with their styps *)
   let free_vars = if StringSet.cardinal free_vars_ids > 0 then
@@ -246,7 +268,7 @@ let rec lift_params parental_params sfunc sfuncs =
     (id, styp) :: lst) free_vars_ids []
     else []
   in
-  print_endline "lifted sfunc:";
+  (*print_endline "lifted sfunc:";*)
   (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
   (*print_endline "Now manually mess with it:";*)
   let updated_stype = List.fold_left
@@ -258,14 +280,42 @@ let rec lift_params parental_params sfunc sfuncs =
                  stype = updated_stype;
                  sfparams = updated_sfparams;
                  sscope = lifted_sscope;} in
-  print_endline @@ Sast.string_of_sfunc lifted_sfunc;
+  (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
+  (* do a check here to update call sites in sexpr for functions defined in
+* sscope*)
+  let sscope_sfunc_decls = List.fold_left
+    (fun acc sfunc -> match sfunc.stype with
+      | SArrow(_, _) -> print_endline (Sast.string_of_sfunc sfunc); sfunc :: acc
+      | _ -> acc) [] lifted_sfunc.sscope in
+
+  let rec update_sexpr_from_sfunc sexpr sfunc = match sexpr with
+    | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
+    (* Tensor indices can not have function application, hence no update *)
+    | (_, STensorIdx(_, _)) -> sexpr
+    | (t, SUnop(u, e)) -> (t, SUnop(u, update_sexpr_from_sfunc e sfunc))
+    | (t, SAop(e1, a, e2)) -> (t, SAop(update_sexpr_from_sfunc e1 sfunc, a,
+    update_sexpr_from_sfunc e2 sfunc))
+    | (t, SBoolop(e1, b, e2)) ->
+      (t, SBoolop(update_sexpr_from_sfunc e1 sfunc, b, update_sexpr_from_sfunc
+      e2 sfunc))
+    | (t, SRop(e1, r, e2)) -> (t, SRop(update_sexpr_from_sfunc e1 sfunc, r,
+    update_sexpr_from_sfunc e2 sfunc))
+    | (t, SCondExpr(e1, e2, e3)) ->
+      (t, SCondExpr(update_sexpr_from_sfunc e1 sfunc, update_sexpr_from_sfunc e2
+      sfunc, update_sexpr_from_sfunc e3 sfunc))
+    | (t, SApp(e1, e2)) -> update_sapp (t, SApp(e1, e2)) sfunc in
+  let call_site_updated_sfexpr = List.fold_left
+    (fun sexpr' sfunc' -> update_sexpr_from_sfunc sexpr' sfunc') lifted_sfunc.sfexpr
+    sscope_sfunc_decls in
+  let lifted_sfunc' = { lifted_sfunc with sfexpr = call_site_updated_sfexpr; }
+  in
   (* Now rebuild sfuncs with the lifted sfunc *)
-  let updated_sfuncs = replace_sfunc lifted_sfunc sfuncs in
+  let updated_sfuncs = replace_sfunc lifted_sfunc' sfuncs in
   (*print_endline "updated_sfuncs";*)
   (*List.iter (fun f -> print_endline @@ Sast.string_of_sfunc f) updated_sfuncs;*)
-  print_endline "+++++++++++++++++++++++++";
+  (*print_endline "+++++++++++++++++++++++++";*)
   (* Return a new sprogram with updated call sites *)
-  update_call_sites lifted_sfunc updated_sfuncs
+  update_call_sites lifted_sfunc' updated_sfuncs
 
 (* Take in a list of sfuncs, and partition it into two lists of
  * sfunc decls, and everything else: (decls, vars) *)
