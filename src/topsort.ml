@@ -63,6 +63,7 @@ let topsort_elt sfunc nodes_list sorted_list =
 
 
 let rec topsort remaining_nodes sorted_list =
+  print_endline (string_of_int (List.length remaining_nodes));
   (* Set of all nodes with no incoming edge *)
   let zero_indegree, others = List.partition (fun node -> 
       List.length node.edges = 0) remaining_nodes in

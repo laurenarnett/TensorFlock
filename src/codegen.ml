@@ -1,6 +1,7 @@
 module L = Llvm
 module A = Ast
 open Sast
+open Cast
 open Semant
 
 module StringMap = Map.Make(String)
@@ -16,14 +17,15 @@ let float_t = L.double_type context
 (* Retry using normal arrays of doubles as opposed to our custom struct *)
 let tensor_t = L.pointer_type float_t
 
-let rec ltype_of_styp = function 
-    SNat -> nat_t
-  | SBool -> bool_t
-  | STensor([]) -> float_t
-  | STensor(_) -> tensor_t
+let rec ltype_of_ctyp = function 
+    CNat -> nat_t
+  | CBool -> bool_t
+  | CTensor([]) -> float_t
+  | CTensor(_) -> tensor_t
   (* All remaining types are arrow types *)
   | ts -> let rec list_of_styp = function
-                | SNat -> [SNat] | SBool -> [SBool] | STensor(s) -> [STensor(s)]
+                | CNat -> [CNat] | CBool -> [CBool] | CTensor(size, shape) ->
+                  [CTensor(size,shape)]
                 | SArrow(t1, t2) -> list_of_styp t1 @ list_of_styp t2 in
           L.function_type (List.rev (list_of_styp ts) |> List.hd |> ltype_of_styp) 
           (list_of_styp ts |> but_last |> List.map ltype_of_styp |> Array.of_list)
@@ -89,7 +91,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       phi in
 
   let fn_call fn params builder = 
-    let fname = match fn with (_, SId(s)) -> s 
+    let fname = match fn with (_, CId(s)) -> s 
                 | _ -> raise (Failure "Internal error - non-id in SApp")
     in let callee = match L.lookup_function fname the_module with
                 | Some callee -> callee
@@ -108,11 +110,11 @@ let rec codegen_sexpr (typ, detail) map builder =
               L.build_call f [||] s builder in
 
   match typ with
-  | SNat ->
+  | CNat ->
     begin
       match detail with
-      | SLiteral(i) -> L.const_int nat_t i
-      | SAop(sexpr1, aop, sexpr2) ->
+      | CLiteral(i) -> L.const_int nat_t i
+      | CAop(sexpr1, aop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -127,17 +129,17 @@ let rec codegen_sexpr (typ, detail) map builder =
             let ipow_func = L.declare_function "ipow" ipow_t the_module in
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
-      | SId(s) -> handle_id s
-      | SApp(fn, params) -> fn_call fn params builder
-      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CId(s) -> handle_id s
+      | CApp(fn, params) -> fn_call fn params builder
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
-  | SBool ->
+  | CBool ->
     begin
       match detail with
-      | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
-      | SId(s) -> handle_id s
-      | SBoolop(sexpr1, bop, sexpr2) ->
+      | CBoollit(b) -> L.const_int bool_t (if b then 1 else 0)
+      | CId(s) -> handle_id s
+      | CBoolop(sexpr1, bop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -145,7 +147,7 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.And -> L.build_and lhs rhs "andtmp" builder
           | A.Or  -> L.build_or  lhs rhs "ortmp"  builder
         end
-      | SRop(sexpr1, rop, sexpr2) ->
+      | CRop(sexpr1, rop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -157,19 +159,19 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_icmp L.Icmp.Ugt lhs rhs "gttemp"  builder
           | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
-      | SApp(fn, params) -> fn_call fn params builder
-      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CApp(fn, params) -> fn_call fn params builder
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   (* Tensor of empty shape corresponds to single floating point number *)
-  | STensor([]) -> 
+  | CTensor(size, []) -> 
     begin
       match detail with  
-      | SFliteral(s) -> L.const_float_of_string float_t s
-      | SUnop(A.Neg, sexpr) -> 
+      | CFliteral(s) -> L.const_float_of_string float_t s
+      | CUnop(A.Neg, sexpr) -> 
         L.build_fneg (codegen_sexpr sexpr map builder) "negfloattmp" builder
-      | SId(s) -> handle_id s
-      | SAop(sexpr1, aop, sexpr2) ->
+      | CId(s) -> handle_id s
+      | CAop(sexpr1, aop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -184,8 +186,8 @@ let rec codegen_sexpr (typ, detail) map builder =
             let pow_func = L.declare_function "pow" pow_t the_module in
             L.build_call pow_func [| lhs; rhs |] "pow" builder
         end
-      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
-      | SRop(sexpr1, rop, sexpr2) ->
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CRop(sexpr1, rop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -197,18 +199,16 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
           | A.Geq -> L.build_fcmp L.Fcmp.Oge lhs rhs "fgeqtemp" builder
         end
-      | SApp((_,SId("cast")), [param]) -> 
+      | CApp((_,CId("cast")), [param]) -> 
         L.build_uitofp (codegen_sexpr param map builder) 
           float_t "casted" builder
-      | SApp(fn, params) -> fn_call fn params builder
+      | CApp(fn, params) -> fn_call fn params builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | STensor(shape) ->
+  | CTensor(size, shape) ->
     begin
       match detail with
-      | STLit(contents, literal_shape) -> 
-        let tsize = List.fold_left (fun acc elt -> acc * elt) 1 literal_shape in
-
+      | CTlit(contents, tsize) -> 
         let tcontents_ptr = L.build_malloc (L.array_type float_t tsize) 
             "tcontents_ptr" builder in
         let tcontents = 
@@ -222,34 +222,30 @@ let rec codegen_sexpr (typ, detail) map builder =
 
         tcontents_ptr'
 
-      | SId(s) -> handle_id s
-      | Forall r ->
-begin
-    
-end
+      | CId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented") 
 
 (* Use in declaring global vars *)
-let handle_const sfunc = match sfunc.stype with
-      SNat -> L.const_int nat_t 0
-    | SBool -> L.const_int bool_t 0
-    | STensor([]) -> L.const_float float_t 0.
-    | STensor(_) -> L.const_pointer_null tensor_t
+let handle_const sfunc = match sfunc.typ with
+      CNat -> L.const_int nat_t 0
+    | CBool -> L.const_int bool_t 0
+    | CTensor(1, []) -> L.const_float float_t 0.
+    | CTensor(_) -> L.const_pointer_null tensor_t
     | _ -> raise (Failure "declare globals on unit type only")
 
 (* Given a global var, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
 let declare_global env sfunc = 
-  StringMap.add sfunc.sfname 
-    (L.define_global sfunc.sfname (handle_const sfunc) the_module) env
+  StringMap.add sfunc.name 
+    (L.define_global sfunc.name (handle_const sfunc) the_module) env
 
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
 let declare_fn env sfunc = 
-  let the_typ = ltype_of_styp sfunc.stype in
-  let the_function = L.define_function (sfunc.sfname) the_typ the_module in
+  let the_typ = ltype_of_ctyp sfunc.ret_typ in
+  let the_function = L.define_function (sfunc.name) the_typ the_module in
   StringMap.add sfunc.sfname the_function env
 
 (* Declare globals and functions for sfuncs *)
