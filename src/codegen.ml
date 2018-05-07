@@ -12,19 +12,15 @@ let nat_t = L.i32_type context
 let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
-let tensor_t = L.struct_type context [|
-    nat_t; (* size: number of doubles the tensor holds *)
-    nat_t; (* rank *)
-    L.pointer_type nat_t; (* shape *)
-    L.pointer_type nat_t; (* number of references *)
-    L.pointer_type float_t; (* contents *)
-  |]
+
+(* Retry using normal arrays of doubles as opposed to our custom struct *)
+let tensor_t = L.pointer_type float_t
 
 let rec ltype_of_styp = function 
     SNat -> nat_t
   | SBool -> bool_t
   | STensor([]) -> float_t
-  | STensor(_) -> L.pointer_type tensor_t
+  | STensor(_) -> tensor_t
   (* All remaining types are arrow types *)
   | ts -> let rec list_of_styp = function
                 | SNat -> [SNat] | SBool -> [SBool] | STensor(s) -> [STensor(s)]
@@ -36,17 +32,7 @@ let rec ltype_of_styp = function
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
-let talloc_t = L.function_type (L.pointer_type tensor_t) 
-    [| nat_t; (* size *)
-       L.pointer_type nat_t; (* shape *)
-       L.pointer_type float_t (* contents *)
-    |]
-let talloc_func = L.declare_function "talloc" talloc_t the_module
-
-let tdelete_t = L.function_type nat_t [| L.pointer_type tensor_t |]
-let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
-
-let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
+let print_tensor_t = L.var_arg_function_type nat_t [| tensor_t; nat_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 (* If this throws an error, then something is actually problematic and we have
@@ -223,17 +209,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | STLit(contents, literal_shape) -> 
         let tsize = List.fold_left (fun acc elt -> acc * elt) 1 literal_shape in
 
-        let trank = List.length literal_shape in
-
-        let tshape_ptr = L.build_alloca (L.array_type nat_t trank) 
-            "tshape_ptr" builder in
-        let tshape_contents = 
-          List.map (L.const_int nat_t) literal_shape |>
-          Array.of_list |>
-          L.const_array (L.array_type nat_t trank) in
-        let _ = L.build_store tshape_contents tshape_ptr builder in
-
-        let tcontents_ptr = L.build_alloca (L.array_type float_t tsize) 
+        let tcontents_ptr = L.build_malloc (L.array_type float_t tsize) 
             "tcontents_ptr" builder in
         let tcontents = 
           List.map (L.const_float_of_string float_t) contents |>
@@ -241,17 +217,11 @@ let rec codegen_sexpr (typ, detail) map builder =
           L.const_array (L.array_type float_t tsize) in
         let _ = L.build_store tcontents tcontents_ptr builder in
 
-        let tshape_ptr' = L.build_bitcast tshape_ptr (L.pointer_type nat_t)
-            "bitcast_shape" builder in
         let tcontents_ptr' = L.build_bitcast tcontents_ptr (L.pointer_type float_t) 
             "bitcast_contents" builder in
 
-        let the_ptr = 
-          L.build_call talloc_func 
-            [| L.const_int nat_t trank; 
-               tshape_ptr';
-               tcontents_ptr'|]
-            "tensor_ptr" builder in the_ptr
+        tcontents_ptr'
+
       | SId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
@@ -262,7 +232,7 @@ let handle_const sfunc = match sfunc.stype with
       SNat -> L.const_int nat_t 0
     | SBool -> L.const_int bool_t 0
     | STensor([]) -> L.const_float float_t 0.
-    | STensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
+    | STensor(_) -> L.const_pointer_null tensor_t
     | _ -> raise (Failure "declare globals on unit type only")
 
 (* Given a global var, declare it in the_module, and return a new map.
@@ -296,9 +266,7 @@ let codegen_fn_body env sfunc =
         | Some f -> f
         | None -> raise (Failure "internal error - undefined function")
         in
-    (* let bb = L.append_block context (sfunc.sfname ^ "_entry") the_function in *)
     let fn_builder = L.builder_at_end context (L.entry_block the_function) in
-    (* L.position_at_end bb fn_builder; *)
 
     (* Allocate function parameters:
         * Returns a new env *)
@@ -366,10 +334,13 @@ let translate sprogram =
     | STensor([]) -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | STensor(_) -> 
-        let _ = L.build_call print_tensor_func [| the_expression |] 
+    | STensor(shape) -> 
+        let rank = L.const_int nat_t (List.length shape) in
+        let print_args = 
+            [the_expression; rank] @ List.map (L.const_int nat_t) shape in
+        let _ = L.build_call print_tensor_func (Array.of_list print_args)
             "print_tensor" builder in
-        L.build_call tdelete_func [| the_expression |] "free_tensor" builder
+        L.build_free the_expression builder
     | SArrow(_,_) -> raise (Failure "Internal error: semant failed")
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
