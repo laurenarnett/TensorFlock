@@ -28,6 +28,7 @@ type expr =
   | Fliteral of string
   | BoolLit of bool
   | TLit of expr list
+  | TFile of string
   | Id of string
   | Unop of uop * expr
   | Aop of expr * aop * expr
@@ -89,6 +90,7 @@ let rec (string_of_expr : expr -> string) = function
   | BoolLit(true) -> "True"
   | BoolLit(false) -> "False"
   | TLit(es) -> "[" ^ String.concat ", " (List.map string_of_expr es) ^ "]"
+  | TFile(path) -> path
   | Id(s) -> s
   | Unop(o, e) ->
         "(" ^ string_of_uop o ^ string_of_expr e ^ ")"
