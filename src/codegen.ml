@@ -203,7 +203,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | SApp(fn, params) -> fn_call fn params builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | STensor(shape) ->
+  | STensor(_shape) ->
     begin
       match detail with
       | STLit(contents, literal_shape) -> 
@@ -223,10 +223,6 @@ let rec codegen_sexpr (typ, detail) map builder =
         tcontents_ptr'
 
       | SId(s) -> handle_id s
-      | Forall r ->
-begin
-    
-end
       | _ -> raise (Failure "WIP")
     end
   | _ -> raise (Failure "Not yet implemented") 

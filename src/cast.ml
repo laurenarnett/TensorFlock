@@ -161,5 +161,16 @@ let rec replace_indices sexpr indices =
             List.fold_left
               (fun acc exp -> CAop ((CDouble, acc), Add, exp))
               (CFliteral "0") summands
-        | _ -> failwith "Failure, semant failed (cast.ml line ~123)" )
+        | _ -> failwith "Failure, semant failed (cast.ml line ~164)" )
     | Forall _ -> failwith "Should not call replace_indices on a forall" )
+
+let rec cexprs_of_sexpr sexpr =
+    match snd sexpr with 
+      Forall r -> 
+          let ranges = List.map (fun (s, dim) -> range dim) r.indices in
+          let all_indices = sequence ranges in
+          let pairs = 
+              List.map (List.combine (List.map fst r.indices)) all_indices in
+          List.map (replace_indices sexpr) pairs
+    | _ -> cexprs_of_sexpr (fst sexpr, Forall { indices = []; sexpr = sexpr })
+
