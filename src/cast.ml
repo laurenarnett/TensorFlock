@@ -20,7 +20,7 @@ and cx =
   | CCondExpr of cexpr * cexpr * cexpr
   (* By here, we will have resolved all indexing into calculating offsets of
    * single dimension arrays *)
-  | CTensorIdx of int * cexpr
+  | CTensorIdx of cexpr * int
   | CApp of cexpr * cexpr list
 
 type assign = {
@@ -59,7 +59,7 @@ let rec string_of_cx = function
     ^ " else " ^ string_of_cx (snd alt)
   | CApp(f, args) -> string_of_cx (snd f) ^ "(" ^ 
     String.concat "," (List.map (fun a -> string_of_cx (snd a)) args)
-  | CTensorIdx(i, e) -> string_of_cx (snd e) ^ "[" ^ string_of_int i ^ "]"
+  | CTensorIdx(e, i) -> string_of_cx (snd e) ^ "[" ^ string_of_int i ^ "]"
 
 let product = List.fold_left ( * ) 1
 let range n = 
@@ -84,3 +84,42 @@ let rec sequence lst = match lst with
   | [] -> return []
   | x::xs -> x >>= fun v -> sequence xs >>= fun vs -> return (v::vs)
 
+let rec replace_indices sexpr indices = let ctyp = ctyp_of_styp @@ fst sexpr in
+   ctyp,
+   match snd sexpr with
+     | SLiteral i -> CLiteral i
+     | SBoolLit b -> CBoollit b
+     | SFliteral s -> CFliteral s
+     | STLit(contents, shape) -> CTlit(contents, product shape)
+     | SId s -> (match List.assoc_opt s indices with
+                     | None -> CId s
+                     | Some i -> CLiteral i)
+     | SUnop(Neg, e) -> CUnop(Neg, replace_indices e indices)
+     | SAop(e1, op, e2) ->
+         CAop(replace_indices e1 indices, op, replace_indices e2 indices)
+     | SRop(e1, op, e2) ->
+         CRop(replace_indices e1 indices, op, replace_indices e2 indices)
+     | SBoolop(e1, op, e2) ->
+         CBoolop(replace_indices e1 indices, op, replace_indices e2 indices)
+     | SCondExpr(e1, e2, e3) ->
+             CCondExpr(replace_indices e1 indices,
+             replace_indices e2 indices, replace_indices e3 indices)
+     | STensorIdx(e, idxs) -> (match fst e with
+         STensor shape ->
+             let i = offset shape (List.map (fun idx -> List.assoc idx indices) idxs) in
+             CTensorIdx(replace_indices e indices, i)
+         | _ -> raise (Failure "Fail to find tensor shape for tensor indexing"))
+     | SApp(f, args) -> CApp(replace_indices f indices, 
+                        List.map (fun a -> replace_indices a indices) args)
+     | Contract r -> 
+       let contract_range = range (snd (r.index)) in
+       (match r.sexpr with 
+          | STensor [], STensorIdx((STensor shape, tensor), idxs) ->
+                  let all_indices = List.map (fun i -> match List.assoc_opt i indices with
+                      Some n -> [n]
+                    | None -> if i = fst r.index then contract_range else 
+                        failwith "Index not found in contract or in forall"
+              ) idxs |> sequence in failwith "wip"
+          | _ -> failwith "Failure, semant failed (cast.ml line ~123)"
+       )
+     | Forall _ -> failwith "Should not call replace_indices on a forall"
