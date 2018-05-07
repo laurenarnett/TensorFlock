@@ -77,4 +77,10 @@ let rec offset shape indices = match List.tl shape, indices with
   | ns, i::is -> product ns * i + offset ns is
   | _ -> failwith "Invalid shapes and indices passed to offset"
 
+(* Implement list monad functions *)
+let return x = [x]
+let (>>=) xs f = List.map f xs |> List.flatten
+let rec sequence lst = match lst with
+  | [] -> return []
+  | x::xs -> x >>= fun v -> sequence xs >>= fun vs -> return (v::vs)
 
