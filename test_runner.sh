@@ -29,6 +29,18 @@ function run_test {
     generated_output=$(./toplevel.native -$2 $1 2>&1)
     ret_code=$?
 
+    if [ $2 == "c" ] && [ $ret_code -ne 0 ]
+    then
+        printf "F"
+        failures+="$(bold "========================================")"
+        failures+=$'\nTest '
+        failures+="$f"
+        failures+=$' failed.\n'
+        failures+="$generated_output"
+        failures+=$'\n'
+        return
+    fi
+
     if [ $2 == "c" ]
     then
         # Try running llc, if it errors, write to output and move on
@@ -84,6 +96,7 @@ function run_test {
         passing_output=$(cat $passing_output_file)
         if [ "$generated_output" != "$passing_output" ]
         then
+            printf "F"
             failures+="$(bold "========================================")"
             failures+=$'\nTest '
             failures+="$f"
@@ -98,6 +111,9 @@ function run_test {
             failures+=$'\n\n'
         fi
     fi
+    generated_output=""
+    passing_output=""
+    passing_output_file=""
 }
 
 # Register new tests below
