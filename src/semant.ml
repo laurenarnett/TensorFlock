@@ -205,7 +205,19 @@ let rec check_expr expression table indices =
             let ret_idxs = if idxs1 = [] then idxs2 else idxs1 in
             let ret_expr = ret_type, SAop(sexpr1, op, sexpr2)
             in (ret_type, STensorIdx(ret_expr, ret_idxs)), indices
-                      | _ -> failwith "Type error line 175"
+                     | (STensor shape, STensorIdx(e, idxs)),
+                       (STensor [], sexpr_d) ->
+                begin
+                  let the_aop = SAop((STensor [], STensorIdx((STensor shape, (snd e)), idxs)), op,
+                                 (STensor [], sexpr_d))
+                  in (STensor shape, STensorIdx((STensor [], the_aop), idxs)), indices
+                end
+                     | (STensor [], sexpr_d),
+                       (STensor shape, STensorIdx(e, idxs)) ->
+                begin
+                  let the_aop = SAop((STensor [], sexpr_d), op, (STensor [], STensorIdx((STensor shape, (snd e)), idxs)))
+                  in (STensor shape, STensorIdx((STensor [], the_aop), idxs)), indices
+                end   | _ -> failwith "Type error line 175"
                     end
 
                 | Mult -> 
@@ -221,27 +233,39 @@ let rec check_expr expression table indices =
             (STensor new_shape, 
                 STensorIdx((STensor new_shape, SAop(sexpr1, Mult, sexpr2)), 
                             new_idxs)), indices
-            else if List.length (List.sort compare all_idxs) = 
-                    List.length (List.sort_uniq compare all_idxs) + 1 then 
-            let the_index = find_dup (List.sort compare all_idxs) in
-            let new_idxs, new_shape = 
-                List.filter (fun (i, _) -> i <> the_index) (List.combine all_idxs
-                (shape1 @ shape2)) |> List.split in
-            let the_size = 
-                List.filter (fun (i, _) -> i = the_index) 
-                    (List.combine all_idxs (shape1 @ shape2))
-                |> List.hd |> snd in
-            let the_sexpr = (STensor new_shape, 
-                Contract { index = the_index, the_size;
-                sexpr = STensor (shape1 @ shape2), 
-                        SAop(sexpr1, Mult, sexpr2) }
-                )
-            in (STensor new_shape, STensorIdx(the_sexpr, new_idxs)), 
-            StringMap.remove the_index indices
-            else failwith "Type error line 216"
+            else 
             
-                
-                      | _ -> failwith "Type error in tensor multiplication"
+            begin
+                if List.length (List.sort compare all_idxs) = 
+                        List.length (List.sort_uniq compare all_idxs) + 1 then 
+                let the_index = find_dup (List.sort compare all_idxs) in
+                let new_idxs, new_shape = 
+                    List.filter (fun (i, _) -> i <> the_index) (List.combine all_idxs
+                    (shape1 @ shape2)) |> List.split in
+                let the_size = 
+                    List.filter (fun (i, _) -> i = the_index) 
+                        (List.combine all_idxs (shape1 @ shape2))
+                    |> List.hd |> snd in
+                let the_sexpr = (STensor new_shape, 
+                    Contract { index = the_index, the_size;
+                    sexpr = STensor (shape1 @ shape2), 
+                            SAop(sexpr1, Mult, sexpr2) }
+                    )
+                in (STensor new_shape, STensorIdx(the_sexpr, new_idxs)), 
+                StringMap.remove the_index indices
+                else failwith "Type error line 216"
+            end
+                     | (STensor shape, STensorIdx(e, idxs)),
+                       (STensor [], sexpr_d)
+                     | (STensor [], sexpr_d),
+                       (STensor shape, STensorIdx(e, idxs)) ->
+                begin
+                  let the_aop = SAop((STensor [], STensorIdx((STensor shape, (snd e)), idxs)), Mult,
+                                 (STensor [], sexpr_d))
+                  in (STensor shape, STensorIdx((STensor [], the_aop), idxs)), indices
+                end
+                    | _ -> failwith @@ "Type error in tensor multiplication" ^ 
+                                        string_of_sexpr_detail (snd sexpr1)
                     end
 
 
