@@ -224,13 +224,15 @@ let rec lift_params parental_params sfunc sfuncs =
     (fun map (id, styp) -> StringMap.add id styp map) StringMap.empty sexpr_id_typs  in
   (* make a map of the current parameters *)
   let current_params = params_to_stringmap sfunc.sfparams in
+  let current_params_sscope = build_fns_table current_params sfunc.sscope in
   (* this is a string map of any parents params unioned with current params,
+   * unioned with the current sscope
    * to be used in the recursive on sfunc.sscope *)
-  let enclosing_params = StringMap.union (fun _k _v1 v2 -> Some v2)
-  parental_params current_params in
+  let enclosing_ids' = StringMap.union (fun _k _v1 v2 -> Some v2)
+  parental_params current_params_sscope in
   let lifted_sscope = List.fold_left
     (fun sfscope sfunc' ->
-      (lift_params enclosing_params sfunc' sfscope)) sfunc.sscope
+      (lift_params enclosing_ids' sfunc' sfscope)) sfunc.sscope
       sfunc.sscope in
 
   (* this creates the three sets that will be used to determine if a
@@ -239,12 +241,12 @@ let rec lift_params parental_params sfunc sfuncs =
     (fun lst (id, _) -> id :: lst) [] sexpr_id_typs in
   let enclosing_ids = StringSet.of_list @@ StringMap.fold
     (fun k _ lst -> k :: lst) parental_params [] in
-  let param_ids = StringSet.of_list @@ List.fold_left
-    (fun lst (_, s) -> s :: lst) [] sfunc.sfparams in
+  let current_param_sscope_ids = StringSet.of_list @@ StringMap.fold
+    (fun k _ lst -> k :: lst) current_params_sscope [] in
   (* this is the business end of lifting, this sets the conditions to decide
    * if an id gets lifted to a parameter *)
   let free_vars_ids = StringSet.filter
-    (fun id -> not (StringSet.mem id param_ids)
+    (fun id -> not (StringSet.mem id current_param_sscope_ids)
                && (StringSet.mem id enclosing_ids)) sexpr_ids in
   (*Debugging*)
   (*print_endline "=========================";*)
@@ -257,7 +259,7 @@ let rec lift_params parental_params sfunc sfuncs =
   (*print_endline "enclosing ids:";*)
   (*StringSet.iter (fun el -> print_endline el) enclosing_ids;*)
   (*print_endline "param ids:";*)
-  (*StringSet.iter (fun el -> print_endline el) param_ids;*)
+  (*StringSet.iter (fun el -> print_endline el) current_param_sscope_ids;*)
   (*print_endline "free var ids:";*)
   (*StringSet.iter (fun el -> print_endline el) free_vars_ids;*)
 
@@ -268,9 +270,6 @@ let rec lift_params parental_params sfunc sfuncs =
     (id, styp) :: lst) free_vars_ids []
     else []
   in
-  (*print_endline "lifted sfunc:";*)
-  (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
-  (*print_endline "Now manually mess with it:";*)
   let updated_stype = List.fold_left
     (fun stype' (_, styp) -> SArrow(styp, stype')) sfunc.stype free_vars in
   let updated_sfparams = List.fold_left
@@ -310,6 +309,7 @@ let rec lift_params parental_params sfunc sfuncs =
                  sfparams = updated_sfparams;
                  sfexpr = updated_sfexpr;
                  sscope = lifted_sscope;} in
+  (*print_endline "lifted sfunc:";*)
   (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
   (* Now rebuild sfuncs with the lifted sfunc *)
   let updated_sfuncs = replace_sfunc lifted_sfunc sfuncs in
