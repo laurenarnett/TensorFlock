@@ -27,7 +27,7 @@ let rec rename old_name new_name sexpr = match sexpr with
     SCondExpr((t1, rename old_name new_name e1),
               (t2, rename old_name new_name e2),
               (t3, rename old_name new_name e3))
-  | STensorIdx((t, e), _) -> rename old_name new_name e
+  | STensorIdx((_t, e), _) -> rename old_name new_name e
   | Forall r -> rename old_name new_name (snd r.sexpr)
   | Contract r -> rename old_name new_name (snd r.sexpr)
 
@@ -137,6 +137,7 @@ let rec replace_sfunc sfunc sfuncs = List.map
 let rec get_ids (sexper : Sast.sexpr) acc = match sexper with
   | (_, SLiteral(_)) | (_, SFliteral(_))
   | (_, SBoolLit(_)) | (_, STLit(_)) -> acc
+  | (_, (Forall _|Contract _)) -> acc
   | (_, SUnop(_, e)) -> get_ids e acc
   | (_, SAop(e1, _, e2)) -> let lst = get_ids e1 acc in
     get_ids e2 lst
@@ -191,6 +192,7 @@ let rec update_call_sites sfunc sfuncs = List.map
     (* Then check a sexpr to see if it is an sapp and call update on it *)
     let rec update_sexpr sexpr = match sexpr with
     | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
+    | (_, (Forall _|Contract _)) -> sexpr
     (* Tensor indices can not have function application, hence no update *)
     | (_, STensorIdx(_, _)) -> sexpr
     | (t, SUnop(u, e)) -> (t, SUnop(u, update_sexpr e))
@@ -285,6 +287,7 @@ let rec lift_params parental_params sfunc sfuncs =
 
   let rec update_sexpr_from_sfunc sexpr sfunc = match sexpr with
     | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
+    | (_, (Forall _|Contract _)) -> sexpr
     (* Tensor indices can not have function application, hence no update *)
     | (_, STensorIdx(_, _)) -> sexpr
     | (t, SUnop(u, e)) -> (t, SUnop(u, update_sexpr_from_sfunc e sfunc))
