@@ -155,11 +155,11 @@ let rec check_expr expression table indices =
                 close_in channel;
                 List.rev !lines in
             let tensor_string = readfile filepath in
-            let shape = List.filter
-                (fun substring -> String.length substring > 0)
+            let shape = List.filter 
+                (fun substring -> String.length substring > 0) 
                 (String.split_on_char ' ' (List.hd tensor_string)) in
             let shape' = List.map int_of_string shape in
-            let components = (String.split_on_char ' ' (String.concat " "
+            let components = (String.split_on_char ' ' (String.concat " " 
                                                 (List.tl tensor_string))) in
             (STensor(shape'), STLit((components), shape')), indices
     | Id(s) -> (lookup_symb s, SId(s)), indices
