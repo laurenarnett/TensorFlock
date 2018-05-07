@@ -21,12 +21,14 @@ let () =
   let ast = Parser.program Scanner.token lexbuf in
   match !action with
      Ast -> print_string (Ast.string_of_program ast)
-   | Sast -> print_string (Sast.string_of_sprogram (Semant.check ast |> Lift.rename_sprogram |> Topsort.make_topsort))
-   | Lift -> print_string (Sast.string_of_sprogram (Semant.check ast |>
-    Lift.lift_sprogram))
-   | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate
-   (Semant.check ast |> Lift.lift_sprogram |> Topsort.make_topsort)))
-   | Compile -> let mdl = Codegen.translate (Semant.check ast |>
-   Lift.lift_sprogram |> Topsort.make_topsort) in
+   (* Wire together the lambda lifter and variable sorter here *)
+   | _ -> let sast = Semant.check ast in
+          let lifted_sast = Lift.lift_sprogram sast |> Topsort.make_topsort in
+  match !action with
+     Ast -> ()
+   | Sast -> print_string (Sast.string_of_sprogram sast)
+   | Lift -> print_string (Sast.string_of_sprogram lifted_sast)
+   | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate lifted_sast))
+   | Compile -> let mdl = Codegen.translate lifted_sast in
    Llvm_analysis.assert_valid_module mdl;
    ignore @@ Llvm_bitwriter.write_bitcode_file mdl "output.ll"
