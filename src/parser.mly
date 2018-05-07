@@ -123,7 +123,6 @@ lexpr:
   | BLIT             { BoolLit($1)            }
   | ID               { Id($1) }
   | LBRACK tcontents RBRACK        { TLit(List.rev $2) }
-  | INCLUDE          { let readfile fpath = ... in TLit(readfile $1) }
 
 tidx:
   /* Don't match on an empty tensor index */

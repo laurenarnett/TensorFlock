@@ -144,7 +144,7 @@ let rec check_expr expression table indices =
       * http://camltastic.blogspot.com/2008/09/
       * tip-read-all-lines-from-file-most.html
       * *)
-            let readfile fpath =
+            let readfile fpath = 
               let lines = ref [] in
               let channel = open_in fpath in
               try
