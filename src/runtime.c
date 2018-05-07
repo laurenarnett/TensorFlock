@@ -114,7 +114,7 @@ double* taccess(T *tensor, ...)
 }
 
 
-int print_tensor(T *tensor) {
+int old_print_tensor(T *tensor) {
     // Create array of things locations to print brackets
     nat rank = tensor->rank;
     nat *shape = tensor->shape;
@@ -171,6 +171,78 @@ int print_tensor(T *tensor) {
     }
 
     printf("\n");
+
+    return 0;
+}
+
+/* Experimental var_args function to print tensors assuming that they are
+ * implemented as simple double arrays, as opposed to our structs. */
+int print_tensor(double *contents, nat rank, ...) {
+    va_list dims;
+    va_start(dims, rank);
+    // Construct the shape array
+    nat shape[rank];
+    nat size = 1;
+    int ix;
+    for (ix = 0; ix < rank; ++ix) {
+        shape[ix] = va_arg(dims, nat);
+        size *= shape[ix];
+    }
+    va_end(dims);
+    // From here, everything is identical to the original print_tensor function
+    
+    int bracket_locations[rank];
+    int i, j;
+    /*
+     * For example, if the shape of a tensor is <2,3,4> we need to print
+     * brackets after every 12th double in the backing array and every 4th
+     * double. This is independent of the first parameter of the shape, so we
+     * would need to do the same if the shape were <2000,3,4>.
+     */
+    for (i = 1; i < rank; ++i) {
+        int prod = 1;
+        for (j = i; j < rank; ++j) {
+            prod *= shape[j];
+        }
+        bracket_locations[i] = prod;
+    }
+    // First print opening brackets
+    for (i = 0; i < rank; ++i) {
+        printf("[");
+    }
+
+    // Print the tensor contents
+    int k, l, m, no_of_brac;
+    for (k = 0; k < size - 1; ++k) {
+        printf("%.2f ", contents[k]);
+        for (l = 1; l < rank; ++l) {
+            // If the component index mod the bracket location is 0
+            // then print some brackets
+            if ((k + 1) % bracket_locations[l] == 0) {
+                printf("\b");
+                no_of_brac = rank - l;
+                for (m = 0; m < no_of_brac; ++m) {
+                    printf("]");
+                }
+                printf("\n");
+                for (m = 0; m < no_of_brac; ++m) {
+                    printf("[");
+                }
+                break;
+            }
+        }
+    }
+
+    // Print the last component
+    printf("%.2f", contents[size - 1]);
+
+    // Finally print the closing brackets
+    for (i = 0; i < rank; ++i) {
+        printf("]");
+    }
+
+    printf("\n");
+    
 
     return 0;
 }
