@@ -78,7 +78,10 @@ let rec env_of_funcs funcs =
     List.map (fun f -> env_of_funcs f.scope) (List.map snd funcs)
 
 let deduce_shapes funcs = 
-let rec deduce_shapes enclosing funcs = 
+(* Returns a new list of (ftyp, fdefs) 
+ * The flag is to stop shape vars from being unnecessarily added to inner
+ * scopes *)
+let rec deduce_shapes flag enclosing funcs = 
     let env = combine_envs [enclosing; env_of_funcs funcs] in
     let rec replace_type env typ = match typ with
       | Nat | Bool | Tensor [] -> typ
@@ -86,13 +89,13 @@ let rec deduce_shapes enclosing funcs =
       | Arrow(t1, t2) -> Arrow(replace_type env t1, replace_type env t2) in
     let funcs' = List.map (fun (ft, fd) -> 
         {ft with types = replace_type env ft.types},
-        {fd with scope = deduce_shapes env fd.scope}) funcs in
+        {fd with scope = deduce_shapes false env fd.scope}) funcs in
     (* Keep track of replaced ids by just adding a lot of global vars to the
      * program *)
-    let new_funcs = StringMap.fold
+    let new_funcs = if flag then StringMap.fold
         (fun name i acc -> 
             ({ftyp_name = name; types = Nat},
             {fdef_name = name; fparams = []; main_expr = Literal i; scope = []})
-            :: acc) env funcs' in
+            :: acc) env funcs' else funcs' in
     new_funcs in
-deduce_shapes StringMap.empty funcs
+deduce_shapes true StringMap.empty funcs
