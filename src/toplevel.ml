@@ -23,10 +23,12 @@ let () =
      Ast -> print_string (Ast.string_of_program ast)
    (* Wire together the lambda lifter and variable sorter here *)
    | _ -> let sast = Semant.check ast in
+          let lifted_sast = Lift.lift_sprogram sast |> Topsort.make_topsort in
   match !action with
      Ast -> ()
    | Sast -> print_string (Sast.string_of_sprogram sast)
-   | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate sast))
-   | Compile -> let mdl = Codegen.translate sast in
+   | Lift -> print_string (Sast.string_of_sprogram lifted_sast)
+   | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate lifted_sast))
+   | Compile -> let mdl = Codegen.translate lifted_sast in
    Llvm_analysis.assert_valid_module mdl;
    ignore @@ Llvm_bitwriter.write_bitcode_file mdl "output.ll"
