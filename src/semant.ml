@@ -95,7 +95,7 @@ let rec check_expr expression table indices =
             if n1 = n2 then Some n2 else failwith @@ "Error - tried to rebind
             indices in " ^ string_of_expr expr) map1 map2 in
       match expr with 
-    | Literal _ | Fliteral _ | BoolLit _ | TLit _ | Id _ -> indices
+    | Literal _ | Fliteral _ | BoolLit _ | TLit _ | TFile _ | Id _ -> indices
     | TensorIdx(e, ixs) -> (match type_of e with
       | STensor(shape) -> List.fold_left2 (fun acc idx num -> 
               match StringMap.find_opt idx acc with
@@ -139,6 +139,29 @@ let rec check_expr expression table indices =
             ) in
             (STensor(shape), STLit(unwrap_components components, shape)), indices
             else failwith "Invalid tensor literal"
+    | TFile(filepath) ->
+     (* line-reader from
+      * http://camltastic.blogspot.com/2008/09/
+      * tip-read-all-lines-from-file-most.html
+      * *)
+            let readfile fpath = 
+              let lines = ref [] in
+              let channel = open_in fpath in
+              try
+                while true; do
+                  lines := input_line channel :: !lines
+                done; []
+              with End_of_file ->
+                close_in channel;
+                List.rev !lines in 
+            let tensor_string = readfile filepath in
+            let shape = List.filter 
+                (fun substring -> String.length substring > 0) 
+                (String.split_on_char ' ' (List.hd tensor_string)) in
+            let shape' = List.map int_of_string shape in
+            let components = (String.split_on_char ' ' (String.concat " " 
+                                                (List.tl tensor_string))) in
+            (STensor(shape'), STLit((components), shape')), indices
     | Id(s) -> (lookup_symb s, SId(s)), indices
     | Unop(Neg, expr) -> begin 
         match type_of expr with 
@@ -322,7 +345,7 @@ let recursive_check (ftyp, fdef) =
     | Arrow(_) -> false in
   let fid = ftyp.ftyp_name in
   let rec rec_def fexpr = match fexpr with
-    | Literal(_) | Fliteral(_) | BoolLit(_) | TLit(_) -> false
+    | Literal(_) | Fliteral(_) | BoolLit(_) | TLit(_) | TFile(_) -> false
     | Unop(_, e) -> rec_def e
     | Aop(e1, _, e2) -> rec_def e1 && rec_def e2
     | Boolop(e1, _, e2) -> rec_def e1 && rec_def e2

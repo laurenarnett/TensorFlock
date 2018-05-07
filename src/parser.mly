@@ -7,10 +7,12 @@
 %token DEFINE EQ NEQ LEQ GEQ AND OR
 %token PLUS MINUS TIMES DIVIDE MOD EXPT
 %token IF THEN ELSE NAT BOOL TENSOR MAIN
+%token INCLUDE
 
 %token <int> LITERAL
 %token <bool> BLIT
 %token <string> ID FLIT TIDX
+%token <string> FILEPATH
 %token EOF
 
 %start program
@@ -81,7 +83,9 @@ typ:
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
 
 /* Expression starting point */
-expr: binexpr { $1 }
+expr: 
+    INCLUDE FILEPATH { TFile($2) }
+  | binexpr { $1 }
 
 binexpr:
   | IF binexpr THEN binexpr ELSE binexpr { CondExpr($2, $4, $6) }
@@ -160,4 +164,3 @@ saexpr:
 slexpr:
     LITERAL          { ALiteral($1) }
   | ID               { AId($1)      }
-
