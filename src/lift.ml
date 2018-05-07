@@ -162,11 +162,11 @@ let update_sapp sexpr sfunc = match sexpr with
     let (app_id, _) = List.hd @@ get_ids e1 [] in
     let params_len = List.length sfunc.sfparams in
     let args_len = List.length e2 in
-    print_endline @@ "app id: " ^ app_id ^ " sfunc id: " ^ sfunc.sfname;
+    (*print_endline @@ "app id: " ^ app_id ^ " sfunc id: " ^ sfunc.sfname;*)
     (* check if the ids match and if any params have been lifted *)
     if app_id = sfunc.sfname (*&& params_len > args_len *) then
       let ids_of_params =
-    print_endline "we have an sapp update";
+    (*print_endline "we have an sapp update";*)
         List.fold_right
         (fun (styp, id) lst -> (styp, SId(id)) :: lst) sfunc.sfparams [] in
 
@@ -184,8 +184,8 @@ let update_sapp sexpr sfunc = match sexpr with
  * a new list of sfuncs with updated call sites for the sfunc *)
 let rec update_call_sites sfunc sfuncs = List.map
   (fun sfunc' ->
-      print_endline ("lifted sfunc: " ^ sfunc.sfname ^ " sfunc to update " ^
-        sfunc'.sfname );
+      (*print_endline ("lifted sfunc: " ^ sfunc.sfname ^ " sfunc to update " ^*)
+        (*sfunc'.sfname );*)
     (* First, recursively update sscope *)
     let updated_sscope = update_call_sites sfunc sfunc'.sscope in
     (* Then check a sexpr to see if it is an sapp and call update on it *)
@@ -276,17 +276,13 @@ let rec lift_params parental_params sfunc sfuncs =
   let updated_sfparams = List.fold_left
     (fun sfparams' (id, styp) -> (styp, id) :: sfparams' ) sfunc.sfparams
     free_vars in
-  let lifted_sfunc = {sfunc with
-                 stype = updated_stype;
-                 sfparams = updated_sfparams;
-                 sscope = lifted_sscope;} in
-  (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
+
   (* do a check here to update call sites in sexpr for functions defined in
 * sscope*)
   let sscope_sfunc_decls = List.fold_left
     (fun acc sfunc -> match sfunc.stype with
-      | SArrow(_, _) -> print_endline (Sast.string_of_sfunc sfunc); sfunc :: acc
-      | _ -> acc) [] lifted_sfunc.sscope in
+      | SArrow(_, _) -> (*print_endline (Sast.string_of_sfunc sfunc);*) sfunc :: acc
+      | _ -> acc) [] lifted_sscope in
 
   let rec update_sexpr_from_sfunc sexpr sfunc = match sexpr with
     | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
@@ -304,18 +300,24 @@ let rec lift_params parental_params sfunc sfuncs =
       (t, SCondExpr(update_sexpr_from_sfunc e1 sfunc, update_sexpr_from_sfunc e2
       sfunc, update_sexpr_from_sfunc e3 sfunc))
     | (t, SApp(e1, e2)) -> update_sapp (t, SApp(e1, e2)) sfunc in
-  let call_site_updated_sfexpr = List.fold_left
-    (fun sexpr' sfunc' -> update_sexpr_from_sfunc sexpr' sfunc') lifted_sfunc.sfexpr
+
+  let updated_sfexpr = List.fold_left
+    (fun sexpr' sfunc' -> update_sexpr_from_sfunc sexpr' sfunc') sfunc.sfexpr
     sscope_sfunc_decls in
-  let lifted_sfunc' = { lifted_sfunc with sfexpr = call_site_updated_sfexpr; }
-  in
+
+  let lifted_sfunc = {sfunc with
+                 stype = updated_stype;
+                 sfparams = updated_sfparams;
+                 sfexpr = updated_sfexpr;
+                 sscope = lifted_sscope;} in
+  (*print_endline @@ Sast.string_of_sfunc lifted_sfunc;*)
   (* Now rebuild sfuncs with the lifted sfunc *)
-  let updated_sfuncs = replace_sfunc lifted_sfunc' sfuncs in
+  let updated_sfuncs = replace_sfunc lifted_sfunc sfuncs in
   (*print_endline "updated_sfuncs";*)
   (*List.iter (fun f -> print_endline @@ Sast.string_of_sfunc f) updated_sfuncs;*)
   (*print_endline "+++++++++++++++++++++++++";*)
   (* Return a new sprogram with updated call sites *)
-  update_call_sites lifted_sfunc' updated_sfuncs
+  update_call_sites lifted_sfunc updated_sfuncs
 
 (* Take in a list of sfuncs, and partition it into two lists of
  * sfunc decls, and everything else: (decls, vars) *)

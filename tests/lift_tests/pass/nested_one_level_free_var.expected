@@ -1,0 +1,16 @@
+main = f : Nat -> Nat -> Nat[ z : Nat,42 : Nat] : Nat
+(f x~2 j~1 : Nat -> Nat -> Nat) = j~1 : Nat + k : Nat -> Nat[ x~2 : Nat,3 : Nat] : Nat : Nat
+{
+(p  : Nat) = 15 : Nat
+{
+
+}
+}
+(z  : Nat) = 3 : Nat
+{
+
+}
+(k x~2 l : Nat -> Nat -> Nat) = l : Nat + x~2 : Nat : Nat
+{
+
+}

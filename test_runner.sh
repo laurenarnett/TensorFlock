@@ -117,6 +117,10 @@ for f in ./tests/semant_tests/fail/*.tf; do
     run_test $f s fail 
 done
 
+for f in ./tests/lift_tests/pass/*.tf; do
+    run_test $f lift pass 
+done
+
 for f in ./tests/codegen/pass/*.tf; do
     run_test $f c pass
 done
