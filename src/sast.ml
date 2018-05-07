@@ -1,5 +1,4 @@
 open Ast
-module StringMap = Map.Make (String)
 (* By this point in the pipeline, we should have been able to deduce all of the
  * shapes of tensors, so that we don't need to let them be arbitrary aexprs
  * anymore *)
