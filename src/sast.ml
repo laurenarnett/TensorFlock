@@ -83,7 +83,7 @@ let rec string_of_sfunc sfunc =
   ^ string_of_sexpr sfunc.sfexpr ^ if sfunc.sscope = [] then "" else
   "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
-  ^ "\n}"
+  ^ "\n}\n"
 
 let string_of_sprogram (main_expr, sfuncs) =
   "main = " ^ string_of_sexpr main_expr ^ "\n"

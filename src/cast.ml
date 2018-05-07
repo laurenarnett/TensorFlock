@@ -167,7 +167,7 @@ let rec replace_indices sexpr indices =
 let rec cexprs_of_sexpr sexpr =
     match snd sexpr with 
       Forall r -> 
-          let ranges = List.map (fun (s, dim) -> range dim) r.indices in
+          let ranges = List.map (fun (_s, dim) -> range dim) r.indices in
           let all_indices = sequence ranges in
           let pairs = 
               List.map (List.combine (List.map fst r.indices)) all_indices in
