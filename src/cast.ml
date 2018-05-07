@@ -115,11 +115,16 @@ let rec replace_indices sexpr indices = let ctyp = ctyp_of_styp @@ fst sexpr in
        let contract_range = range (snd (r.index)) in
        (match r.sexpr with 
           | STensor [], STensorIdx((STensor shape, tensor), idxs) ->
-                  let all_indices = List.map (fun i -> match List.assoc_opt i indices with
-                      Some n -> [n]
-                    | None -> if i = fst r.index then contract_range else 
-                        failwith "Index not found in contract or in forall"
-              ) idxs |> sequence in failwith "wip"
+              let all_indices = List.map (fun i -> match List.assoc_opt i indices with
+                  Some n -> [n]
+                | None -> if i = fst r.index then contract_range else 
+                    failwith "Index not found in contract or in forall"
+                    ) idxs |> sequence in
+              let summands = List.map (fun is -> ctyp, 
+                CTensorIdx(replace_indices (STensor shape, tensor) indices, 
+                           offset shape is)) all_indices
+              in List.fold_left (fun acc exp -> CAop((CDouble, acc), Add, exp)) 
+               (CFliteral "0") summands
           | _ -> failwith "Failure, semant failed (cast.ml line ~123)"
        )
      | Forall _ -> failwith "Should not call replace_indices on a forall"
