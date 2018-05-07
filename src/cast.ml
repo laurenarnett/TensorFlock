@@ -60,3 +60,21 @@ let rec string_of_cx = function
   | CApp(f, args) -> string_of_cx (snd f) ^ "(" ^ 
     String.concat "," (List.map (fun a -> string_of_cx (snd a)) args)
   | CTensorIdx(i, e) -> string_of_cx (snd e) ^ "[" ^ string_of_int i ^ "]"
+
+let product = List.fold_left ( * ) 1
+let range n = 
+    let rec range' n = match n with 0 -> [0] | _ -> n :: (range' (n-1)) 
+    in range' (n - 1)  |> List.rev
+
+let rec ctyp_of_styp = function
+  | SNat -> CNat | SBool -> CBool | STensor [] -> CDouble
+  | STensor shape -> CTensor(product shape, shape)
+  | t -> Semant.last_stype t |> ctyp_of_styp
+
+
+let rec offset shape indices = match List.tl shape, indices with
+    [], [last_idx] -> last_idx
+  | ns, i::is -> product ns * i + offset ns is
+  | _ -> failwith "Invalid shapes and indices passed to offset"
+
+
