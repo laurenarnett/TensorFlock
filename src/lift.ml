@@ -27,7 +27,7 @@ let rec rename old_name new_name sexpr = match sexpr with
     SCondExpr((t1, rename old_name new_name e1),
               (t2, rename old_name new_name e2),
               (t3, rename old_name new_name e3))
-  | STensorIdx((t, e), _) -> rename old_name new_name e
+  | STensorIdx((_t, e), _) -> rename old_name new_name e
   | Forall r -> rename old_name new_name (snd r.sexpr)
   | Contract r -> rename old_name new_name (snd r.sexpr)
 

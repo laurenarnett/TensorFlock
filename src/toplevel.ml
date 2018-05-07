@@ -21,7 +21,10 @@ let () =
   match !action with
      Ast -> print_string (Ast.string_of_program ast)
    (* Wire together the lambda lifter and variable sorter here *)
-   | _ -> let sast = Semant.check ast in
+   | _ -> let sast = Semant.check ast 
+                    |> Lift.rename_sprogram 
+                    |> Topsort.make_topsort 
+  in
   match !action with
      Ast -> ()
    | Sast -> print_string (Sast.string_of_sprogram sast)
