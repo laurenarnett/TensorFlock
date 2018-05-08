@@ -127,10 +127,11 @@ let rec replace_sfunc sfunc sfuncs = List.map
   (fun sfunc' -> if sfunc'.sfname = sfunc.sfname then sfunc else sfunc') sfuncs
 
 (* Take in a sexpr and return a list of ids inside that sexpr *)
-let rec get_ids (sexper : Sast.sexpr) acc = match sexper with
+let rec get_ids (sexpr : Sast.sexpr) acc = match sexpr with
   | (_, SLiteral(_)) | (_, SFliteral(_))
   | (_, SBoolLit(_)) | (_, STLit(_)) -> acc
-  | (_, (Forall _|Contract _)) -> acc
+  | (_, Forall r) -> get_ids r.sexpr acc
+  | (_, Contract r) -> get_ids r.sexpr acc
   | (_, SUnop(_, e)) -> get_ids e acc
   | (_, SAop(e1, _, e2)) -> let lst = get_ids e1 acc in
     get_ids e2 lst
@@ -181,7 +182,8 @@ let rec update_call_sites sfunc sfuncs = List.map
     (* Then check a sexpr to see if it is an sapp and call update on it *)
     let rec update_sexpr sexpr = match sexpr with
     | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
-    | (_, (Forall _|Contract _)) -> sexpr
+    | (t, Forall r) -> t, Forall ( {r with sexpr = update_sexpr r.sexpr } )
+    | (t, Contract r) -> t, Contract ( {r with sexpr = update_sexpr r.sexpr } )
     (* Tensor indices can not have function application, hence no update *)
     | (_, STensorIdx(_, _)) -> sexpr
     | (t, SUnop(u, e)) -> (t, SUnop(u, update_sexpr e))
@@ -258,7 +260,10 @@ let rec lift_params parental_params sfunc sfuncs =
 
   let rec update_sexpr_from_sfunc sexpr sfunc = match sexpr with
     | (_, (SLiteral _|SBoolLit _|SFliteral _|STLit (_, _)|SId _)) -> sexpr
-    | (_, (Forall _|Contract _)) -> sexpr
+    | (t, Forall r) -> 
+            t, Forall ( {r with sexpr = update_sexpr_from_sfunc r.sexpr sfunc} )
+    | (t, Contract r) -> 
+            t, Contract ( {r with sexpr = update_sexpr_from_sfunc r.sexpr sfunc} )
     (* Tensor indices can not have function application, hence no update *)
     | (_, STensorIdx(_, _)) -> sexpr
     | (t, SUnop(u, e)) -> (t, SUnop(u, update_sexpr_from_sfunc e sfunc))
@@ -290,14 +295,17 @@ let rec lift_params parental_params sfunc sfuncs =
 
 (* Take in a list of sfuncs, and partition it into two lists of
  * sfunc decls, and everything else: (decls, vars) *)
-let get_sfunc_decls sfuncs = List.fold_left
-  (fun (decls, vars) sfunc -> match sfunc.stype with
-  | SArrow(_, _) -> (sfunc :: decls, vars)
-  | _ -> (decls, sfunc :: vars) ) ([], []) sfuncs
+let get_sfunc_decls sfuncs = 
+    (* List.iter (fun sf -> print_endline @@ string_of_styp sf.stype) sfuncs; *)
+    List.partition 
+                  (fun sfunc -> match sfunc.stype with 
+                    SArrow _ -> true 
+                  | _ -> false) sfuncs
 
 let rec block_float sfuncs acc = List.fold_left
     (fun lst sfunc ->
       let (collected_decls, sscope_sfuncs) = get_sfunc_decls sfunc.sscope in
+      List.iter (fun sf -> print_endline (string_of_sfunc sf)) sscope_sfuncs;
       {sfunc with sscope = sscope_sfuncs; } :: (lst @ collected_decls)) acc sfuncs
 
 let lift_sprogram (main_sexpr', sfuncs') =

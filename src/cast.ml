@@ -211,7 +211,7 @@ type cprogram = cexpr * (assign list) * (cfunc list)
 let cfunc_of_sfunc sfunc =
     let locals, cexpr = match sfunc.sfexpr with
         STensor [], (STensorIdx((STensor shape, _), indices)) ->
-        let temp_sfunc = { sfname = "~temp"
+        let temp_sfunc = { sfname = sfunc.sfname ^ "~temp"
                          ; stype = STensor shape
                          ; sfparams = []
                          ; lhs_indices = List.combine indices shape

@@ -25,7 +25,7 @@ let () =
    (* Wire together the lambda lifter and variable sorter here *)
    | _ -> let sast = Semant.check ast in
           let lifted_sast = Lift.lift_sprogram sast |> Topsort.make_topsort in
-          let cast = Cast.cprogram_of_sprogram lifted_sast in
+          let cast = Cast.cprogram_of_sprogram (Topsort.make_topsort sast) in
   match !action with
      Ast -> ()
    | Sast -> print_endline (Sast.string_of_sprogram sast)
