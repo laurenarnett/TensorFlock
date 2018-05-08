@@ -234,30 +234,30 @@ let rec codegen_sexpr (typ, detail) map builder =
   (*| _ -> raise (Failure "Not yet implemented") *)
 
 (* Use in declaring global vars *)
-let handle_const cfunc = match cfunc.typ with
+let handle_const assign = match assign.typ with
       CNat -> L.const_int nat_t 0
     | CBool -> L.const_int bool_t 0
-    | CTensor(1, []) -> L.const_float float_t 0.
+    | CDouble -> L.const_float float_t 0.
     | CTensor(_) -> L.const_pointer_null tensor_t
-    | _ -> raise (Failure "declare globals on unit type only")
+    (*| _ -> raise (Failure "declare globals on unit type only")*)
 
 (* Given a global var, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let declare_global env sfunc = 
-  StringMap.add sfunc.name 
-    (L.define_global sfunc.name (handle_const sfunc) the_module) env
+let declare_global env assign = 
+  StringMap.add assign.name 
+    (L.define_global assign.name (handle_const assign) the_module) env
 
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let declare_fn env sfunc = 
-  let the_typ = ltype_of_ctyp sfunc.ret_typ in
-  let the_function = L.define_function (sfunc.cname) the_typ the_module in
-  StringMap.add sfunc.cname the_function env
+let declare_fn env cfunc = 
+  let the_typ = ltype_of_ctyp cfunc.ret_typ in
+  let the_function = L.define_function (cfunc.cname) the_typ the_module in
+  StringMap.add cfunc.cname the_function env
 
 (* Codegen for globals *)
-let codegen_global env builder sfunc = 
-  ignore @@ L.build_store (codegen_sexpr sfunc.cexpr env builder)
-    (lookup sfunc.name env) builder;
+let codegen_global env builder assign = 
+  ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
+    (lookup assign.name env) builder;
   env 
 
 (* Codegen for function body *)
@@ -283,19 +283,18 @@ let codegen_fn_body env cfunc =
     (* Allocate scope variables:
         * Returns a new env *) 
     let alloc_scope scope env = 
-      let sorted_scope = snd (Topsort.make_topsort ([], scope)) in
-      let llvals = List.map handle_const sorted_scope in
+      let llvals = List.map handle_const scope in
       List.fold_left2 (fun acc cfunc llval -> 
-          alloc_param acc (cfunc.stype, sfunc.sfname) llval) 
-        env sorted_scope llvals in
-    let env'' = alloc_scope cfunc.sscope env' in 
+          alloc_param acc (cfunc.stype, cfunc.cname) llval) 
+        env scope llvals in
+    let env'' = alloc_scope cfunc.locals env' in 
 
     (* codegen on variables in scope, adding their values to env'' *) 
     ignore @@ List.iter (fun cfunc -> 
-        ignore @@ L.build_store (codegen_sexpr cfunc.sfexpr env'' fn_builder) 
-          (lookup cfunc.sfname env'') fn_builder) sfunc.sscope;
+        ignore @@ L.build_store (codegen_sexpr cfunc.cfexpr env'' fn_builder) 
+          (lookup cfunc.cname env'') fn_builder) cfunc.locals;
 
-    let ret_val = codegen_sexpr cfunc.sfexpr env'' fn_builder in
+    let ret_val = codegen_sexpr cfunc.cfexpr env'' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
     (* Return the new environment *)
     Llvm_analysis.assert_valid_function the_function;
@@ -309,10 +308,10 @@ let translate (main_expr, assigns, cfuncs) =
 
   (* Declare all defined variables *)
   let env = List.fold_left declare_global StringMap.empty assigns in
-  (* Build global variables *)
-  let env = List.fold_left codegen_global env builder assigns in
   (* Declare all defined functions *)
   let env = List.fold_left declare_fn env cfuncs in
+  (* Build global variables *)
+  let env = List.fold_left codegen_global env builder assigns in
   (* Build their bodies *)
   let env = List.fold_left codegen_fn_body env cfuncs in
 
@@ -322,24 +321,24 @@ let translate (main_expr, assigns, cfuncs) =
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
-  let the_expression = codegen_sexpr (fst sprogram) env builder
-  in ignore @@ (match fst (fst sprogram) with 
-    | SNat -> L.build_call printf_func [| int_format_str ; the_expression |]
+  let the_expression = codegen_sexpr main_expr env builder
+  in ignore @@ (match fst main_expr with 
+    | CNat -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
-    | SBool -> L.build_call printf_func [| bool_format_str ; 
+    | CBool -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
-    | STensor([]) -> L.build_call printf_func 
+    | CDouble -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | STensor(shape) -> 
+    | CTensor(_size, shape) -> 
         let rank = L.const_int nat_t (List.length shape) in
         let print_args = 
             [the_expression; rank] @ List.map (L.const_int nat_t) shape in
         let _ = L.build_call print_tensor_func (Array.of_list print_args)
             "print_tensor" builder in
         L.build_free the_expression builder
-    | SArrow(_,_) -> raise (Failure "Internal error: semant failed")
+    (*| SArrow(_,_) -> raise (Failure "Internal error: semant failed")*)
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
