@@ -35,7 +35,7 @@ type cfunc = {
     ret_typ : ctyp;
     params : (ctyp * string) list;
     locals : assign list;
-    cexpr : cexpr;
+    cfexpr : cexpr;
 }
 
 let rec string_of_cx = function
