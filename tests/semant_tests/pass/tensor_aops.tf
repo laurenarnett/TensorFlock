@@ -14,3 +14,6 @@ mat4[i,j,k,l] = cast (k + l);
 
 mat5 : T<n,m>;
 mat5[i,j] = mat4[i,j,k,k];
+
+mat6 : T<n,m>;
+mat6[i,j] = mat5[i,j]; //+ 13.4;
