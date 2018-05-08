@@ -7,7 +7,6 @@ open Sast
 type ctyp = CBool | CNat | CDouble | CTensor of int * int list
 
 type cexpr = (ctyp * cx)
-
 and cx =
   | CLiteral of int
   | CBoollit of bool
@@ -42,13 +41,13 @@ let string_of_ctyp = function
     CNat -> "CNat" | CBool -> "CBool" | CDouble -> "CDouble" 
   | CTensor(size, _) -> "CTensor[" ^ string_of_int size ^ "]"
 
-let rec string_of_cexpr (t, det) = match det with
+let rec string_of_cexpr (_t, det) = match det with
   | CLiteral i -> string_of_int i
   | CBoollit true -> "True"
   | CBoollit false -> "False"
   | CFliteral s -> s
   | CTlit (ns, _size) -> "[" ^ String.concat ", " ns ^ "]"
-  | CId s -> "(" ^ s ^ " : " ^ string_of_ctyp t ^ ")"
+  | CId s -> s
   | CUnop (Neg, e) -> "-" ^ string_of_cexpr e
   | CAop (e1, op, e2) ->
       string_of_cexpr e1 ^ " " ^ string_of_aop op ^ " "
@@ -66,8 +65,8 @@ let rec string_of_cexpr (t, det) = match det with
       string_of_cexpr f ^ "("
       ^ String.concat "," (List.map (fun a -> string_of_cexpr a) args) ^ ")"
   | CTensorIdx (e, i) -> 
-      "((" ^ string_of_cexpr e ^ ")" ^ "[" ^ string_of_int i ^ "]" 
-      ^ " : " ^ string_of_ctyp t ^ ")"
+      "{" ^ string_of_cexpr e ^ "[" ^ string_of_int i ^ "]" 
+      ^ " : " ^ string_of_ctyp (fst e) ^ "}"
 
 let string_of_assign r =
   let i_str =
@@ -171,11 +170,8 @@ let rec replace_indices sexpr indices =
                 idxs
               |> sequence
             in
-            let summands =
-              List.map
-                (fun is ->
-                  ( ctyp
-                  , CTensorIdx
+            let summands = List.map (fun is ->
+                  ( CDouble , CTensorIdx
                       ( replace_indices (STensor shape, tensor) indices
                       , offset shape is ) ) )
                 all_indices
@@ -186,6 +182,23 @@ let rec replace_indices sexpr indices =
         | _ -> failwith "Failure, semant failed (cast.ml line 179)" )
     | Forall _ -> failwith "Should not call replace_indices on a forall" )
 
+let rec strip_indices cexpr = let t = fst cexpr in match snd cexpr with
+  | CLiteral _ | CBoollit _ | CFliteral _ | CTlit _ | CId _ -> cexpr
+  | CTensorIdx((CDouble, cexpr'), _) -> 
+          print_endline "HERE";
+          strip_indices (CDouble, cexpr')
+  | CTensorIdx(e, idxs) -> 
+          print_endline @@ "Here @ " ^ string_of_cexpr cexpr;
+          t, CTensorIdx(strip_indices e, idxs) 
+  | CUnop(Neg, e) -> t, CUnop(Neg, strip_indices e)
+  | CAop(e1, op, e2) -> t, CAop(strip_indices e1, op, strip_indices e2)
+  | CRop(e1, op, e2) -> t, CRop(strip_indices e1, op, strip_indices e2)
+  | CBoolop(e1, op, e2) -> t, CBoolop(strip_indices e1, op, strip_indices e2)
+  | CCondExpr(e1, e2, e3) -> t,
+    CCondExpr(strip_indices e1, strip_indices e2, strip_indices e3)
+  | CApp(f, args) -> t, CApp(strip_indices f, List.map strip_indices args)
+
+
 let rec cexprs_of_sexpr sexpr =
   match snd sexpr with
   | Forall r ->
@@ -194,7 +207,9 @@ let rec cexprs_of_sexpr sexpr =
       let pairs =
         List.map (List.combine (List.map fst r.indices)) all_indices
       in
-      List.map (replace_indices r.sexpr) pairs
+      List.map (fun pair -> replace_indices r.sexpr pair 
+                |> strip_indices
+        ) pairs
   | _ -> cexprs_of_sexpr (fst sexpr, Forall { indices= []; sexpr })
 
 
