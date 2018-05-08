@@ -27,7 +27,7 @@ type sfunc = {
     sfname : string;
     stype : styp;
     sfparams : (styp * string) list;
-    slocals : (styp * string) list;
+    lhs_indices : (string * int) list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -74,7 +74,10 @@ and string_of_sexpr (t, det) =
   string_of_sexpr_detail det ^ " : " ^ string_of_styp t
 
 let rec string_of_sfunc sfunc =
-  "(" ^ sfunc.sfname ^ " " ^ (String.concat " " (List.map snd sfunc.sfparams))
+  let index_str = if sfunc.lhs_indices = [] then "" else "[" ^ String.concat
+      "," (List.map fst sfunc.lhs_indices) ^ "]" in
+  "(" ^ sfunc.sfname ^ index_str ^ " " 
+  ^ (String.concat " " (List.map snd sfunc.sfparams))
   ^ " : " ^ string_of_styp sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ if sfunc.sscope = [] then "" else
   "\n{\n"
