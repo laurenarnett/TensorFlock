@@ -323,7 +323,6 @@ let translate (main_expr, assigns, cfuncs) =
         let _ = L.build_call print_tensor_func (Array.of_list print_args)
             "print_tensor" builder in
         L.build_free the_expression builder
-    (*| SArrow(_,_) -> raise (Failure "Internal error: semant failed")*)
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
