@@ -185,10 +185,8 @@ let rec replace_indices sexpr indices =
 let rec strip_indices cexpr = let t = fst cexpr in match snd cexpr with
   | CLiteral _ | CBoollit _ | CFliteral _ | CTlit _ | CId _ -> cexpr
   | CTensorIdx((CDouble, cexpr'), _) -> 
-          print_endline "HERE";
           strip_indices (CDouble, cexpr')
   | CTensorIdx(e, idxs) -> 
-          print_endline @@ "Here @ " ^ string_of_cexpr cexpr;
           t, CTensorIdx(strip_indices e, idxs) 
   | CUnop(Neg, e) -> t, CUnop(Neg, strip_indices e)
   | CAop(e1, op, e2) -> t, CAop(strip_indices e1, op, strip_indices e2)
