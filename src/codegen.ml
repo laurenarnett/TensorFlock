@@ -20,12 +20,18 @@ let tensor_t = L.pointer_type float_t
 let rec ltype_of_ctyp = function 
     CNat -> nat_t
   | CBool -> bool_t
-  | CTensor([]) -> float_t
-  | CTensor(_) -> tensor_t
+  | CDouble -> float_t
+  | CTensor(_,_) -> tensor_t
+
+let rec ltype_of_styp = function
+    SNat -> nat_t
+  | SBool -> bool_t
+  | STensor([]) -> float_t
+  | STensor(_) -> tensor_t
   (* All remaining types are arrow types *)
   | ts -> let rec list_of_styp = function
-                | CNat -> [CNat] | CBool -> [CBool] | CTensor(size, shape) ->
-                  [CTensor(size,shape)]
+                | SNat -> [SNat] | SBool -> [SBool] | STensor(shape) ->
+                  [STensor(shape)]
                 | SArrow(t1, t2) -> list_of_styp t1 @ list_of_styp t2 in
           L.function_type (List.rev (list_of_styp ts) |> List.hd |> ltype_of_styp) 
           (list_of_styp ts |> but_last |> List.map ltype_of_styp |> Array.of_list)
@@ -164,7 +170,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   (* Tensor of empty shape corresponds to single floating point number *)
-  | CTensor(size, []) -> 
+  | CDouble -> 
     begin
       match detail with  
       | CFliteral(s) -> L.const_float_of_string float_t s
@@ -205,7 +211,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | CApp(fn, params) -> fn_call fn params builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | CTensor(size, shape) ->
+  | CTensor(_size, _shape) ->
     begin
       match detail with
       | CTlit(contents, tsize) -> 
@@ -225,10 +231,10 @@ let rec codegen_sexpr (typ, detail) map builder =
       | CId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
-  | _ -> raise (Failure "Not yet implemented") 
+  (*| _ -> raise (Failure "Not yet implemented") *)
 
 (* Use in declaring global vars *)
-let handle_const cfunc = match sfunc.typ with
+let handle_const cfunc = match cfunc.typ with
       CNat -> L.const_int nat_t 0
     | CBool -> L.const_int bool_t 0
     | CTensor(1, []) -> L.const_float float_t 0.
@@ -245,24 +251,18 @@ let declare_global env sfunc =
  * This function has the side effect of mutating the module *)
 let declare_fn env sfunc = 
   let the_typ = ltype_of_ctyp sfunc.ret_typ in
-  let the_function = L.define_function (sfunc.name) the_typ the_module in
-  StringMap.add sfunc.name the_function env
-
-(* Declare globals and functions for sfuncs *)
-let codegen_proto env sfunc = 
-    match List.length sfunc.sfparams with
-      0 -> declare_global env sfunc 
-    | _ -> declare_fn env sfunc 
+  let the_function = L.define_function (sfunc.cname) the_typ the_module in
+  StringMap.add sfunc.cname the_function env
 
 (* Codegen for globals *)
-let codegen_global env sfunc builder = 
-  ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env builder)
-    (lookup sfunc.sfname env) builder;
+let codegen_global env builder sfunc = 
+  ignore @@ L.build_store (codegen_sexpr sfunc.cexpr env builder)
+    (lookup sfunc.name env) builder;
   env 
 
 (* Codegen for function body *)
-let codegen_fn_body env sfunc = 
-    let the_function = match L.lookup_function sfunc.sfname the_module with
+let codegen_fn_body env cfunc = 
+    let the_function = match L.lookup_function cfunc.cname the_module with
         | Some f -> f
         | None -> raise (Failure "internal error - undefined function")
         in
@@ -278,45 +278,43 @@ let codegen_fn_body env sfunc =
 
     let env' = 
       List.fold_left2 alloc_param 
-        env sfunc.sfparams (L.params the_function |> Array.to_list) in
+        env cfunc.params (L.params the_function |> Array.to_list) in
 
     (* Allocate scope variables:
         * Returns a new env *) 
     let alloc_scope scope env = 
       let sorted_scope = snd (Topsort.make_topsort ([], scope)) in
       let llvals = List.map handle_const sorted_scope in
-      List.fold_left2 (fun acc sfunc llval -> 
-          alloc_param acc (sfunc.stype, sfunc.sfname) llval) 
+      List.fold_left2 (fun acc cfunc llval -> 
+          alloc_param acc (cfunc.stype, sfunc.sfname) llval) 
         env sorted_scope llvals in
-    let env'' = alloc_scope sfunc.sscope env' in 
+    let env'' = alloc_scope cfunc.sscope env' in 
 
     (* codegen on variables in scope, adding their values to env'' *) 
-    ignore @@ List.iter (fun sfunc -> 
-        ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env'' fn_builder) 
-          (lookup sfunc.sfname env'') fn_builder) sfunc.sscope;
+    ignore @@ List.iter (fun cfunc -> 
+        ignore @@ L.build_store (codegen_sexpr cfunc.sfexpr env'' fn_builder) 
+          (lookup cfunc.sfname env'') fn_builder) sfunc.sscope;
 
-    let ret_val = codegen_sexpr sfunc.sfexpr env'' fn_builder in
+    let ret_val = codegen_sexpr cfunc.sfexpr env'' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
     (* Return the new environment *)
     Llvm_analysis.assert_valid_function the_function;
 
     env''
 
-(* Codegen on globals and functions *)
-let codegen_body builder env sfunc = 
-    match List.length sfunc.sfparams with
-        0 -> codegen_global env sfunc builder
-      | _ -> codegen_fn_body env sfunc
-
-let translate sprogram =
+let translate (main_expr, assigns, cfuncs) =
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
 
+  (* Declare all defined variables *)
+  let env = List.fold_left declare_global StringMap.empty assigns in
+  (* Build global variables *)
+  let env = List.fold_left codegen_global env builder assigns in
   (* Declare all defined functions *)
-  let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
+  let env = List.fold_left declare_fn env cfuncs in
   (* Build their bodies *)
-  let env = List.fold_left (codegen_body builder) env (snd sprogram) in
+  let env = List.fold_left codegen_fn_body env cfuncs in
 
   let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
   let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in

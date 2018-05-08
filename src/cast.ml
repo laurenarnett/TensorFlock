@@ -31,7 +31,7 @@ type assign = {
 }
 
 type cfunc = {
-    name : string;
+    cname : string;
     ret_typ : ctyp;
     params : (ctyp * string) list;
     locals : assign list;
@@ -114,8 +114,8 @@ let rec replace_indices sexpr indices = let ctyp = ctyp_of_styp @@ fst sexpr in
      | Contract r -> 
        let contract_range = range (snd (r.index)) in
        (match r.sexpr with 
-          | STensor [], STensorIdx((STensor shape, tensor), idxs) ->
-                  let all_indices = List.map (fun i -> match List.assoc_opt i indices with
+          | STensor [], STensorIdx((STensor _shape, _tensor), idxs) ->
+                  let _all_indices = List.map (fun i -> match List.assoc_opt i indices with
                       Some n -> [n]
                     | None -> if i = fst r.index then contract_range else 
                         failwith "Index not found in contract or in forall"
