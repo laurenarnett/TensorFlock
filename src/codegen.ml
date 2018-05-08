@@ -23,20 +23,6 @@ let rec ltype_of_ctyp = function
   | CDouble -> float_t
   | CTensor(_,_) -> tensor_t
 
-let rec ltype_of_styp = function
-    SNat -> nat_t
-  | SBool -> bool_t
-  | STensor([]) -> float_t
-  | STensor(_) -> tensor_t
-  (* All remaining types are arrow types *)
-  | ts -> let rec list_of_styp = function
-                | SNat -> [SNat] | SBool -> [SBool] | STensor(shape) ->
-                  [STensor(shape)]
-                | SArrow(t1, t2) -> list_of_styp t1 @ list_of_styp t2 in
-          L.function_type (List.rev (list_of_styp ts) |> List.hd |> ltype_of_styp) 
-          (list_of_styp ts |> but_last |> List.map ltype_of_styp |> Array.of_list)
-
-
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
@@ -231,7 +217,6 @@ let rec codegen_sexpr (typ, detail) map builder =
       | CId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
-  (*| _ -> raise (Failure "Not yet implemented") *)
 
 (* Use in declaring global vars *)
 let handle_const assign = match assign.typ with
@@ -272,7 +257,7 @@ let codegen_fn_body env cfunc =
         * Returns a new env *)
     let alloc_param env (typ, name) llval = 
         L.set_value_name name llval;
-        let alloca = L.build_alloca (ltype_of_styp typ) name fn_builder in
+        let alloca = L.build_alloca (ltype_of_ctyp typ) name fn_builder in
         ignore @@ L.build_store llval alloca fn_builder;
         StringMap.add name alloca env in
 
@@ -285,14 +270,14 @@ let codegen_fn_body env cfunc =
     let alloc_scope scope env = 
       let llvals = List.map handle_const scope in
       List.fold_left2 (fun acc cfunc llval -> 
-          alloc_param acc (cfunc.stype, cfunc.cname) llval) 
+          alloc_param acc (assign.typ, assign.cname) llval) 
         env scope llvals in
     let env'' = alloc_scope cfunc.locals env' in 
 
     (* codegen on variables in scope, adding their values to env'' *) 
-    ignore @@ List.iter (fun cfunc -> 
-        ignore @@ L.build_store (codegen_sexpr cfunc.cfexpr env'' fn_builder) 
-          (lookup cfunc.cname env'') fn_builder) cfunc.locals;
+    ignore @@ List.iter (fun assign -> 
+        ignore @@ L.build_store (codegen_sexpr assign.cexpr env'' fn_builder) 
+          (lookup assign.cname env'') fn_builder) cfunc.locals;
 
     let ret_val = codegen_sexpr cfunc.cfexpr env'' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
