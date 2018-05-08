@@ -63,6 +63,21 @@ let rec string_of_cx = function
       ^ String.concat "," (List.map (fun a -> string_of_cx (snd a)) args)
   | CTensorIdx (e, i) -> string_of_cx (snd e) ^ "[" ^ string_of_int i ^ "]"
 
+let string_of_assign r =
+  let i_str =
+    match r.index with None -> "" | Some i -> "[" ^ string_of_int i ^ "]"
+  in
+  r.name ^ i_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ ";\n"
+
+
+let string_of_cfunc r =
+  let params_str = "(" ^ String.concat ", " (List.map snd r.params) ^ ")" in
+  let locals_str =
+    if r.locals = [] then ""
+    else
+      "\n{\n" ^ String.concat "\n" (List.map string_of_assign r.locals) ^ "}"
+  in
+  r.name ^ params_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ locals_str
 
 let product = List.fold_left ( * ) 1
 
