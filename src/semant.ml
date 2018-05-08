@@ -180,19 +180,19 @@ let rec check_expr expression table indices =
                     SAop((fst @@ check_expr expr1 table indices),
                         op, (fst @@ check_expr expr2 table indices))), indices
             | SBool, _ -> failwith "Detected arithmetic operation on boolean"
-            | STensor([]), STensor([]) -> (STensor([]),
-                    SAop((fst @@ check_expr expr1 table indices),
-                        op, (fst @@ check_expr expr2 table indices))), indices
-            | STensor _, STensor _ ->
+            | STensor([]), STensor([]) -> 
                 let sexpr1, _ = check_expr expr1 table indices in
                 let sexpr2, _ = check_expr expr2 table indices in
+                    (* (STensor([]), *)
+                    (* SAop((fst @@ check_expr expr1 table indices), *)
+                    (*     op, (fst @@ check_expr expr2 table indices))), indices *)
             begin
                 match op with
                 | Add | Sub | Mod | Expt | Div ->
                     begin
-                      match sexpr1, sexpr2 with
-                      | (STensor shape1, STensorIdx(_, idxs1)),
-                        (STensor shape2, STensorIdx(_, idxs2)) ->
+                      match snd sexpr1, snd sexpr2 with
+                      | STensorIdx((STensor shape1, _e1), idxs1), 
+                        STensorIdx((STensor shape2, _e2), idxs2) ->
                         if not @@ (shape1 = shape2) || (shape1 = []) || (shape2 = [])
                         then failwith "Type error, cannot perform
                         non-multiplicative operations on tensors of different
@@ -204,7 +204,7 @@ let rec check_expr expression table indices =
             let ret_type = if shape1 = [] then STensor shape2 else STensor shape1 in
             let ret_idxs = if idxs1 = [] then idxs2 else idxs1 in
             let ret_expr = ret_type, SAop(sexpr1, op, sexpr2)
-            in (ret_type, STensorIdx(ret_expr, ret_idxs)), indices
+            in (STensor [], STensorIdx(ret_expr, ret_idxs)), indices
                       | _ -> failwith "Type error line 175"
                     end
 
@@ -452,7 +452,7 @@ let rec check_func enclosing (ftyp, fdef) =
        match ftyp.types with Tensor _ -> true | _ -> false
   then
       let this_sexpr' = (fst this_sexpr,
-      Forall { indices = StringMap.bindings all_indices; sexpr = this_sexpr; }) in
+      Forall { indices = lhs_index_list; sexpr = this_sexpr; }) in
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
       lhs_indices = lhs_index_list;
       sfparams = sfparams;

@@ -58,8 +58,8 @@ let rec string_of_sexpr_detail e = match e with
     string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
     string_of_sexpr sexpr2
   | SApp(sexpr1, sexprs) ->
-      string_of_sexpr sexpr1 ^ "[ " ^
-      String.concat "," (List.map string_of_sexpr sexprs) ^ "]"
+      string_of_sexpr sexpr1 ^ "( " ^
+      String.concat ", " (List.map string_of_sexpr sexprs) ^ ")"
   | SCondExpr(sexpr1, sexpr2, sexpr3) ->
     "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
     ^ " else " ^ string_of_sexpr sexpr3
@@ -70,8 +70,9 @@ let rec string_of_sexpr_detail e = match e with
       ^ " . " ^ string_of_sexpr r.sexpr
   | Contract r -> "contract " ^ string_of_sexpr r.sexpr
                   ^ " over " ^ (fst r.index)
-and string_of_sexpr (t, det) =
-  string_of_sexpr_detail det ^ " : " ^ string_of_styp t
+and string_of_sexpr (_t, det) =
+  string_of_sexpr_detail det 
+  (* ^ " : " ^ string_of_styp t *)
 
 let rec string_of_sfunc sfunc =
   let index_str = if sfunc.lhs_indices = [] then "" else "[" ^ String.concat
