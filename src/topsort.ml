@@ -38,9 +38,12 @@ type node = {
 }
 
 (* Make record of sfunc with its corresponding incoming edges *)
-let sfunc_to_node sfunc = 
+let sfunc_to_node names sfunc = 
   let unique_ids = List.sort_uniq compare (get_expr_ids [] (snd sfunc.sfexpr)) in
-     { data = sfunc; edges = unique_ids }
+  let _,param_ids = List.split sfunc.slocals in
+  let unique_ids' = List.filter (fun id -> not (List.mem id param_ids))
+      unique_ids |> List.filter (fun id -> (List.mem id names)) in
+     { data = sfunc; edges = unique_ids' }
 
 let node_to_sfunc node = node.data
 
@@ -85,19 +88,27 @@ let rec topsort remaining_nodes sorted_list =
             topsort remaining_nodes sorted_list'
   end
 
+let add_scope_vars var_list sfunc = List.fold_left 
+  (fun acc sfunc -> sfunc::acc) var_list sfunc.sscope
 
-let make_topsort (main_expr, sfuncs) = 
+let rec make_topsort (main_expr, sfuncs) = 
   let var_list, sfunc_list = List.partition (fun sfunc -> 
       (match sfunc.stype with
         SArrow(_,_) -> false
        | _ -> true)) sfuncs
   in
-  let add_scope_vars var_list sfunc = List.fold_left 
-      (fun acc sfunc -> sfunc::acc) var_list sfunc.sscope in
   let fold_list = var_list in
+  (* Bring scope variables out into global *)
   let var_list' = List.fold_left 
       (fun acc sfunc -> add_scope_vars acc sfunc) fold_list var_list 
                   |> List.map (fun sfunc -> {sfunc with sscope = []}) in
-  let nodes_list = List.map sfunc_to_node var_list' in
-  let sorted_list = ((topsort nodes_list []) @ sfunc_list) in
+  (* Make a list of names in the scope *)
+  let var_names = List.fold_left (fun acc sfunc -> sfunc.sfname::acc) [] var_list' in
+  let nodes_list = List.map (sfunc_to_node var_names) var_list' in
+  let sfunc_list' = List.map
+      (fun sfunc -> match List.length sfunc.sscope with
+         0 -> sfunc
+         | _ -> let sorted_scope = make_topsort (main_expr,sfunc.sscope) in
+         {sfunc with sscope = (snd sorted_scope)}) sfunc_list in
+  let sorted_list = ((topsort nodes_list []) @ sfunc_list') in
   main_expr, sorted_list 

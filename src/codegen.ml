@@ -283,11 +283,10 @@ let codegen_fn_body env sfunc =
     (* Allocate scope variables:
         * Returns a new env *) 
     let alloc_scope scope env = 
-      let sorted_scope = snd (Topsort.make_topsort ([], scope)) in
-      let llvals = List.map handle_const sorted_scope in
+      let llvals = List.map handle_const scope in
       List.fold_left2 (fun acc sfunc llval -> 
           alloc_param acc (sfunc.stype, sfunc.sfname) llval) 
-        env sorted_scope llvals in
+        env scope llvals in
     let env'' = alloc_scope sfunc.sscope env' in 
 
     (* codegen on variables in scope, adding their values to env'' *) 
