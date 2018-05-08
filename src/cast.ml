@@ -189,3 +189,10 @@ let rec cexprs_of_sexpr sexpr =
           List.map (replace_indices sexpr) pairs
     | _ -> cexprs_of_sexpr (fst sexpr, Forall { indices = []; sexpr = sexpr })
 
+
+(* let assign_of_sfunc sfunc = *) 
+(*     assert (sfunc.sfparams = []); *)
+(*     { name = sfunc.sfname *)
+(*     ; typ = ctyp_of_styp sfunc.styp *)
+(*     ; *) 
+(*     } *)

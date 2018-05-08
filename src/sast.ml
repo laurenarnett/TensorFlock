@@ -19,10 +19,6 @@ and sexpr_detail =
   | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
   | STensorIdx of sexpr * string list
-  (* mat1[i,j] * mat2[j,k] desugars to
-   * Forall i : _some_int, k : _another_int .
-   * Contract mat1[i,j], mat2[j,k], 1, 0, yet_another_int
-   * whose type is Tensor<_some_int, _another_int> *)
   | Forall of { indices : (string * int) list; sexpr : sexpr }
   | Contract of { index : (string * int); sexpr : sexpr}
 
