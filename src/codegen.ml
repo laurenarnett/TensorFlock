@@ -228,7 +228,7 @@ let rec codegen_sexpr (typ, detail) map builder =
   | _ -> raise (Failure "Not yet implemented") 
 
 (* Use in declaring global vars *)
-let handle_const sfunc = match sfunc.typ with
+let handle_const cfunc = match sfunc.typ with
       CNat -> L.const_int nat_t 0
     | CBool -> L.const_int bool_t 0
     | CTensor(1, []) -> L.const_float float_t 0.
@@ -246,7 +246,7 @@ let declare_global env sfunc =
 let declare_fn env sfunc = 
   let the_typ = ltype_of_ctyp sfunc.ret_typ in
   let the_function = L.define_function (sfunc.name) the_typ the_module in
-  StringMap.add sfunc.sfname the_function env
+  StringMap.add sfunc.name the_function env
 
 (* Declare globals and functions for sfuncs *)
 let codegen_proto env sfunc = 
