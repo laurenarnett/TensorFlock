@@ -383,8 +383,8 @@ let rec is_scalar sexpr = match fst sexpr with
 
 (* Check a single function - return sfunc or error *)
 let rec check_func enclosing (ftyp, fdef) =
-    let lhs_indices = match String.contains fdef.fdef_name '[' with
-      | false -> StringMap.empty
+    let lhs_indices, lhs_index_list = match String.contains fdef.fdef_name '[' with
+      | false -> StringMap.empty, []
       | true ->
           let indices = List.nth (String.split_on_char '[' fdef.fdef_name) 1 in
           let indices = String.sub indices 0 (String.length indices - 1) in
@@ -400,7 +400,11 @@ let rec check_func enclosing (ftyp, fdef) =
                         ^ " and you are trying to rebind it to " ^ string_of_int n
                       )
                   | _ -> failwith "internal error: infer failed"
-                ) StringMap.empty indices shape
+                ) StringMap.empty indices shape, 
+                  List.map2 (fun idx dim -> 
+                      match dim with ALiteral n -> idx, n
+                                   | _ -> failwith "Infer failed"
+                      ) indices shape
             | t -> failwith @@ "Type error: " ^ "cannot index entity of type " ^
                    string_of_typ t in
 
@@ -418,7 +422,7 @@ let rec check_func enclosing (ftyp, fdef) =
        last_type ftyp.types = fst this_sexpr
   then
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
-      slocals = []; (* for now *)
+      lhs_indices = [];
       sfparams = sfparams;
       sfexpr = this_sexpr;
       sscope = List.map (check_func table) fdef.scope }
@@ -430,7 +434,7 @@ let rec check_func enclosing (ftyp, fdef) =
       let this_sexpr' = (fst this_sexpr,
       Forall { indices = StringMap.bindings rhs_indices; sexpr = this_sexpr; }) in
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
-      slocals = []; (* for now *)
+      lhs_indices = [];
       sfparams = sfparams;
       sfexpr = this_sexpr';
       sscope = List.map (check_func table) fdef.scope }
@@ -450,7 +454,7 @@ let rec check_func enclosing (ftyp, fdef) =
       let this_sexpr' = (fst this_sexpr,
       Forall { indices = StringMap.bindings all_indices; sexpr = this_sexpr; }) in
     { sfname = ftyp.ftyp_name; stype = styp_of_typ ftyp.types;
-      slocals = []; (* for now *)
+      lhs_indices = lhs_index_list;
       sfparams = sfparams;
       sfexpr = this_sexpr';
       sscope = List.map (check_func table) fdef.scope }

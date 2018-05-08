@@ -32,7 +32,7 @@ type assign =
   cexpr: cexpr }
 
 type cfunc =
-  { name: string
+  { cname: string
   ; ret_typ: ctyp
   ; params: (ctyp * string) list
   ; locals: assign list
@@ -60,7 +60,7 @@ let rec string_of_cx = function
       ^ " else " ^ string_of_cx (snd alt)
   | CApp (f, args) ->
       string_of_cx (snd f) ^ "("
-      ^ String.concat "," (List.map (fun a -> string_of_cx (snd a)) args)
+      ^ String.concat "," (List.map (fun a -> string_of_cx (snd a)) args) ^ ")"
   | CTensorIdx (e, i) -> string_of_cx (snd e) ^ "[" ^ string_of_int i ^ "]"
 
 let string_of_assign r =
@@ -77,7 +77,7 @@ let string_of_cfunc r =
     else
       "\n{\n" ^ String.concat "\n" (List.map string_of_assign r.locals) ^ "}"
   in
-  r.name ^ params_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ locals_str
+  r.cname ^ params_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ locals_str
 
 let product = List.fold_left ( * ) 1
 
@@ -176,23 +176,67 @@ let rec replace_indices sexpr indices =
             List.fold_left
               (fun acc exp -> CAop ((CDouble, acc), Add, exp))
               (CFliteral "0") summands
-        | _ -> failwith "Failure, semant failed (cast.ml line ~164)" )
+        | _ -> failwith "Failure, semant failed (cast.ml line 179)" )
     | Forall _ -> failwith "Should not call replace_indices on a forall" )
 
 let rec cexprs_of_sexpr sexpr =
-    match snd sexpr with 
-      Forall r -> 
-          let ranges = List.map (fun (_s, dim) -> range dim) r.indices in
-          let all_indices = sequence ranges in
-          let pairs = 
-              List.map (List.combine (List.map fst r.indices)) all_indices in
-          List.map (replace_indices sexpr) pairs
-    | _ -> cexprs_of_sexpr (fst sexpr, Forall { indices = []; sexpr = sexpr })
+  match snd sexpr with
+  | Forall r ->
+      let ranges = List.map (fun (_s, dim) -> range dim) r.indices in
+      let all_indices = sequence ranges in
+      let pairs =
+        List.map (List.combine (List.map fst r.indices)) all_indices
+      in
+      List.map (replace_indices r.sexpr) pairs
+  | _ -> cexprs_of_sexpr (fst sexpr, Forall {indices= []; sexpr})
 
 
-(* let assign_of_sfunc sfunc = *) 
-(*     assert (sfunc.sfparams = []); *)
-(*     { name = sfunc.sfname *)
-(*     ; typ = ctyp_of_styp sfunc.styp *)
-(*     ; *) 
-(*     } *)
+let assigns_of_sfunc sfunc =
+  assert (sfunc.sfparams = []) ;
+  if sfunc.lhs_indices = [] then
+    [ { name= sfunc.sfname
+      ; typ= ctyp_of_styp sfunc.stype
+      ; index= None
+      ; cexpr= cexprs_of_sexpr sfunc.sfexpr |> List.hd } ]
+  else
+    let cexprs = cexprs_of_sexpr sfunc.sfexpr |> Array.of_list in
+    assert (Array.length cexprs = product (List.map snd sfunc.lhs_indices)) ;
+    Array.mapi
+      (fun i cexpr -> {name= sfunc.sfname; typ= CDouble; index= Some i; cexpr})
+      cexprs
+    |> Array.to_list
+
+type cprogram = cexpr * (assign list) * (cfunc list)
+
+let cfunc_of_sfunc sfunc =
+    let locals, cexpr = match sfunc.sfexpr with
+        STensor [], (STensorIdx((STensor shape, _), indices)) ->
+        let temp_sfunc = { sfname = "~temp"
+                         ; stype = STensor shape
+                         ; sfparams = []
+                         ; lhs_indices = List.combine indices shape
+                         ; sfexpr = sfunc.sfexpr
+                         ; sscope = [] } in 
+        assigns_of_sfunc temp_sfunc @ (sfunc.sscope >>= assigns_of_sfunc),
+        (CTensor(product shape, shape), CId "~temp")
+    | _ -> (sfunc.sscope >>= assigns_of_sfunc), 
+           List.hd (cexprs_of_sexpr sfunc.sfexpr)     
+        in
+    { cname = sfunc.sfname
+    ; ret_typ = ctyp_of_styp sfunc.stype
+    ; params = List.map (fun (t, str) -> ctyp_of_styp t, str) sfunc.sfparams
+    ; locals = locals
+    ; cexpr = cexpr
+    }
+
+let cprogram_of_sprogram (main, sfuncs) = 
+    let svars, sfuncs = List.partition (fun sf -> sf.sfparams = []) sfuncs in
+    List.hd (cexprs_of_sexpr main),
+    svars >>= assigns_of_sfunc,
+    List.map cfunc_of_sfunc sfuncs
+
+let string_of_cprogram (main, assigns, cfuncs) = 
+    "main = " ^ string_of_cx (snd main) ^ "\n" ^
+    (((List.map string_of_assign) assigns) |> (String.concat "\n")) ^
+    (((List.map string_of_cfunc) cfuncs) |> (String.concat "\n"))
+
