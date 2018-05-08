@@ -205,6 +205,10 @@ let get_func_ids sfuncs = List.fold_left
 let params_to_stringmap (params : (Sast.styp * string) list) = List.fold_right
   (fun (typ, id) map -> StringMap.add id typ map) params StringMap.empty
 
+let is_sfunc_decl sfunc = match sfunc.stype with
+  | SArrow _ -> true
+  | _ -> false
+
 (* Take in a sfunc and its enclosing scope, and return the sfunc
  * with all its free variables lifted into params *)
 let rec lift_params parental_params sfunc sfuncs =
@@ -278,15 +282,21 @@ let rec lift_params parental_params sfunc sfuncs =
     (fun sexpr' sfunc' -> update_sexpr_from_sfunc sexpr' sfunc') sfunc.sfexpr
     sscope_sfunc_decls in
 
-  let lifted_sfunc = {sfunc with
-                      stype = updated_stype;
-                      sfparams = updated_sfparams;
-                      sfexpr = updated_sfexpr;
-                      sscope = lifted_sscope;} in
+  (* If a sfunc is a function declaration then update its type, params, and
+   * exper, else just update its sscope and carry on *)
+  let lifted_sfunc =
+    if is_sfunc_decl sfunc then
+      {sfunc with
+       stype = updated_stype;
+       sfparams = updated_sfparams;
+       sfexpr = updated_sfexpr;
+       sscope = lifted_sscope;}
+   else {sfunc with sscope = lifted_sscope; } in
   (* Now rebuild sfuncs with the lifted sfunc *)
   let updated_sfuncs = replace_sfunc lifted_sfunc sfuncs in
   (* Return a new sprogram with updated call sites *)
   update_call_sites lifted_sfunc updated_sfuncs
+
 
 (* Take in a list of sfuncs, and partition it into two lists of
  * sfunc decls, and everything else: (decls, vars) *)
