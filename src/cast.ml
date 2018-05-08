@@ -38,40 +38,42 @@ type cfunc =
   ; locals: assign list
   ; cexpr: cexpr }
 
-let rec string_of_cx = function
+let string_of_ctyp = function
+    CNat -> "CNat" | CBool -> "CBool" | CDouble -> "CDouble" 
+  | CTensor(size, _) -> "CTensor[" ^ string_of_int size ^ "]"
+
+let rec string_of_cexpr (t, det) = match det with
   | CLiteral i -> string_of_int i
   | CBoollit true -> "True"
   | CBoollit false -> "False"
   | CFliteral s -> s
   | CTlit (ns, _size) -> "[" ^ String.concat ", " ns ^ "]"
-  | CId s -> s
-  | CUnop (Neg, e) -> "-" ^ string_of_cx (snd e)
+  | CId s -> "(" ^ s ^ " : " ^ string_of_ctyp t ^ ")"
+  | CUnop (Neg, e) -> "-" ^ string_of_cexpr e
   | CAop (e1, op, e2) ->
-      string_of_cx (snd e1) ^ " " ^ string_of_aop op ^ " "
-      ^ string_of_cx (snd e2)
+      string_of_cexpr e1 ^ " " ^ string_of_aop op ^ " "
+      ^ string_of_cexpr e2
   | CRop (e1, op, e2) ->
-      string_of_cx (snd e1) ^ " " ^ string_of_rop op ^ " "
-      ^ string_of_cx (snd e2)
+      string_of_cexpr e1 ^ " " ^ string_of_rop op ^ " "
+      ^ string_of_cexpr e2
   | CBoolop (e1, op, e2) ->
-      string_of_cx (snd e1) ^ " " ^ string_of_bop op ^ " "
-      ^ string_of_cx (snd e2)
+      string_of_cexpr e1 ^ " " ^ string_of_bop op ^ " "
+      ^ string_of_cexpr e2
   | CCondExpr (pred, cons, alt) ->
-      "if " ^ string_of_cx (snd pred) ^ " then " ^ string_of_cx (snd cons)
-      ^ " else " ^ string_of_cx (snd alt)
+      "if " ^ string_of_cexpr pred ^ " then " ^ string_of_cexpr cons
+      ^ " else " ^ string_of_cexpr alt
   | CApp (f, args) ->
-      string_of_cx (snd f) ^ "("
-      ^ String.concat "," (List.map (fun a -> string_of_cx (snd a)) args) ^ ")"
-  | CTensorIdx (e, i) -> "(" ^ string_of_cx (snd e) ^ ")" ^ "[" ^ string_of_int i ^ "]"
-
-let string_of_ctyp = function
-    CNat -> "CNat" | CBool -> "CBool" | CDouble -> "CDouble" 
-  | CTensor(size, _) -> "CTensor[" ^ string_of_int size ^ "]"
+      string_of_cexpr f ^ "("
+      ^ String.concat "," (List.map (fun a -> string_of_cexpr a) args) ^ ")"
+  | CTensorIdx (e, i) -> 
+      "((" ^ string_of_cexpr e ^ ")" ^ "[" ^ string_of_int i ^ "]" 
+      ^ " : " ^ string_of_ctyp t ^ ")"
 
 let string_of_assign r =
   let i_str =
     match r.index with None -> "" | Some i -> "[" ^ string_of_int i ^ "]"
   in
-  r.name ^ i_str ^ " = " ^ string_of_cx (snd r.cexpr) 
+  r.name ^ i_str ^ " = " ^ string_of_cexpr r.cexpr 
   ^ " : " ^ string_of_ctyp r.typ ^ ";\n"
 
 
@@ -82,7 +84,7 @@ let string_of_cfunc r =
     else
       "\n{\n" ^ String.concat "\n" (List.map string_of_assign r.locals) ^ "}"
   in
-  r.cname ^ params_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ " : " ^
+  r.cname ^ params_str ^ " = " ^ string_of_cexpr r.cexpr ^ " : " ^
   string_of_ctyp r.ret_typ ^ locals_str
 
 let product = List.fold_left ( * ) 1
@@ -147,8 +149,7 @@ let rec replace_indices sexpr indices =
       | STensor shape ->
           let i =
             offset shape (List.map (fun idx -> List.assoc idx indices) idxs)
-          in
-          CTensorIdx (replace_indices e indices, i)
+          in CTensorIdx (replace_indices e indices, i)
       | _ -> raise (Failure "Fail to find tensor shape for tensor indexing") )
     | SApp (f, args) ->
         CApp
@@ -254,7 +255,7 @@ let cprogram_of_sprogram (main, sfuncs) =
     List.map cfunc_of_sfunc sfuncs
 
 let string_of_cprogram (main, assigns, cfuncs) = 
-    "main = " ^ string_of_cx (snd main) ^ "\n" ^
+    "main = " ^ string_of_cexpr main ^ "\n" ^
     (((List.map string_of_assign) assigns) |> (String.concat "\n")) ^
     (((List.map string_of_cfunc) cfuncs) |> (String.concat "\n"))
 
