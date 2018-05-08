@@ -61,13 +61,18 @@ let rec string_of_cx = function
   | CApp (f, args) ->
       string_of_cx (snd f) ^ "("
       ^ String.concat "," (List.map (fun a -> string_of_cx (snd a)) args) ^ ")"
-  | CTensorIdx (e, i) -> string_of_cx (snd e) ^ "[" ^ string_of_int i ^ "]"
+  | CTensorIdx (e, i) -> "(" ^ string_of_cx (snd e) ^ ")" ^ "[" ^ string_of_int i ^ "]"
+
+let string_of_ctyp = function
+    CNat -> "CNat" | CBool -> "CBool" | CDouble -> "CDouble" 
+  | CTensor(size, _) -> "CTensor[" ^ string_of_int size ^ "]"
 
 let string_of_assign r =
   let i_str =
     match r.index with None -> "" | Some i -> "[" ^ string_of_int i ^ "]"
   in
-  r.name ^ i_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ ";\n"
+  r.name ^ i_str ^ " = " ^ string_of_cx (snd r.cexpr) 
+  ^ " : " ^ string_of_ctyp r.typ ^ ";\n"
 
 
 let string_of_cfunc r =
@@ -77,7 +82,8 @@ let string_of_cfunc r =
     else
       "\n{\n" ^ String.concat "\n" (List.map string_of_assign r.locals) ^ "}"
   in
-  r.cname ^ params_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ locals_str
+  r.cname ^ params_str ^ " = " ^ string_of_cx (snd r.cexpr) ^ " : " ^
+  string_of_ctyp r.ret_typ ^ locals_str
 
 let product = List.fold_left ( * ) 1
 
@@ -188,7 +194,7 @@ let rec cexprs_of_sexpr sexpr =
         List.map (List.combine (List.map fst r.indices)) all_indices
       in
       List.map (replace_indices r.sexpr) pairs
-  | _ -> cexprs_of_sexpr (fst sexpr, Forall {indices= []; sexpr})
+  | _ -> cexprs_of_sexpr (fst sexpr, Forall { indices= []; sexpr })
 
 
 let assigns_of_sfunc sfunc =
@@ -197,7 +203,15 @@ let assigns_of_sfunc sfunc =
     [ { name= sfunc.sfname
       ; typ= ctyp_of_styp sfunc.stype
       ; index= None
-      ; cexpr= cexprs_of_sexpr sfunc.sfexpr |> List.hd } ]
+      ; cexpr=
+          (let cexpr =
+             if cexprs_of_sexpr sfunc.sfexpr |> List.length = 1 then
+               cexprs_of_sexpr sfunc.sfexpr |> List.hd
+             else
+               failwith
+                 "Cannot have tensor quantity on rhs of non-indexed constant"
+           in
+           cexpr) } ]
   else
     let cexprs = cexprs_of_sexpr sfunc.sfexpr |> Array.of_list in
     assert (Array.length cexprs = product (List.map snd sfunc.lhs_indices)) ;
@@ -209,18 +223,22 @@ let assigns_of_sfunc sfunc =
 type cprogram = cexpr * (assign list) * (cfunc list)
 
 let cfunc_of_sfunc sfunc =
-    let locals, cexpr = match sfunc.sfexpr with
-        STensor [], (STensorIdx((STensor shape, _), indices)) ->
+    let locals, cexpr = 
+        if cexprs_of_sexpr sfunc.sfexpr |> List.length = 1 then 
+           (sfunc.sscope >>= assigns_of_sfunc), 
+           List.hd (cexprs_of_sexpr sfunc.sfexpr)     
+        else
+        let indices, shape = match sfunc.sfexpr with 
+          | _, Forall r -> List.map fst (r.indices), List.map snd (r.indices)
+          | _ -> failwith "unreachable (I think, please don't get here)" in
         let temp_sfunc = { sfname = sfunc.sfname ^ "~temp"
                          ; stype = STensor shape
                          ; sfparams = []
                          ; lhs_indices = List.combine indices shape
                          ; sfexpr = sfunc.sfexpr
                          ; sscope = [] } in 
-        assigns_of_sfunc temp_sfunc @ (sfunc.sscope >>= assigns_of_sfunc),
-        (CTensor(product shape, shape), CId "~temp")
-    | _ -> (sfunc.sscope >>= assigns_of_sfunc), 
-           List.hd (cexprs_of_sexpr sfunc.sfexpr)     
+        (sfunc.sscope >>= assigns_of_sfunc) @ assigns_of_sfunc temp_sfunc ,
+        (CTensor(product shape, shape), CId(sfunc.sfname ^ "~temp"))
         in
     { cname = sfunc.sfname
     ; ret_typ = ctyp_of_styp sfunc.stype

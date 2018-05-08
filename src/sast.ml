@@ -64,7 +64,7 @@ let rec string_of_sexpr_detail e = match e with
     "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
     ^ " else " ^ string_of_sexpr sexpr3
   | STensorIdx(e, indices) ->
-        string_of_sexpr e ^ "[" ^ String.concat "," indices ^ "]"
+       "(" ^ string_of_sexpr e  ^ ")" ^ "[" ^ String.concat "," indices ^ "]"
   | Forall r -> "forall " ^ String.concat ","
       (List.map (fun (i, n) -> i ^ " in range " ^ string_of_int n) r.indices)
       ^ " . " ^ string_of_sexpr r.sexpr
