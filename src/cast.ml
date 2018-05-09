@@ -11,7 +11,7 @@ and cx =
   | CLiteral of int
   | CBoollit of bool
   | CFliteral of string
-  | CTlit of string list * int
+  | CTlit of string array * int
   | CId of string
   | CUnop of uop * cexpr
   | CAop of cexpr * aop * cexpr
@@ -46,7 +46,9 @@ let rec string_of_cexpr (_t, det) = match det with
   | CBoollit true -> "True"
   | CBoollit false -> "False"
   | CFliteral s -> s
-  | CTlit (ns, _size) -> "[" ^ String.concat ", " ns ^ "]"
+  | CTlit(contents, _shape) -> if Array.length contents < 200 then
+          "[" ^ String.concat " " (Array.to_list contents) ^ "]"
+          else "Tensor too large to print"
   | CId s -> s
   | CUnop (Neg, e) -> "-" ^ string_of_cexpr e
   | CAop (e1, op, e2) ->
@@ -245,7 +247,7 @@ let assigns_of_sfunc sfunc =
           ; index= Some i
           ; cexpr = (CDouble, snd cexpr)}) cexprs |> Array.to_list in
 
-    let zeros = List.map (fun _ -> "0") (range size) in
+    let zeros = List.map (fun _ -> "0") (range size) |> Array.of_list in
         (* List.iter (fun local -> print_endline (string_of_ctyp (fst *)
         (* local.cexpr))) assignments; *)
     { name = sfunc.sfname

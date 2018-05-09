@@ -206,8 +206,7 @@ let rec codegen_sexpr (typ, detail) map builder =
     begin
       match detail with
       | CTlit(contents, _tsize) -> 
-          L.const_vector @@ Array.of_list @@ 
-          List.map (L.const_float_of_string float_t) contents
+          L.const_vector @@ Array.map (L.const_float_of_string float_t) contents
       | CId(s) -> handle_id s
       | CApp(fn, params) -> fn_call fn params builder
       | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
