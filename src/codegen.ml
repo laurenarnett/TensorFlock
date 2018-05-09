@@ -242,11 +242,14 @@ let codegen_global env builder assign =
   match assign.index with 
     | None -> ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
               (lookup assign.name env) builder; env 
-    | Some i -> 
+    | Some i ->
         let elt = codegen_sexpr assign.cexpr env builder in
-        let vec = lookup assign.name env in
+        let vec_ptr = lookup assign.name env in
+        let vec = L.build_load vec_ptr "" builder in
+        let new_vec = 
+            L.build_insertelement vec elt (L.const_int nat_t i) "" builder in
         ignore @@ 
-        L.build_insertelement vec elt (L.const_int nat_t i) "" builder; env
+        L.build_store new_vec vec_ptr builder; env
 
 (* Codegen for function body *)
 let codegen_fn_body env cfunc = 
@@ -322,8 +325,11 @@ let translate (main_expr, assigns, cfuncs) =
                  "printf" builder
     | CTensor(_size, shape) -> 
         let rank = L.const_int nat_t (List.length shape) in
+        let alloca = L.build_alloca (ltype_of_ctyp (fst main_expr)) "" builder
+        in
+        let _ = L.build_store the_expression alloca builder in
         let ptr_of_vec = L.build_bitcast 
-            the_expression (L.pointer_type float_t) "" builder in
+            alloca (L.pointer_type float_t) "" builder in
         let print_args = 
             [ptr_of_vec; rank] @ List.map (L.const_int nat_t) shape in
         L.build_call print_tensor_func (Array.of_list print_args)
