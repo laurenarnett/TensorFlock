@@ -118,41 +118,39 @@ let rec sequence lst =
 
 
 let rec replace_indices sexpr indices =
-  let ctyp = ctyp_of_styp @@ fst sexpr in
-  ( ctyp
-  , match snd sexpr with
-    | SLiteral i -> CLiteral i
-    | SBoolLit b -> CBoollit b
-    | SFliteral s -> CFliteral s
-    | STLit (contents, shape) -> CTlit (contents, product shape)
-    | SId s -> (
+  match sexpr with
+    | t, SLiteral i -> ctyp_of_styp t, CLiteral i
+    | t, SBoolLit b -> ctyp_of_styp t, CBoollit b
+    | t, SFliteral s -> ctyp_of_styp t, CFliteral s
+    | t, STLit (contents, shape) -> ctyp_of_styp t, CTlit (contents, product shape)
+    | t, SId s -> (
       match List.assoc_opt s indices with
-      | None -> CId s
-      | Some i -> CLiteral i )
-    | SUnop (Neg, e) -> CUnop (Neg, replace_indices e indices)
-    | SAop (e1, op, e2) ->
+      | None -> ctyp_of_styp t, CId s
+      | Some i -> ctyp_of_styp t, CLiteral i )
+    | t, SUnop (Neg, e) -> ctyp_of_styp t, CUnop (Neg, replace_indices e indices)
+    | t, SAop (e1, op, e2) -> ctyp_of_styp t,
         CAop (replace_indices e1 indices, op, replace_indices e2 indices)
-    | SRop (e1, op, e2) ->
+    | t, SRop (e1, op, e2) -> ctyp_of_styp t,
         CRop (replace_indices e1 indices, op, replace_indices e2 indices)
-    | SBoolop (e1, op, e2) ->
+    | t, SBoolop (e1, op, e2) -> ctyp_of_styp t,
         CBoolop (replace_indices e1 indices, op, replace_indices e2 indices)
-    | SCondExpr (e1, e2, e3) ->
+    | t, SCondExpr (e1, e2, e3) -> ctyp_of_styp t, 
         CCondExpr
           ( replace_indices e1 indices
           , replace_indices e2 indices
           , replace_indices e3 indices )
-    | STensorIdx (e, idxs) -> (
+    | _, STensorIdx (e, idxs) -> (
       match fst e with
         | STensor shape -> 
           let i = 
             offset shape (List.map (fun idx -> List.assoc idx indices) idxs)
-          in CTensorIdx (replace_indices e indices, i)
+          in CDouble, CTensorIdx (replace_indices e indices, i)
       | _ -> raise (Failure "Fail to find tensor shape for tensor indexing") )
-    | SApp (f, args) ->
+    | t, SApp (f, args) -> ctyp_of_styp t,
         CApp
           ( replace_indices f indices
           , List.map (fun a -> replace_indices a indices) args )
-    | Contract r -> (
+    | _, Contract r -> (
         let contract_range = range (snd r.index) in
         let rec replicate n x = if n = 0 then [] else x::(replicate (n-1) x) in
         (* Thank you
@@ -184,11 +182,11 @@ let rec replace_indices sexpr indices =
                       , offset shape is ) ) )
                 all_indices
             in
-            List.fold_left
+            CDouble, List.fold_left
               (fun acc exp -> CAop ((CDouble, acc), Add, exp))
               (CFliteral "0") summands
         | _ -> failwith "Failure, semant failed (cast.ml line 179)" )
-    | Forall _ -> failwith "Should not call replace_indices on a forall" )
+    | _, Forall _ -> failwith "Should not call replace_indices on a forall"
 
 let rec strip_indices cexpr = let t = fst cexpr in match snd cexpr with
   | CLiteral _ | CBoollit _ | CFliteral _ | CTlit _ | CId _ -> cexpr
@@ -241,11 +239,11 @@ let assigns_of_sfunc sfunc =
     let shape = List.map snd sfunc.lhs_indices in
     let size = product shape in
     assert (Array.length cexprs = size) ;
-    let assignments = 
-    Array.mapi
-      (fun i cexpr -> {name= sfunc.sfname; typ= CDouble; index= Some i; cexpr})
-      cexprs
-    |> Array.to_list in
+    let assignments = Array.mapi (fun i cexpr -> 
+          { name= sfunc.sfname
+          ; typ= CDouble
+          ; index= Some i
+          ; cexpr = (CDouble, snd cexpr)}) cexprs |> Array.to_list in
 
     let zeros = List.map (fun _ -> "0") (range size) in
     { name = sfunc.sfname
