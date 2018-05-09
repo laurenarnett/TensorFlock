@@ -10,7 +10,7 @@ and sexpr_detail =
   | SBoolLit of bool
   | SFliteral of string
   (* These are strings because SFLiterals are strings *)
-  | STLit of string list * int list
+  | STLit of string array * int list
   | SId of string
   | SUnop of uop * sexpr
   | SAop of sexpr * aop * sexpr
@@ -44,7 +44,9 @@ let rec string_of_styp = function
 let rec string_of_sexpr_detail e = match e with
   | SLiteral(i) -> string_of_int i
   | SFliteral(s) -> s
-  | STLit(contents, _shape) -> "[" ^ String.concat " " contents ^ "]"
+  | STLit(contents, _shape) -> if Array.length contents < 200 then
+          "[" ^ String.concat " " (Array.to_list contents) ^ "]"
+          else "Tensor too large to print"
   | SId(s) -> s
   | SBoolLit(true) -> "True" | SBoolLit(false) -> "False"
   | SUnop(Neg, sexpr) -> "-" ^ string_of_sexpr sexpr

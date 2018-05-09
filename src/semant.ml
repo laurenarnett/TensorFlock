@@ -137,7 +137,8 @@ let rec check_expr expression table indices =
              | _ -> failwith "Internal error: non-float encounted in
             tensor literal"
             ) in
-            (STensor(shape), STLit(unwrap_components components, shape)), indices
+            (STensor(shape), STLit(unwrap_components components |>
+            Array.of_list, shape)), indices
             else failwith "Invalid tensor literal"
     | TFile(filepath) ->
      (* line-reader from
@@ -161,7 +162,8 @@ let rec check_expr expression table indices =
             let shape' = List.map int_of_string shape in
             let components = List.filter 
                 (fun substring -> String.length substring > 0)
-                (String.split_on_char ' ' (String.concat " " (List.tl tensor_string))) in
+                (String.split_on_char ' ' (String.concat " " (List.tl
+                tensor_string))) |> Array.of_list in
             (STensor(shape'), STLit((components), shape')), indices
     | Id(s) -> (lookup_symb s, SId(s)), indices
     | Unop(Neg, expr) -> begin
