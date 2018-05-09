@@ -27,9 +27,12 @@ let rec rename old_name new_name sexpr = match sexpr with
     SCondExpr((t1, rename old_name new_name e1),
               (t2, rename old_name new_name e2),
               (t3, rename old_name new_name e3))
-  | STensorIdx((_t, e), _) -> rename old_name new_name e
-  | Forall r -> rename old_name new_name (snd r.sexpr)
-  | Contract r -> rename old_name new_name (snd r.sexpr)
+  | STensorIdx((t, e), idxs) -> 
+       STensorIdx((t, rename old_name new_name e), idxs)
+  | Forall r -> 
+       Forall { r with sexpr = fst r.sexpr, rename old_name new_name (snd r.sexpr) }
+  | Contract r -> 
+       Contract { r with sexpr = fst r.sexpr, rename old_name new_name (snd r.sexpr) }
 
 (* The new_id function takes an identifier and returns a new one. The method of
  * dealing with a mutable counter was taken from

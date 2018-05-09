@@ -47,7 +47,7 @@ let rec string_of_cexpr (_t, det) = match det with
   | CBoollit false -> "False"
   | CFliteral s -> s
   | CTlit (ns, _size) -> "[" ^ String.concat ", " ns ^ "]"
-  | CId s -> s ^ " : " ^ string_of_ctyp _t
+  | CId s -> s
   | CUnop (Neg, e) -> "-" ^ string_of_cexpr e
   | CAop (e1, op, e2) ->
       string_of_cexpr e1 ^ " " ^ string_of_aop op ^ " "
@@ -101,7 +101,7 @@ let rec ctyp_of_styp = function
   | t -> Semant.last_stype t |> ctyp_of_styp
 
 
-let rec offset shape indices = if shape = [] then 0 else
+let rec offset shape indices =
   match (List.tl shape, indices) with
   | [], [last_idx] -> last_idx
   | ns, i :: is -> product ns * i + offset ns is
@@ -145,8 +145,8 @@ let rec replace_indices sexpr indices =
           , replace_indices e3 indices )
     | STensorIdx (e, idxs) -> (
       match fst e with
-        | STensor shape -> 
-          let i = 
+      | STensor shape ->
+          let i =
             offset shape (List.map (fun idx -> List.assoc idx indices) idxs)
           in CTensorIdx (replace_indices e indices, i)
       | _ -> raise (Failure "Fail to find tensor shape for tensor indexing") )
@@ -185,10 +185,8 @@ let rec replace_indices sexpr indices =
 let rec strip_indices cexpr = let t = fst cexpr in match snd cexpr with
   | CLiteral _ | CBoollit _ | CFliteral _ | CTlit _ | CId _ -> cexpr
   | CTensorIdx((CDouble, cexpr'), _) -> 
-          print_endline "HERE";
           strip_indices (CDouble, cexpr')
   | CTensorIdx(e, idxs) -> 
-          print_endline @@ "Here @ " ^ string_of_cexpr cexpr;
           t, CTensorIdx(strip_indices e, idxs) 
   | CUnop(Neg, e) -> t, CUnop(Neg, strip_indices e)
   | CAop(e1, op, e2) -> t, CAop(strip_indices e1, op, strip_indices e2)
@@ -230,24 +228,16 @@ let assigns_of_sfunc sfunc =
            cexpr) } ]
   else
     let cexprs = cexprs_of_sexpr sfunc.sfexpr |> Array.of_list in
-    let shape = List.map snd sfunc.lhs_indices in
-    let size = product shape in
-    assert (Array.length cexprs = size) ;
-    let assignments = 
+    assert (Array.length cexprs = product (List.map snd sfunc.lhs_indices)) ;
     Array.mapi
       (fun i cexpr -> {name= sfunc.sfname; typ= CDouble; index= Some i; cexpr})
       cexprs
-    |> Array.to_list in
-    let zeros = List.map (fun _ -> "0") (range size) in
-    { name = sfunc.sfname
-    ; typ = CTensor(size, shape)
-    ; index = None
-    ; cexpr = CTensor(size, shape), CTlit(zeros, size)} :: assignments
+    |> Array.to_list
 
 type cprogram = cexpr * (assign list) * (cfunc list)
 
 let cfunc_of_sfunc sfunc =
-    let locals, cfexpr = 
+    let locals, cexpr = 
         if cexprs_of_sexpr sfunc.sfexpr |> List.length = 1 then 
            (sfunc.sscope >>= assigns_of_sfunc), 
            List.hd (cexprs_of_sexpr sfunc.sfexpr)     
@@ -268,7 +258,7 @@ let cfunc_of_sfunc sfunc =
     ; ret_typ = ctyp_of_styp sfunc.stype
     ; params = List.map (fun (t, str) -> ctyp_of_styp t, str) sfunc.sfparams
     ; locals = locals
-    ; cfexpr = cfexpr
+    ; cfexpr = cexpr
     }
 
 let cprogram_of_sprogram (main, sfuncs) = 
