@@ -97,7 +97,7 @@ let rec codegen_sexpr (typ, detail) map builder =
     in
 
   let handle_id s = match L.lookup_function s the_module with
-              None -> L.build_load (lookup s map) s builder
+      None -> L.build_load (lookup s map) s builder
             | Some f -> print_endline "handle_id failure"; 
               L.build_call f [||] s builder in
 
@@ -195,6 +195,11 @@ let rec codegen_sexpr (typ, detail) map builder =
         L.build_uitofp (codegen_sexpr param map builder) 
           float_t "casted" builder
       | CApp(fn, params) -> fn_call fn params builder
+      | CTensorIdx(e, idx) -> 
+        let the_expr = codegen_sexpr e map builder in
+        let iarray = [| L.const_int nat_t idx |] in
+        let ptr = L.build_in_bounds_gep the_expr iarray "access_array" builder in
+        L.build_load ptr "load_double" builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
   | CTensor(_size, _shape) ->
@@ -224,18 +229,34 @@ let handle_const assign = match assign.typ with
     | CBool -> L.const_int bool_t 0
     | CDouble -> L.const_float float_t 0.
     | CTensor(_) -> L.const_pointer_null tensor_t
-    (*| _ -> raise (Failure "declare globals on unit type only")*)
 
 (* Given a global var, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let declare_global env assign = 
-  StringMap.add assign.name 
-    (L.define_global assign.name (handle_const assign) the_module) env
+let declare_global env builder assign = match assign.index with
+    None -> let llval =
+    (L.define_global assign.name (handle_const assign) the_module) in
+    let llval = 
+    begin
+    match assign.typ with 
+    | CTensor(size, _shape) -> 
+      L.build_array_malloc nat_t (L.const_int nat_t size) "tmalloc" builder
+    | _ -> llval 
+    end in StringMap.add assign.name llval env
+  | Some i -> match L.lookup_global assign.name the_module with
+      None -> failwith "Error in codegen processing assigning to array element"
+    | Some arr ->
+      let ptr = L.build_in_bounds_gep arr 
+          [| L.const_int nat_t i |] "increment_ptr" builder
+      in let double = codegen_sexpr assign.cexpr env builder in
+      ignore (L.build_store double ptr builder);
+      env
 
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
 let declare_fn env cfunc = 
-  let the_typ = ltype_of_ctyp cfunc.ret_typ in
+  let param_typs = 
+        (List.map (fun (t,_) -> ltype_of_ctyp t) cfunc.params) |> Array.of_list in
+  let the_typ = L.function_type (ltype_of_ctyp cfunc.ret_typ) param_typs in
   let the_function = L.define_function (cfunc.cname) the_typ the_module in
   StringMap.add cfunc.cname the_function env
 
@@ -269,15 +290,15 @@ let codegen_fn_body env cfunc =
         * Returns a new env *) 
     let alloc_scope scope env = 
       let llvals = List.map handle_const scope in
-      List.fold_left2 (fun acc cfunc llval -> 
-          alloc_param acc (assign.typ, assign.cname) llval) 
+      List.fold_left2 (fun acc assign llval -> 
+          alloc_param acc (assign.typ, assign.name) llval) 
         env scope llvals in
     let env'' = alloc_scope cfunc.locals env' in 
 
     (* codegen on variables in scope, adding their values to env'' *) 
     ignore @@ List.iter (fun assign -> 
         ignore @@ L.build_store (codegen_sexpr assign.cexpr env'' fn_builder) 
-          (lookup assign.cname env'') fn_builder) cfunc.locals;
+          (lookup assign.name env'') fn_builder) cfunc.locals;
 
     let ret_val = codegen_sexpr cfunc.cfexpr env'' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
@@ -292,11 +313,13 @@ let translate (main_expr, assigns, cfuncs) =
   let builder = L.builder_at_end context (L.entry_block main) in
 
   (* Declare all defined variables *)
-  let env = List.fold_left declare_global StringMap.empty assigns in
+  let env = List.fold_left 
+      (fun acc assign -> declare_global acc builder assign) StringMap.empty assigns in
   (* Declare all defined functions *)
   let env = List.fold_left declare_fn env cfuncs in
   (* Build global variables *)
-  let env = List.fold_left codegen_global env builder assigns in
+  let env = List.fold_left 
+      (fun acc assign -> codegen_global acc builder assign) env assigns in
   (* Build their bodies *)
   let env = List.fold_left codegen_fn_body env cfuncs in
 
