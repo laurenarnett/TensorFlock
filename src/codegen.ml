@@ -209,6 +209,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       | CId(s) -> handle_id s
       | CApp(fn, params) -> fn_call fn params builder
       | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CAop _ -> failwith "here"
       | _ -> failwith @@ "Handling expression: "  ^ string_of_cexpr (typ, detail)
     end
 

@@ -47,11 +47,11 @@ let rec string_of_cexpr (_t, det) = match det with
   | CBoollit false -> "False"
   | CFliteral s -> s
   | CTlit (ns, _size) -> "[" ^ String.concat ", " ns ^ "]"
-  | CId s -> s ^ " : " ^ string_of_ctyp _t
+  | CId s -> s
   | CUnop (Neg, e) -> "-" ^ string_of_cexpr e
   | CAop (e1, op, e2) ->
-      string_of_cexpr e1 ^ " " ^ string_of_aop op ^ " "
-      ^ string_of_cexpr e2
+      "(" ^ string_of_cexpr e1 ^ " " ^ string_of_aop op ^ " "
+      ^ string_of_cexpr e2 ^ ")"
   | CRop (e1, op, e2) ->
       string_of_cexpr e1 ^ " " ^ string_of_rop op ^ " "
       ^ string_of_cexpr e2
@@ -64,9 +64,7 @@ let rec string_of_cexpr (_t, det) = match det with
   | CApp (f, args) ->
       string_of_cexpr f ^ "("
       ^ String.concat "," (List.map (fun a -> string_of_cexpr a) args) ^ ")"
-  | CTensorIdx (e, i) -> 
-      "{" ^ string_of_cexpr e ^ "[" ^ string_of_int i ^ "]" 
-      ^ " : " ^ string_of_ctyp (fst e) ^ "}"
+  | CTensorIdx (e, i) -> string_of_cexpr e ^ "[" ^ string_of_int i ^ "]" 
 
 let string_of_assign r =
   let i_str =
@@ -156,19 +154,29 @@ let rec replace_indices sexpr indices =
           , List.map (fun a -> replace_indices a indices) args )
     | Contract r -> (
         let contract_range = range (snd r.index) in
+        let rec replicate n x = if n = 0 then [] else x::(replicate (n-1) x) in
+        (* Thank you
+         * https://stackoverflow.com/questions/3989776/transpose-of-a-list-of-lists
+         * *)
+        let rec transpose list = match list with
+        | []             -> []
+        | []   :: xss    -> transpose xss
+        | (x::xs) :: xss ->
+            (x :: List.map List.hd xss) :: transpose (xs :: List.map List.tl xss)
+        in
         match r.sexpr with
         | STensor [], STensorIdx ((STensor shape, tensor), idxs) ->
             let all_indices =
               List.map
                 (fun i ->
                   match List.assoc_opt i indices with
-                  | Some n -> [n]
+                  | Some num -> replicate (snd r.index) num
                   | None ->
                       if i = fst r.index then contract_range
                       else failwith "Index not found in contract or in forall"
                   )
                 idxs
-              |> sequence
+              |> transpose
             in
             let summands = List.map (fun is ->
                   ( CDouble , CTensorIdx
