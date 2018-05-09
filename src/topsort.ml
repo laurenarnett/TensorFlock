@@ -1,4 +1,5 @@
 open Sast
+module StringSet = Set.Make(String)
 
 (* Get a list of ids in the sexpr to be used in dependency analysis *)
 let rec get_expr_ids id_list sexpr = match sexpr with
@@ -24,8 +25,12 @@ let rec get_expr_ids id_list sexpr = match sexpr with
     let id_list'' = get_expr_ids id_list' e2 in
         get_expr_ids id_list'' e3
   | STensorIdx(e, _) -> get_expr_ids id_list (snd e)
-  | Forall r -> get_expr_ids id_list (snd r.sexpr)
-  | Contract r -> get_expr_ids id_list (snd r.sexpr)
+  | Forall r -> let idxs = List.split r.indices |> fst in
+      List.filter (fun id -> not (List.mem id idxs)) 
+        (get_expr_ids id_list (snd r.sexpr))
+  | Contract r -> let idx = fst r.index in
+      List.filter (fun id -> id <> idx) 
+        (get_expr_ids id_list (snd r.sexpr))
 
 type node = {
   data : sfunc;
@@ -91,7 +96,8 @@ let make_topsort (main_expr, sfuncs) =
       (fun acc sfunc -> sfunc::acc) var_list sfunc.sscope in
   let fold_list = var_list in
   let var_list' = List.fold_left 
-      (fun acc sfunc -> add_scope_vars acc sfunc) fold_list var_list in 
+      (fun acc sfunc -> add_scope_vars acc sfunc) fold_list var_list 
+                  |> List.map (fun sfunc -> {sfunc with sscope = []}) in
   let nodes_list = List.map sfunc_to_node var_list' in
   let sorted_list = ((topsort nodes_list []) @ sfunc_list) in
   main_expr, sorted_list 

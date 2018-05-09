@@ -1,6 +1,7 @@
 module L = Llvm
 module A = Ast
 open Sast
+open Cast
 open Semant
 
 module StringMap = Map.Make(String)
@@ -12,51 +13,30 @@ let nat_t = L.i32_type context
 let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
-let tensor_t = L.struct_type context [|
-    nat_t; (* size: number of doubles the tensor holds *)
-    nat_t; (* rank *)
-    L.pointer_type nat_t; (* shape *)
-    L.pointer_type nat_t; (* number of references *)
-    L.pointer_type float_t; (* contents *)
-  |]
 
-let rec ltype_of_styp = function 
-    SNat -> nat_t
-  | SBool -> bool_t
-  | STensor([]) -> float_t
-  | STensor(_) -> L.pointer_type tensor_t
-  (* All remaining types are arrow types *)
-  | ts -> let rec list_of_styp = function
-                | SNat -> [SNat] | SBool -> [SBool] | STensor(s) -> [STensor(s)]
-                | SArrow(t1, t2) -> list_of_styp t1 @ list_of_styp t2 in
-          L.function_type (List.rev (list_of_styp ts) |> List.hd |> ltype_of_styp) 
-          (list_of_styp ts |> but_last |> List.map ltype_of_styp |> Array.of_list)
-
+let rec ltype_of_ctyp = function 
+    CNat -> nat_t
+  | CBool -> bool_t
+  | CDouble -> float_t
+  | CTensor(size, _) -> L.vector_type float_t size
 
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
-let talloc_t = L.function_type (L.pointer_type tensor_t) 
-    [| nat_t; (* size *)
-       L.pointer_type nat_t; (* shape *)
-       L.pointer_type float_t (* contents *)
-    |]
-let talloc_func = L.declare_function "talloc" talloc_t the_module
-
-let tdelete_t = L.function_type nat_t [| L.pointer_type tensor_t |]
-let tdelete_func = L.declare_function "tdelete" tdelete_t the_module
-
-let print_tensor_t = L.function_type nat_t [| L.pointer_type tensor_t |]
+let print_tensor_t = L.var_arg_function_type nat_t [| L.pointer_type float_t; nat_t ; nat_t|]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
-(* If this throws an error, then something is actually problematic and we have
- * a real bug. *)
-let lookup name map = StringMap.find name map
-
-let _dump_env map = StringMap.iter (fun name _value -> print_endline
+let dump_env map = StringMap.iter (fun name _value -> print_endline
     (name ^ " bound to " ^
     (L.string_of_llvalue _value)
     )) map
+
+(* If this throws an error, then something is actually problematic and we have
+ * a real bug. *)
+let lookup name map = match StringMap.find_opt name map with
+  | Some llval -> llval
+  | None -> dump_env map;
+            failwith @@ "Couldn't find " ^ name ^ " in the environment"
 
 let rec codegen_sexpr (typ, detail) map builder = 
   let cond_expr pred cons alt = 
@@ -103,7 +83,7 @@ let rec codegen_sexpr (typ, detail) map builder =
       phi in
 
   let fn_call fn params builder = 
-    let fname = match fn with (_, SId(s)) -> s 
+    let fname = match fn with (_, CId(s)) -> s 
                 | _ -> raise (Failure "Internal error - non-id in SApp")
     in let callee = match L.lookup_function fname the_module with
                 | Some callee -> callee
@@ -117,16 +97,16 @@ let rec codegen_sexpr (typ, detail) map builder =
     in
 
   let handle_id s = match L.lookup_function s the_module with
-              None -> L.build_load (lookup s map) s builder
-            | Some f -> print_endline "handle_id failure"; 
-              L.build_call f [||] s builder in
+      None -> L.build_load (lookup s map) s builder
+    | Some f -> print_endline "handle_id failure"; 
+                L.build_call f [||] s builder in
 
   match typ with
-  | SNat ->
+  | CNat ->
     begin
       match detail with
-      | SLiteral(i) -> L.const_int nat_t i
-      | SAop(sexpr1, aop, sexpr2) ->
+      | CLiteral(i) -> L.const_int nat_t i
+      | CAop(sexpr1, aop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -141,17 +121,17 @@ let rec codegen_sexpr (typ, detail) map builder =
             let ipow_func = L.declare_function "ipow" ipow_t the_module in
             L.build_call ipow_func [| lhs; rhs |] "ipow" builder
         end
-      | SId(s) -> handle_id s
-      | SApp(fn, params) -> fn_call fn params builder
-      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CId(s) -> handle_id s
+      | CApp(fn, params) -> fn_call fn params builder
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have rejected this")
     end
-  | SBool ->
+  | CBool ->
     begin
       match detail with
-      | SBoolLit(b) -> L.const_int bool_t (if b then 1 else 0)
-      | SId(s) -> handle_id s
-      | SBoolop(sexpr1, bop, sexpr2) ->
+      | CBoollit(b) -> L.const_int bool_t (if b then 1 else 0)
+      | CId(s) -> handle_id s
+      | CBoolop(sexpr1, bop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -159,7 +139,7 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.And -> L.build_and lhs rhs "andtmp" builder
           | A.Or  -> L.build_or  lhs rhs "ortmp"  builder
         end
-      | SRop(sexpr1, rop, sexpr2) ->
+      | CRop(sexpr1, rop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -171,19 +151,19 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_icmp L.Icmp.Ugt lhs rhs "gttemp"  builder
           | A.Geq -> L.build_icmp L.Icmp.Uge lhs rhs "geqtemp" builder
         end
-      | SApp(fn, params) -> fn_call fn params builder
-      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CApp(fn, params) -> fn_call fn params builder
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
       | _ -> raise (Failure "Internal error: semant should have blocked this")
     end
   (* Tensor of empty shape corresponds to single floating point number *)
-  | STensor([]) -> 
+  | CDouble -> 
     begin
       match detail with  
-      | SFliteral(s) -> L.const_float_of_string float_t s
-      | SUnop(A.Neg, sexpr) -> 
+      | CFliteral(s) -> L.const_float_of_string float_t s
+      | CUnop(A.Neg, sexpr) -> 
         L.build_fneg (codegen_sexpr sexpr map builder) "negfloattmp" builder
-      | SId(s) -> handle_id s
-      | SAop(sexpr1, aop, sexpr2) ->
+      | CId(s) -> handle_id s
+      | CAop(sexpr1, aop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -198,8 +178,8 @@ let rec codegen_sexpr (typ, detail) map builder =
             let pow_func = L.declare_function "pow" pow_t the_module in
             L.build_call pow_func [| lhs; rhs |] "pow" builder
         end
-      | SCondExpr(pred, cons, alt) -> cond_expr pred cons alt
-      | SRop(sexpr1, rop, sexpr2) ->
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | CRop(sexpr1, rop, sexpr2) ->
         let lhs = codegen_sexpr sexpr1 map builder in
         let rhs = codegen_sexpr sexpr2 map builder in
         begin
@@ -211,144 +191,145 @@ let rec codegen_sexpr (typ, detail) map builder =
           | A.GT  -> L.build_fcmp L.Fcmp.Ogt lhs rhs "fgttemp"  builder
           | A.Geq -> L.build_fcmp L.Fcmp.Oge lhs rhs "fgeqtemp" builder
         end
-      | SApp((_,SId("cast")), [param]) -> 
+      | CApp((_,CId("cast")), [param]) -> 
         L.build_uitofp (codegen_sexpr param map builder) 
           float_t "casted" builder
-      | SApp(fn, params) -> fn_call fn params builder
+      | CApp(fn, params) -> fn_call fn params builder
+      | CTensorIdx(e, idx) -> 
+        let the_expr = codegen_sexpr e map builder in
+        L.build_extractelement the_expr (L.const_int nat_t idx) "extract" builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | STensor(_shape) ->
+  | CTensor(_size, _shape) -> 
+          (* print_endline @@ "At cexpr node " ^ string_of_cexpr (typ, detail) *)
+          (* ^ " whose type is " ^ string_of_ctyp typ; *)
     begin
       match detail with
-      | STLit(contents, literal_shape) -> 
-        let tsize = List.fold_left (fun acc elt -> acc * elt) 1 literal_shape in
-
-        let trank = List.length literal_shape in
-
-        let tshape_ptr = L.build_alloca (L.array_type nat_t trank) 
-            "tshape_ptr" builder in
-        let tshape_contents = 
-          List.map (L.const_int nat_t) literal_shape |>
-          Array.of_list |>
-          L.const_array (L.array_type nat_t trank) in
-        let _ = L.build_store tshape_contents tshape_ptr builder in
-
-        let tcontents_ptr = L.build_alloca (L.array_type float_t tsize) 
-            "tcontents_ptr" builder in
-        let tcontents = 
-          List.map (L.const_float_of_string float_t) contents |>
-          Array.of_list |>
-          L.const_array (L.array_type float_t tsize) in
-        let _ = L.build_store tcontents tcontents_ptr builder in
-
-        let tshape_ptr' = L.build_bitcast tshape_ptr (L.pointer_type nat_t)
-            "bitcast_shape" builder in
-        let tcontents_ptr' = L.build_bitcast tcontents_ptr (L.pointer_type float_t) 
-            "bitcast_contents" builder in
-
-        let the_ptr = 
-          L.build_call talloc_func 
-            [| L.const_int nat_t trank; 
-               tshape_ptr';
-               tcontents_ptr'|]
-            "tensor_ptr" builder in the_ptr
-      | SId(s) -> handle_id s
-      | _ -> raise (Failure "WIP")
+      | CTlit(contents, _tsize) -> 
+          L.const_vector @@ Array.of_list @@ 
+          List.map (L.const_float_of_string float_t) contents
+      | CId(s) -> handle_id s
+      | CApp(fn, params) -> fn_call fn params builder
+      | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
+      | _ -> failwith @@ "Handling expression: "  ^ string_of_cexpr (typ, detail)
     end
-  | _ -> raise (Failure "Not yet implemented") 
 
 (* Use in declaring global vars *)
-let handle_const sfunc = match sfunc.stype with
-      SNat -> L.const_int nat_t 0
-    | SBool -> L.const_int bool_t 0
-    | STensor([]) -> L.const_float float_t 0.
-    | STensor(_) -> L.const_pointer_null (L.pointer_type tensor_t)
-    | _ -> raise (Failure "declare globals on unit type only")
+let handle_const assign = match assign.typ with
+      CNat -> L.const_int nat_t 0
+    | CBool -> L.const_int bool_t 0
+    | CDouble -> L.const_float float_t 0.
+    | CTensor(_size, _shape) -> L.const_all_ones (ltype_of_ctyp assign.typ)
 
 (* Given a global var, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let declare_global env sfunc = 
-  StringMap.add sfunc.sfname 
-    (L.define_global sfunc.sfname (handle_const sfunc) the_module) env
+let declare_global env assign = 
+    (* Assignments are either global variables or assignments to a tensor entry 
+     * Process global var declarations here and defer specific index assignment
+     * to later in translate *)
+    match assign.index with
+      | None -> StringMap.add assign.name
+            (L.define_global assign.name (handle_const assign) the_module)
+            env
+      | Some _ -> env
 
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let declare_fn env sfunc = 
-  let the_typ = ltype_of_styp sfunc.stype in
-  let the_function = L.define_function (sfunc.sfname) the_typ the_module in
-  StringMap.add sfunc.sfname the_function env
-
-(* Declare globals and functions for sfuncs *)
-let codegen_proto env sfunc = 
-    match List.length sfunc.sfparams with
-      0 -> declare_global env sfunc 
-    | _ -> declare_fn env sfunc 
+let declare_fn env cfunc = 
+  let param_typs = 
+        (List.map (fun (t,_) -> ltype_of_ctyp t) cfunc.params) |> Array.of_list in
+  let the_typ = L.function_type (ltype_of_ctyp cfunc.ret_typ) param_typs in
+  let the_function = L.define_function (cfunc.cname) the_typ the_module in
+  StringMap.add cfunc.cname the_function env
 
 (* Codegen for globals *)
-let codegen_global env sfunc builder = 
-  ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env builder)
-    (lookup sfunc.sfname env) builder;
-  env 
+let codegen_global env builder assign = 
+  match assign.index with 
+    | None -> ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
+              (lookup assign.name env) builder; env 
+    | Some i ->
+            (* print_endline @@ "Building assignment " ^ string_of_cexpr assign.cexpr ^ " : " ^ *)
+            (* string_of_ctyp (fst assign.cexpr); *)
+            
+        let elt = codegen_sexpr assign.cexpr env builder in
+        let vec_ptr = lookup assign.name env in
+        let vec = L.build_load vec_ptr "" builder in
+        let new_vec = 
+            L.build_insertelement vec elt (L.const_int nat_t i) "" builder in
+        ignore @@ 
+        L.build_store new_vec vec_ptr builder; env
 
 (* Codegen for function body *)
-let codegen_fn_body env sfunc = 
-    let the_function = match L.lookup_function sfunc.sfname the_module with
+let codegen_fn_body env cfunc = 
+    let the_function = match L.lookup_function cfunc.cname the_module with
         | Some f -> f
         | None -> raise (Failure "internal error - undefined function")
         in
-    (* let bb = L.append_block context (sfunc.sfname ^ "_entry") the_function in *)
     let fn_builder = L.builder_at_end context (L.entry_block the_function) in
-    (* L.position_at_end bb fn_builder; *)
 
     (* Allocate function parameters:
         * Returns a new env *)
     let alloc_param env (typ, name) llval = 
         L.set_value_name name llval;
-        let alloca = L.build_alloca (ltype_of_styp typ) name fn_builder in
+        let alloca = L.build_alloca (ltype_of_ctyp typ) name fn_builder in
         ignore @@ L.build_store llval alloca fn_builder;
         StringMap.add name alloca env in
 
     let env' = 
       List.fold_left2 alloc_param 
-        env sfunc.sfparams (L.params the_function |> Array.to_list) in
+        env cfunc.params (L.params the_function |> Array.to_list) in
 
     (* Allocate scope variables:
         * Returns a new env *) 
     let alloc_scope scope env = 
-      let sorted_scope = snd (Topsort.make_topsort ([], scope)) in
-      let llvals = List.map handle_const sorted_scope in
-      List.fold_left2 (fun acc sfunc llval -> 
-          alloc_param acc (sfunc.stype, sfunc.sfname) llval) 
-        env sorted_scope llvals in
-    let env'' = alloc_scope sfunc.sscope env' in 
+      let llvals = List.fold_right (fun assign acc ->
+          match assign.index with
+            | None -> handle_const assign :: acc
+            | Some _ -> acc
+      ) scope [] in
+      List.fold_left2 (fun acc assign llval -> 
+          match assign.index with
+            | None -> alloc_param acc (assign.typ, assign.name) llval
+            | Some _ -> acc)
+        env (List.filter (fun assign -> assign.index = None) scope) llvals in
+    let env'' = alloc_scope cfunc.locals env' in 
 
     (* codegen on variables in scope, adding their values to env'' *) 
-    ignore @@ List.iter (fun sfunc -> 
-        ignore @@ L.build_store (codegen_sexpr sfunc.sfexpr env'' fn_builder) 
-          (lookup sfunc.sfname env'') fn_builder) sfunc.sscope;
+    List.iter (fun assign -> 
+        match assign.index with
+          | None -> ignore @@ L.build_store (codegen_sexpr assign.cexpr env'' fn_builder) 
+                    (lookup assign.name env'') fn_builder
+          | Some i -> 
+              let elt = codegen_sexpr assign.cexpr env'' fn_builder in
+              let vec_ptr = lookup assign.name env'' in
+              let vec = L.build_load vec_ptr "" fn_builder in
+              let new_vec = 
+                  L.build_insertelement vec elt (L.const_int nat_t i) "" fn_builder in
+              ignore @@ 
+              L.build_store new_vec vec_ptr fn_builder;
+          ) cfunc.locals;
 
-    let ret_val = codegen_sexpr sfunc.sfexpr env'' fn_builder in
+    let ret_val = codegen_sexpr cfunc.cfexpr env'' fn_builder in
     let _ = L.build_ret ret_val fn_builder in 
     (* Return the new environment *)
     Llvm_analysis.assert_valid_function the_function;
 
     env''
 
-(* Codegen on globals and functions *)
-let codegen_body builder env sfunc = 
-    match List.length sfunc.sfparams with
-        0 -> codegen_global env sfunc builder
-      | _ -> codegen_fn_body env sfunc
-
-let translate sprogram =
+let translate (main_expr, assigns, cfuncs) ppm_flag =
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
 
+  (* Declare all defined variables *)
+  let env = List.fold_left declare_global StringMap.empty assigns in
   (* Declare all defined functions *)
-  let env = List.fold_left codegen_proto StringMap.empty (snd sprogram) in
-  (* Build their bodies *)
-  let env = List.fold_left (codegen_body builder) env (snd sprogram) in
+  let env = List.fold_left declare_fn env cfuncs in
+  (* Build global variables *)
+  let env = List.fold_left 
+      (fun acc assign -> codegen_global acc builder assign) env assigns in
+  (* Build function bodies *)
+  let env = List.fold_left codegen_fn_body env cfuncs in
 
   let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
   let bool_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
@@ -356,21 +337,28 @@ let translate sprogram =
   let true_str = L.build_global_stringptr "True" "true_str" builder in
   let false_str = L.build_global_stringptr "False" "false_str" builder in
 
-  let the_expression = codegen_sexpr (fst sprogram) env builder
-  in ignore @@ (match fst (fst sprogram) with 
-    | SNat -> L.build_call printf_func [| int_format_str ; the_expression |]
+  let the_expression = codegen_sexpr main_expr env builder
+  in ignore @@ (match fst main_expr with 
+    | CNat -> L.build_call printf_func [| int_format_str ; the_expression |]
                  "printf" builder
-    | SBool -> L.build_call printf_func [| bool_format_str ; 
+    | CBool -> L.build_call printf_func [| bool_format_str ; 
             if the_expression = L.const_int bool_t 0 then false_str else true_str |]
                  "printf" builder
-    | STensor([]) -> L.build_call printf_func 
+    | CDouble -> L.build_call printf_func 
                                 [| float_format_str ; the_expression |]
                  "printf" builder
-    | STensor(_) -> 
-        let _ = L.build_call print_tensor_func [| the_expression |] 
-            "print_tensor" builder in
-        L.build_call tdelete_func [| the_expression |] "free_tensor" builder
-    | SArrow(_,_) -> raise (Failure "Internal error: semant failed")
+    | CTensor(_size, shape) -> 
+        let rank = L.const_int nat_t (List.length shape) in
+        let alloca = L.build_alloca (ltype_of_ctyp (fst main_expr)) "" builder
+        in
+        let _ = L.build_store the_expression alloca builder in
+        let ptr_of_vec = L.build_bitcast 
+            alloca (L.pointer_type float_t) "" builder in
+        let print_args = 
+          [ptr_of_vec; rank; if ppm_flag then (L.const_int nat_t 1) else
+             (L.const_int nat_t 0)] @ List.map (L.const_int nat_t) shape in
+        L.build_call print_tensor_func (Array.of_list print_args)
+            "print_tensor" builder
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 

@@ -1,10 +1,10 @@
 #!/bin/sh
 
 make
-./toplevel.native -c $1
+./toplevel.native $1 $2
 llc output.ll
 clang -lm _build/src/runtime.o output.s
 echo "The file: \n"
-cat $1
+cat $2
 echo "\nThe result: \n"
 ./a.out

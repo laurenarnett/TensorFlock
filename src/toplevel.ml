@@ -1,6 +1,6 @@
 (* Top-level of the TensorFlock compiler: scan & parse the input *)
 
-type action = Ast | Sast | Lift | LLVM_IR | Compile
+type action = Ast | Sast | Lift | Sort | Cast | LLVM_IR | Compile | PPM
 
 let () =
   let action = ref Compile in
@@ -9,9 +9,11 @@ let () =
     ("-a", Arg.Unit (set_action Ast),  "Print the AST");
     ("-s", Arg.Unit (set_action Sast), "Run the semantic checker");
     ("-lift", Arg.Unit (set_action Lift), "Print lambda lifted code");
+    ("-sort", Arg.Unit (set_action Sort), "Sort the variables");
+    ("-cast", Arg.Unit (set_action Cast), "Print the CAST");
     ("-l", Arg.Unit (set_action LLVM_IR), "Print the generated LLVM IR");
-    ("-c", Arg.Unit (set_action Compile),
-      "Check and print the generated LLVM IR (default)");
+    ("-c", Arg.Unit (set_action Compile), "Check and print the generated LLVM IR (default)");
+    ("-ppm", Arg.Unit (set_action PPM), "Output a PPM compatible tensor" );
   ] in
   let usage_msg = "usage: ./toplevel.native [-a|-s|-l|-c] [file.tf]" in
   let channel = ref stdin in
@@ -20,13 +22,26 @@ let () =
   let lexbuf = Lexing.from_channel !channel in
   let ast = Parser.program Scanner.token lexbuf in
   match !action with
-     Ast -> print_string (Ast.string_of_program ast)
-   | Sast -> print_string (Sast.string_of_sprogram (Semant.check ast |> Lift.rename_sprogram |> Topsort.make_topsort))
-   | Lift -> print_string (Sast.string_of_sprogram (Semant.check ast |>
-    Lift.lift_sprogram))
-   | LLVM_IR -> print_string (Llvm.string_of_llmodule (Codegen.translate
-   (Semant.check ast |> Lift.lift_sprogram |> Topsort.make_topsort)))
-   | Compile -> let mdl = Codegen.translate (Semant.check ast |>
-   Lift.lift_sprogram |> Topsort.make_topsort) in
+     Ast -> print_endline (Ast.string_of_program ast)
+   (* Wire together the lambda lifter and variable sorter here *)
+   | _ -> let sast = Semant.check ast in
+  match !action with
+     Ast -> ()
+   | Sast -> print_endline (Sast.string_of_sprogram sast)
+   | _ -> let lifted_sast = Lift.lift_sprogram sast in 
+  match !action with
+   | Ast | Sast -> ()
+   | Lift -> print_endline (Sast.string_of_sprogram lifted_sast)
+   | _ -> let sorted_sast = Topsort.make_topsort lifted_sast in
+  match !action with
+   | Ast | Sast | Lift -> ()
+   | Sort -> print_endline (Sast.string_of_sprogram sorted_sast)
+   | _ -> let cast = Cast.cprogram_of_sprogram sorted_sast in
+  match !action with
+   | Ast | Sast | Lift | Sort -> ()
+   | Cast -> print_endline (Cast.string_of_cprogram cast)
+   | LLVM_IR -> print_endline 
+                (Llvm.string_of_llmodule (Codegen.translate cast false))
+   | Compile | PPM -> let mdl = Codegen.translate cast (!action = PPM) in
    Llvm_analysis.assert_valid_module mdl;
    ignore @@ Llvm_bitwriter.write_bitcode_file mdl "output.ll"
