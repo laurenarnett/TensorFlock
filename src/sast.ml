@@ -1,5 +1,4 @@
 open Ast
-module StringMap = Map.Make (String)
 (* By this point in the pipeline, we should have been able to deduce all of the
  * shapes of tensors, so that we don't need to let them be arbitrary aexprs
  * anymore *)
@@ -20,10 +19,6 @@ and sexpr_detail =
   | SApp of sexpr * sexpr list
   | SCondExpr of sexpr * sexpr * sexpr
   | STensorIdx of sexpr * string list
-  (* mat1[i,j] * mat2[j,k] desugars to
-   * Forall i : _some_int, k : _another_int .
-   * Contract mat1[i,j], mat2[j,k], 1, 0, yet_another_int
-   * whose type is Tensor<_some_int, _another_int> *)
   | Forall of { indices : (string * int) list; sexpr : sexpr }
   | Contract of { index : (string * int); sexpr : sexpr}
 
@@ -32,7 +27,7 @@ type sfunc = {
     sfname : string;
     stype : styp;
     sfparams : (styp * string) list;
-    slocals : (styp * string) list;
+    lhs_indices : (string * int) list;
     sfexpr : sexpr;
     sscope : sfunc list;
 }
@@ -63,28 +58,32 @@ let rec string_of_sexpr_detail e = match e with
     string_of_sexpr sexpr1 ^ " " ^ string_of_rop op ^ " " ^
     string_of_sexpr sexpr2
   | SApp(sexpr1, sexprs) ->
-      string_of_sexpr sexpr1 ^ "[ " ^
-      String.concat "," (List.map string_of_sexpr sexprs) ^ "]"
+      string_of_sexpr sexpr1 ^ "( " ^
+      String.concat ", " (List.map string_of_sexpr sexprs) ^ ")"
   | SCondExpr(sexpr1, sexpr2, sexpr3) ->
     "if " ^ string_of_sexpr sexpr1 ^ " then " ^ string_of_sexpr sexpr2
     ^ " else " ^ string_of_sexpr sexpr3
   | STensorIdx(e, indices) ->
-        string_of_sexpr e ^ "[" ^ String.concat "," indices ^ "]"
+       "(" ^ string_of_sexpr e  ^ ")" ^ "[" ^ String.concat "," indices ^ "]"
   | Forall r -> "forall " ^ String.concat ","
       (List.map (fun (i, n) -> i ^ " in range " ^ string_of_int n) r.indices)
       ^ " . " ^ string_of_sexpr r.sexpr
   | Contract r -> "contract " ^ string_of_sexpr r.sexpr
                   ^ " over " ^ (fst r.index)
-and string_of_sexpr (t, det) =
-  string_of_sexpr_detail det ^ " : " ^ string_of_styp t
+and string_of_sexpr (_t, det) =
+  string_of_sexpr_detail det 
+  (* ^ " : " ^ string_of_styp t *)
 
 let rec string_of_sfunc sfunc =
-  "(" ^ sfunc.sfname ^ " " ^ (String.concat " " (List.map snd sfunc.sfparams))
+  let index_str = if sfunc.lhs_indices = [] then "" else "[" ^ String.concat
+      "," (List.map fst sfunc.lhs_indices) ^ "]" in
+  "(" ^ sfunc.sfname ^ index_str ^ " " 
+  ^ (String.concat " " (List.map snd sfunc.sfparams))
   ^ " : " ^ string_of_styp sfunc.stype ^ ") = "
   ^ string_of_sexpr sfunc.sfexpr ^ if sfunc.sscope = [] then "" else
   "\n{\n"
   ^ String.concat "\n" (List.map string_of_sfunc sfunc.sscope)
-  ^ "\n}"
+  ^ "\n}\n"
 
 let string_of_sprogram (main_expr, sfuncs) =
   "main = " ^ string_of_sexpr main_expr ^ "\n"
