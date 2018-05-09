@@ -200,8 +200,9 @@ let rec codegen_sexpr (typ, detail) map builder =
         L.build_extractelement the_expr (L.const_int nat_t idx) "extract" builder
       | _ -> raise (Failure "Internal error: semant failed")
     end
-  | CTensor(_size, _shape) -> print_endline @@ "At cexpr node " ^ string_of_cexpr (typ, detail)
-  ^ " whose type is " ^ string_of_ctyp typ;
+  | CTensor(_size, _shape) -> 
+          (* print_endline @@ "At cexpr node " ^ string_of_cexpr (typ, detail) *)
+          (* ^ " whose type is " ^ string_of_ctyp typ; *)
     begin
       match detail with
       | CTlit(contents, _tsize) -> 
@@ -247,8 +248,8 @@ let codegen_global env builder assign =
     | None -> ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
               (lookup assign.name env) builder; env 
     | Some i ->
-            print_endline @@ "Building assignment " ^ string_of_cexpr assign.cexpr ^ " : " ^
-            string_of_ctyp (fst assign.cexpr);
+            (* print_endline @@ "Building assignment " ^ string_of_cexpr assign.cexpr ^ " : " ^ *)
+            (* string_of_ctyp (fst assign.cexpr); *)
             
         let elt = codegen_sexpr assign.cexpr env builder in
         let vec_ptr = lookup assign.name env in

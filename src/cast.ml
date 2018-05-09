@@ -191,7 +191,7 @@ let rec replace_indices sexpr indices =
 let rec strip_indices cexpr = let t = fst cexpr in match snd cexpr with
   | CLiteral _ | CBoollit _ | CFliteral _ | CTlit _ | CId _ -> cexpr
   | CTensorIdx((CDouble, cexpr'), _) -> 
-          print_endline "stripped";
+          (* print_endline "stripped"; *)
           strip_indices (CDouble, cexpr')
   | CTensorIdx(e, idxs) -> 
           (* print_endline @@ "here: " ^ string_of_cexpr e ^ " : " ^ string_of_ctyp (fst e); *)
@@ -246,6 +246,8 @@ let assigns_of_sfunc sfunc =
           ; cexpr = (CDouble, snd cexpr)}) cexprs |> Array.to_list in
 
     let zeros = List.map (fun _ -> "0") (range size) in
+        (* List.iter (fun local -> print_endline (string_of_ctyp (fst *)
+        (* local.cexpr))) assignments; *)
     { name = sfunc.sfname
     ; typ = CTensor(size, shape)
     ; index = None
