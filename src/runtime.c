@@ -6,9 +6,9 @@
 
 typedef unsigned int nat;
 
-int print_tensor(double *contents, nat rank, ...) {
+int print_tensor(double *contents, nat rank, int ppmFlag, ...) {
     va_list dims;
-    va_start(dims, rank);
+    va_start(dims, ppmFlag);
     // Construct the shape array
     nat shape[rank];
     nat size = 1;
@@ -35,41 +35,54 @@ int print_tensor(double *contents, nat rank, ...) {
         }
         bracket_locations[i] = prod;
     }
+    if (ppmFlag) {
+        printf("P3\n%d %d\n255\n", shape[0], shape[1]);
+    }
     // First print opening brackets
     for (i = 0; i < rank; ++i) {
-        printf("[");
+        if (!ppmFlag){
+            printf("[");
+        }
     }
 
     // Print the tensor contents
     int k, l, m, no_of_brac;
     for (k = 0; k < size - 1; ++k) {
-        printf("%.2f ", contents[k]);
-        for (l = 1; l < rank; ++l) {
-            // If the component index mod the bracket location is 0
-            // then print some brackets
-            if ((k + 1) % bracket_locations[l] == 0) {
-                printf("\b");
-                no_of_brac = rank - l;
-                for (m = 0; m < no_of_brac; ++m) {
-                    printf("]");
+        if (ppmFlag){
+            printf("%d ", (int) (contents[k]));
+        } else {
+            printf("%.2f ", contents[k]);
+        
+            for (l = 1; l < rank; ++l) {
+                // If the component index mod the bracket location is 0
+                // then print some brackets
+                if ((k + 1) % bracket_locations[l] == 0) {
+                    printf("\b");
+                    no_of_brac = rank - l;
+                    for (m = 0; m < no_of_brac; ++m) {
+                        printf("]");
+                    }
+                    printf("\n");
+                    for (m = 0; m < no_of_brac; ++m) {
+                        printf("[");
+                    }
+                    break;
                 }
-                printf("\n");
-                for (m = 0; m < no_of_brac; ++m) {
-                    printf("[");
-                }
-                break;
             }
         }
     }
 
     // Print the last component
-    printf("%.2f", contents[size - 1]);
+    if (ppmFlag) {
+        printf("%d ", (int) (contents[size - 1]));
+    } else {
+        printf("%.2f", contents[size - 1]);
 
-    // Finally print the closing brackets
-    for (i = 0; i < rank; ++i) {
-        printf("]");
+        // Finally print the closing brackets
+        for (i = 0; i < rank; ++i) {
+            printf("]");
+        }
     }
-
     printf("\n");
     
 

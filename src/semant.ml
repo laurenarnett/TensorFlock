@@ -159,8 +159,9 @@ let rec check_expr expression table indices =
                 (fun substring -> String.length substring > 0) 
                 (String.split_on_char ' ' (List.hd tensor_string)) in
             let shape' = List.map int_of_string shape in
-            let components = (String.split_on_char ' ' (String.concat " " 
-                                                (List.tl tensor_string))) in
+            let components = List.filter 
+                (fun substring -> String.length substring > 0)
+                (String.split_on_char ' ' (String.concat " " (List.tl tensor_string))) in
             (STensor(shape'), STLit((components), shape')), indices
     | Id(s) -> (lookup_symb s, SId(s)), indices
     | Unop(Neg, expr) -> begin

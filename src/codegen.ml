@@ -23,7 +23,7 @@ let rec ltype_of_ctyp = function
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
-let print_tensor_t = L.var_arg_function_type nat_t [| L.pointer_type float_t; nat_t |]
+let print_tensor_t = L.var_arg_function_type nat_t [| L.pointer_type float_t; nat_t ; nat_t|]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 let dump_env map = StringMap.iter (fun name _value -> print_endline
@@ -315,7 +315,7 @@ let codegen_fn_body env cfunc =
 
     env''
 
-let translate (main_expr, assigns, cfuncs) =
+let translate (main_expr, assigns, cfuncs) ppm_flag =
   let main_ty = L.function_type (nat_t) [||] in
   let main = L.define_function "main" main_ty the_module in
   let builder = L.builder_at_end context (L.entry_block main) in
@@ -354,7 +354,8 @@ let translate (main_expr, assigns, cfuncs) =
         let ptr_of_vec = L.build_bitcast 
             alloca (L.pointer_type float_t) "" builder in
         let print_args = 
-            [ptr_of_vec; rank] @ List.map (L.const_int nat_t) shape in
+          [ptr_of_vec; rank; if ppm_flag then (L.const_int nat_t 1) else
+             (L.const_int nat_t 0)] @ List.map (L.const_int nat_t) shape in
         L.build_call print_tensor_func (Array.of_list print_args)
             "print_tensor" builder
     );

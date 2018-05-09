@@ -1,6 +1,6 @@
 (* Top-level of the TensorFlock compiler: scan & parse the input *)
 
-type action = Ast | Sast | Lift | Sort | Cast | LLVM_IR | Compile
+type action = Ast | Sast | Lift | Sort | Cast | LLVM_IR | Compile | PPM
 
 let () =
   let action = ref Compile in
@@ -12,8 +12,8 @@ let () =
     ("-sort", Arg.Unit (set_action Sort), "Sort the variables");
     ("-cast", Arg.Unit (set_action Cast), "Print the CAST");
     ("-l", Arg.Unit (set_action LLVM_IR), "Print the generated LLVM IR");
-    ("-c", Arg.Unit (set_action Compile),
-      "Check and print the generated LLVM IR (default)");
+    ("-c", Arg.Unit (set_action Compile), "Check and print the generated LLVM IR (default)");
+    ("-ppm", Arg.Unit (set_action PPM), "Output a PPM compatible tensor" );
   ] in
   let usage_msg = "usage: ./toplevel.native [-a|-s|-l|-c] [file.tf]" in
   let channel = ref stdin in
@@ -41,7 +41,7 @@ let () =
    | Ast | Sast | Lift | Sort -> ()
    | Cast -> print_endline (Cast.string_of_cprogram cast)
    | LLVM_IR -> print_endline 
-                (Llvm.string_of_llmodule (Codegen.translate cast))
-   | Compile -> let mdl = Codegen.translate cast in
+                (Llvm.string_of_llmodule (Codegen.translate cast false))
+   | Compile | PPM -> let mdl = Codegen.translate cast (!action = PPM) in
    Llvm_analysis.assert_valid_module mdl;
    ignore @@ Llvm_bitwriter.write_bitcode_file mdl "output.ll"
