@@ -14,19 +14,16 @@ let bool_t = L.i1_type context
 let i8_t = L.i8_type context
 let float_t = L.double_type context
 
-(* Retry using normal arrays of doubles as opposed to our custom struct *)
-let tensor_t = L.pointer_type float_t
-
 let rec ltype_of_ctyp = function 
     CNat -> nat_t
   | CBool -> bool_t
   | CDouble -> float_t
-  | CTensor(_,_) -> tensor_t
+  | CTensor(size,_) -> L.vector_type float_t size
 
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
 
-let print_tensor_t = L.var_arg_function_type nat_t [| tensor_t; nat_t |]
+let print_tensor_t = L.var_arg_function_type nat_t [| L.pointer_type float_t; nat_t |]
 let print_tensor_func = L.declare_function "print_tensor" print_tensor_t the_module
 
 (* If this throws an error, then something is actually problematic and we have
@@ -205,20 +202,9 @@ let rec codegen_sexpr (typ, detail) map builder =
   | CTensor(_size, _shape) ->
     begin
       match detail with
-      | CTlit(contents, tsize) -> 
-        let tcontents_ptr = L.build_malloc (L.array_type float_t tsize) 
-            "tcontents_ptr" builder in
-        let tcontents = 
-          List.map (L.const_float_of_string float_t) contents |>
-          Array.of_list |>
-          L.const_array (L.array_type float_t tsize) in
-        let _ = L.build_store tcontents tcontents_ptr builder in
-
-        let tcontents_ptr' = L.build_bitcast tcontents_ptr (L.pointer_type float_t) 
-            "bitcast_contents" builder in
-
-        tcontents_ptr'
-
+      | CTlit(contents, _tsize) -> 
+          L.const_vector @@ Array.of_list @@ 
+          List.map (L.const_float_of_string float_t) contents
       | CId(s) -> handle_id s
       | _ -> raise (Failure "WIP")
     end
@@ -228,28 +214,19 @@ let handle_const assign = match assign.typ with
       CNat -> L.const_int nat_t 0
     | CBool -> L.const_int bool_t 0
     | CDouble -> L.const_float float_t 0.
-    | CTensor(_) -> L.const_pointer_null tensor_t
+    | CTensor(_size, _shape) -> L.const_all_ones (ltype_of_ctyp assign.typ)
 
 (* Given a global var, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
-let declare_global env builder assign = match assign.index with
-    None -> let llval =
-    (L.define_global assign.name (handle_const assign) the_module) in
-    let llval = 
-    begin
-    match assign.typ with 
-    | CTensor(size, _shape) -> 
-      L.build_array_malloc nat_t (L.const_int nat_t size) "tmalloc" builder
-    | _ -> llval 
-    end in StringMap.add assign.name llval env
-  | Some i -> match L.lookup_global assign.name the_module with
-      None -> failwith "Error in codegen processing assigning to array element"
-    | Some arr ->
-      let ptr = L.build_in_bounds_gep arr 
-          [| L.const_int nat_t i |] "increment_ptr" builder
-      in let double = codegen_sexpr assign.cexpr env builder in
-      ignore (L.build_store double ptr builder);
-      env
+let declare_global env assign = 
+    (* Assignments are either global variables or assignments to a tensor entry 
+     * Process global var declarations here and defer specific index assignment
+     * to later in translate *)
+    match assign.index with
+      | None -> StringMap.add assign.name
+            (L.define_global assign.name (handle_const assign) the_module)
+            env
+      | Some _ -> env
 
 (* Given an sfunc, declare it in the_module, and return a new map.
  * This function has the side effect of mutating the module *)
@@ -262,9 +239,14 @@ let declare_fn env cfunc =
 
 (* Codegen for globals *)
 let codegen_global env builder assign = 
-  ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
-    (lookup assign.name env) builder;
-  env 
+  match assign.index with 
+    | None -> ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
+              (lookup assign.name env) builder; env 
+    | Some i -> 
+        let elt = codegen_sexpr assign.cexpr env builder in
+        let vec = lookup assign.name env in
+        ignore @@ 
+        L.build_insertelement vec elt (L.const_int nat_t i) "" builder; env
 
 (* Codegen for function body *)
 let codegen_fn_body env cfunc = 
@@ -313,14 +295,13 @@ let translate (main_expr, assigns, cfuncs) =
   let builder = L.builder_at_end context (L.entry_block main) in
 
   (* Declare all defined variables *)
-  let env = List.fold_left 
-      (fun acc assign -> declare_global acc builder assign) StringMap.empty assigns in
+  let env = List.fold_left declare_global StringMap.empty assigns in
   (* Declare all defined functions *)
   let env = List.fold_left declare_fn env cfuncs in
   (* Build global variables *)
   let env = List.fold_left 
       (fun acc assign -> codegen_global acc builder assign) env assigns in
-  (* Build their bodies *)
+  (* Build function bodies *)
   let env = List.fold_left codegen_fn_body env cfuncs in
 
   let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder in
@@ -341,12 +322,12 @@ let translate (main_expr, assigns, cfuncs) =
                  "printf" builder
     | CTensor(_size, shape) -> 
         let rank = L.const_int nat_t (List.length shape) in
+        let ptr_of_vec = L.build_bitcast 
+            the_expression (L.pointer_type float_t) "" builder in
         let print_args = 
-            [the_expression; rank] @ List.map (L.const_int nat_t) shape in
-        let _ = L.build_call print_tensor_func (Array.of_list print_args)
-            "print_tensor" builder in
-        L.build_free the_expression builder
-    (*| SArrow(_,_) -> raise (Failure "Internal error: semant failed")*)
+            [ptr_of_vec; rank] @ List.map (L.const_int nat_t) shape in
+        L.build_call print_tensor_func (Array.of_list print_args)
+            "print_tensor" builder
     );
     ignore @@ L.build_ret (L.const_int nat_t 0) builder;
 
