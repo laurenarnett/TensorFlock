@@ -1,7 +1,7 @@
-main = invert img;
+main = invert 255 img;
 
-img : T<4,4,3>;
+img : T<rows, cols, ncolors>;
 img = #tensors/pixl.tensor;
 
-invert : T<4,4,3> -> T<4,4,3>;
-invert t = 255. - t[i,j,k];
+invert : Nat -> T<rows, cols, ncolors> -> T<rows, cols, ncolors>;
+invert colordepth t = cast colordepth - t[i,j,k];

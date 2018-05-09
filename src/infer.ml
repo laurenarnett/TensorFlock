@@ -57,8 +57,25 @@ let rec env_of_funcs funcs =
         if verify @@ TLit(contents) 
             then build_shape @@ TLit(contents)
         else failwith ("Invalid tensor literal") in
-      List.fold_left2 (fun map dim num ->
-          (match dim with
+      List.fold_left2 (fun map dim num -> (match dim with
+          | ALiteral _ -> env
+          | AId s -> (match StringMap.find_opt s env with 
+              | None -> StringMap.add s num map
+              | Some num' -> if num <> num' then 
+                  failwith (s ^ " is already bound to " ^
+                            string_of_int num' ^ " and cannot be rebound.")
+                else env)
+          | _ -> failwith "Cannot have arbitrary polynomial
+                            as the shape of a tensor literal")
+        ) env shape ints
+    | Tensor(shape), TFile(path) -> 
+        let channel = open_in path in
+            let shape' = input_line channel in
+            let ints = List.filter 
+                (fun substring -> String.length substring > 0) 
+                (String.split_on_char ' ' shape') 
+                |> List.map int_of_string in
+      List.fold_left2 (fun map dim num -> (match dim with
           | ALiteral _ -> env
           | AId s -> (match StringMap.find_opt s env with 
               | None -> StringMap.add s num map
