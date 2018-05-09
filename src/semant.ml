@@ -199,15 +199,15 @@ let rec check_expr expression table indices =
                             shape, then you need to index them accordingly."
                         else
             let ret_type = if shape1 = [] then STensor shape2 else STensor shape1 in
-            let ret_idxs = if idxs1 = [] then idxs2 else idxs1 in
+            (* let ret_idxs = if idxs1 = [] then idxs2 else idxs1 in *)
             let ret_expr = ret_type, SAop(sexpr1, op, sexpr2)
-            in (STensor [], STensorIdx(ret_expr, ret_idxs)), indices
+            in ret_expr, indices
                       | STensorIdx((STensor shape1, _e1), idxs1), _ ->
                         let ret_expr = STensor shape1, SAop(sexpr1, op, sexpr2) in
-                        (STensor [], STensorIdx(ret_expr, idxs1)), indices
+                        ret_expr, indices
                       | _, STensorIdx((STensor shape2, _e2), idxs2) ->
                         let ret_expr = STensor shape2, SAop(sexpr1, op, sexpr2) in
-                        (STensor [], STensorIdx(ret_expr, idxs2)), indices
+                        ret_expr, indices
                       | _, _ -> (STensor [], SAop(sexpr1, op, sexpr2)), indices
                     end
 

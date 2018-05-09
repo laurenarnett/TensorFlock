@@ -18,7 +18,7 @@ let rec ltype_of_ctyp = function
     CNat -> nat_t
   | CBool -> bool_t
   | CDouble -> float_t
-  | CTensor(size,_) -> L.vector_type float_t size
+  | CTensor(size, _) -> L.vector_type float_t size
 
 let printf_t = L.var_arg_function_type nat_t [| L.pointer_type i8_t |]
 let printf_func = L.declare_function "printf" printf_t the_module
@@ -209,7 +209,6 @@ let rec codegen_sexpr (typ, detail) map builder =
       | CId(s) -> handle_id s
       | CApp(fn, params) -> fn_call fn params builder
       | CCondExpr(pred, cons, alt) -> cond_expr pred cons alt
-      | CAop _ -> failwith "here"
       | _ -> failwith @@ "Handling expression: "  ^ string_of_cexpr (typ, detail)
     end
 
@@ -247,6 +246,9 @@ let codegen_global env builder assign =
     | None -> ignore @@ L.build_store (codegen_sexpr assign.cexpr env builder)
               (lookup assign.name env) builder; env 
     | Some i ->
+            print_endline @@ "Building assignment " ^ string_of_cexpr assign.cexpr ^ " : " ^
+            string_of_ctyp assign.typ;
+            
         let elt = codegen_sexpr assign.cexpr env builder in
         let vec_ptr = lookup assign.name env in
         let vec = L.build_load vec_ptr "" builder in
