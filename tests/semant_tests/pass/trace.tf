@@ -7,4 +7,7 @@ trace : T<n,n> -> T<>;
 trace mat = mat[i,i];
 
 partial_trace : T<n,n,n,n> -> T<n,n>;
-partial_trace tprod = tprod[k,j,i,j];
+partial_trace tprod = result; {
+    result : T<n, n>;
+    result[k, i] = tprod[k,j,i,j];
+}
