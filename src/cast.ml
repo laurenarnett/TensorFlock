@@ -190,23 +190,6 @@ let rec replace_indices sexpr indices =
         | _ -> failwith "Failure, semant failed (cast.ml line 179)" )
     | _, Forall _ -> failwith "Should not call replace_indices on a forall"
 
-let rec strip_indices cexpr = let t = fst cexpr in match snd cexpr with
-  | CLiteral _ | CBoollit _ | CFliteral _ | CTlit _ | CId _ -> cexpr
-  | CTensorIdx((CDouble, cexpr'), _) -> 
-          (* print_endline "stripped"; *)
-          strip_indices (CDouble, cexpr')
-  | CTensorIdx(e, idxs) -> 
-          (* print_endline @@ "here: " ^ string_of_cexpr e ^ " : " ^ string_of_ctyp (fst e); *)
-          t, CTensorIdx(strip_indices e, idxs) 
-  | CUnop(Neg, e) -> t, CUnop(Neg, strip_indices e)
-  | CAop(e1, op, e2) -> t, CAop(strip_indices e1, op, strip_indices e2)
-  | CRop(e1, op, e2) -> t, CRop(strip_indices e1, op, strip_indices e2)
-  | CBoolop(e1, op, e2) -> t, CBoolop(strip_indices e1, op, strip_indices e2)
-  | CCondExpr(e1, e2, e3) -> t,
-    CCondExpr(strip_indices e1, strip_indices e2, strip_indices e3)
-  | CApp(f, args) -> t, CApp(strip_indices f, List.map strip_indices args)
-
-
 let rec cexprs_of_sexpr sexpr =
   match snd sexpr with
   | Forall r ->
@@ -215,9 +198,7 @@ let rec cexprs_of_sexpr sexpr =
       let pairs =
         List.map (List.combine (List.map fst r.indices)) all_indices
       in
-      List.map (fun pair -> replace_indices r.sexpr pair 
-                |> strip_indices
-        ) pairs
+      List.map (fun pair -> replace_indices r.sexpr pair) pairs
   | _ -> cexprs_of_sexpr (fst sexpr, Forall { indices= []; sexpr })
 
 
@@ -248,8 +229,6 @@ let assigns_of_sfunc sfunc =
           ; cexpr = (CDouble, snd cexpr)}) cexprs |> Array.to_list in
 
     let zeros = List.map (fun _ -> "0") (range size) |> Array.of_list in
-        (* List.iter (fun local -> print_endline (string_of_ctyp (fst *)
-        (* local.cexpr))) assignments; *)
     { name = sfunc.sfname
     ; typ = CTensor(size, shape)
     ; index = None
