@@ -52,7 +52,7 @@ funct:
       else ($1, $2) }
 
 ftyp:
-   ID COLON types SEMI
+    ID COLON types SEMI
      { { ftyp_name = $1; types = $3; } }
 
 indexlhs:
@@ -71,16 +71,26 @@ fdef:
      { { fdef_name = fst $1; fparams = List.rev @@ snd $1;
          main_expr = $3; scope   = List.rev $5; } }
 
-
 types:
-  /* Don't pattern match on empty list because that should fail */
-  | typ ARROW types { Arrow($1, $3) }
   | typ { $1 }
+  | typ ARROW types { Arrow($1, $3) }
+  /* New syntax to allow function types to be declared
+     fn : argtype1 argtype2 ... argtype_n -> return_type 
+     Clean does this, it saves some typing, and the arrows don't mean 
+     much for us anyway since we don't have currying or partial application. */
+  | at_least_two_typs ARROW typ 
+    { List.fold_right (fun elt acc -> Arrow(elt, acc)) (List.rev $1) $3 }
 
 typ:
     NAT     { Nat   }
   | BOOL    { Bool  }
   | TENSOR LANGLE shape RANGLE { Tensor($3) }
+
+at_least_two_typs:
+  /* Read them in reversed because left recursion is faster */
+  | typ typ { [$2; $1] }
+  | at_least_two_typs typ { $2 :: $1 }
+
 
 /* Expression starting point */
 expr: 
