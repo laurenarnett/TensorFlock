@@ -7,4 +7,7 @@ v : T<m>;
 v = [4. 3. 2. 1. 0. -24.];
 
 outer : T<n> -> T<m> -> T<n,m>;
-outer u v = u[i] * v[j];
+outer u v = result; { 
+    result : T<n, m>;
+    result[i,j] = u[i] * v[j];
+}
